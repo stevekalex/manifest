@@ -1,5 +1,13 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  withRepeat, 
+  withSequence,
+  Easing 
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,10 +15,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSimpleTTS } from '../../hooks/useSimpleTTS';
 import { useBackgroundAudio } from '../../hooks/useBackgroundAudio';
 import { BackgroundMusicModal } from './BackgroundMusicModal';
+import { VoiceSettingsModal } from './VoiceSettingsModal';
 
 const SimpleManifestationPlayerComponent: React.FC = () => {
   const router = useRouter();
   const [showMusicModal, setShowMusicModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
   const selectedSoundRef = useRef('ethereal');
   const isChangingSoundRef = useRef(false);
@@ -32,8 +42,88 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
     startPlaying, 
     pausePlaying,
     stopPlaying, 
-    getCurrentAffirmation
+    getCurrentAffirmation,
+    setVoiceSettings,
+    selectedVoice,
+    voiceVolume,
+    affirmationDelay,
+    remainingDelay
   } = useSimpleTTS(duckVolume, restoreVolume);
+
+  // Animation values for swipe up effect
+  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(1);
+  const breatheScale = useSharedValue(1);
+  
+  // Use state for displayed text (cleaner than refs)
+  const [displayedText, setDisplayedText] = useState(getCurrentAffirmation());
+  
+  // Start gentle breathing pulse when playing (keep this - it's great!)
+  useEffect(() => {
+    if (isPlaying) {
+      breatheScale.value = withRepeat(
+        withSequence(
+          withTiming(1.015, { 
+            duration: 2000, 
+            easing: Easing.inOut(Easing.sin) 
+          }),
+          withTiming(1, { 
+            duration: 2000, 
+            easing: Easing.inOut(Easing.sin) 
+          })
+        ),
+        -1,
+        false
+      );
+    } else {
+      breatheScale.value = withTiming(1, { duration: 500 });
+    }
+  }, [isPlaying]);
+
+  // Listen to currentIndex changes (more reliable than text changes)
+  useEffect(() => {
+    const newText = getCurrentAffirmation();
+    
+    // If text is different, animate the transition
+    if (displayedText !== newText) {
+      // Slide current text up and out (higher!)
+      translateY.value = withTiming(-150, {
+        duration: 400,
+        easing: Easing.in(Easing.quad)
+      });
+      opacity.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.in(Easing.quad)
+      });
+      
+      // After exit animation, update text and slide new one in
+      setTimeout(() => {
+        setDisplayedText(newText);
+        translateY.value = 150; // Position lower below screen (no animation)
+        
+        // Slide new text up into view
+        translateY.value = withTiming(0, {
+          duration: 500,
+          easing: Easing.out(Easing.quad)
+        });
+        opacity.value = withTiming(1, {
+          duration: 400,
+          easing: Easing.out(Easing.quad)
+        });
+      }, 400); // Match exit animation duration
+    }
+  }, [getCurrentAffirmation(), displayedText]);
+
+  // Animated styles
+  const animatedTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: opacity.value,
+      transform: [
+        { translateY: translateY.value },
+        { scale: breatheScale.value }
+      ],
+    };
+  });
 
   const handleBack = () => {
     stopPlaying();
@@ -117,9 +207,9 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
         
         {/* Affirmation Display */}
         <View style={styles.centerContent}>
-          <Text style={styles.affirmationText}>
-            {getCurrentAffirmation()}
-          </Text>
+          <Animated.Text style={[styles.affirmationText, animatedTextStyle]}>
+            {displayedText}
+          </Animated.Text>
           
         </View>
         
@@ -140,7 +230,10 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
 
         {/* Bottom Controls */}
         <View style={styles.bottomControls}>
-          <TouchableOpacity style={styles.bottomControlButton}>
+          <TouchableOpacity 
+            style={styles.bottomControlButton}
+            onPress={() => setShowVoiceModal(true)}
+          >
             <View style={styles.avatarCircle}>
               <Ionicons name="person" size={24} color="#ffffff" />
             </View>
@@ -182,6 +275,42 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
         }}
         selectedSound={selectedSoundRef.current}
         onSoundSelect={handleSoundSelect}
+      />
+      
+      <VoiceSettingsModal
+        visible={showVoiceModal}
+        onClose={() => setShowVoiceModal(false)}
+        currentVolume={voiceVolume}
+        onVolumeChange={(newVolume) => {
+          console.log('🎤 Voice volume change to:', newVolume);
+          setVoiceSettings(selectedVoice, newVolume, affirmationDelay);
+        }}
+        selectedVoice={selectedVoice}
+        onVoiceSelect={(voiceId) => {
+          console.log('🎤 Voice selection change to:', voiceId);
+          const wasPlaying = isPlaying;
+          
+          // Stop current speech to apply new voice immediately
+          if (wasPlaying) {
+            pausePlaying();
+          }
+          
+          // Update voice settings
+          setVoiceSettings(voiceId, voiceVolume, affirmationDelay);
+          
+          // Restart with new voice if it was playing
+          if (wasPlaying) {
+            // Small delay to ensure voice settings are applied
+            setTimeout(() => {
+              startPlaying();
+            }, 100);
+          }
+        }}
+        affirmationDelay={affirmationDelay}
+        onDelayChange={(delay) => {
+          console.log('⏱️ Affirmation delay change to:', delay);
+          setVoiceSettings(selectedVoice, voiceVolume, delay);
+        }}
       />
     </View>
   );
@@ -225,11 +354,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 40,
+    gap: 15,
     marginBottom: 30,
+    marginTop: -40,
   },
   controlButton: {
-    padding: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   centerContent: {
     flex: 1,
@@ -257,42 +392,43 @@ const styles = StyleSheet.create({
   },
   bottomControls: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
     paddingBottom: 40,
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
+    gap: 20,
   },
   bottomControlButton: {
     alignItems: 'center',
   },
   avatarCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 100,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   musicAvatarCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 100,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#8B4513',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   centerPlayButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -32, // Move up to align center with avatar circles
+    marginTop: -20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -302,6 +438,13 @@ const styles = StyleSheet.create({
   controlLabel: {
     fontSize: 14,
     color: '#ffffff',
+    fontWeight: '500',
+  },
+  countdownText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'center',
+    marginTop: 16,
     fontWeight: '500',
   },
   playButton: {

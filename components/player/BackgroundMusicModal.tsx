@@ -188,13 +188,14 @@ export const BackgroundMusicModal: React.FC<BackgroundMusicModalProps> = ({
               <View style={styles.headerSpacer} />
             </View>
 
-            {/* Sound Selection Grid */}
-            <View style={styles.soundGrid}>
-              {SOUND_OPTIONS.map(renderSoundCard)}
-            </View>
+            <View style={styles.sectionsContainer}>
+              {/* Sound Selection Grid */}
+              <View style={styles.soundGrid}>
+                {SOUND_OPTIONS.map(renderSoundCard)}
+              </View>
 
-            {/* Volume Control */}
-            <View style={styles.volumeSection}>
+              {/* Volume Control */}
+              <View style={styles.volumeSection}>
               <View style={styles.volumeHeader}>
                 <Text style={styles.volumeLabel}>Music volume</Text>
                 <Text style={styles.volumePercentage}>{Math.round(sliderValue * 100)}%</Text>
@@ -223,6 +224,7 @@ export const BackgroundMusicModal: React.FC<BackgroundMusicModalProps> = ({
                 </TouchableOpacity>
               </View>
             </View>
+            </View>
           </SafeAreaView>
           </Pressable>
         </Pressable>
@@ -238,7 +240,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    height: '80%',
+    height: '68%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
@@ -250,12 +252,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
+  sectionsContainer: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 20,
-    paddingBottom: 30,
+    paddingBottom: 15,
   },
   closeButton: {
     padding: 8,
@@ -278,7 +283,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   soundCard: {
     width: (width - 60) / 2,
@@ -314,9 +319,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   volumeSection: {
-    marginTop: 'auto',
-    paddingBottom: 50,
-    marginBottom: 10,
+    paddingBottom: 0,
   },
   volumeHeader: {
     flexDirection: 'row',
