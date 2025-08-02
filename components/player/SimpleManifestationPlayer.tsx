@@ -35,6 +35,12 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
     getCurrentAffirmation
   } = useSimpleTTS(duckVolume, restoreVolume);
 
+  const handleBack = () => {
+    stopPlaying();
+    stopBackground();
+    router.back();
+  };
+
   // Handle sound selection via changeSound function instead of state
   const handleSoundSelect = useCallback(async (newSound: string) => {
     console.log('🎵 Changing sound to:', newSound);
@@ -69,11 +75,6 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
     }
   }, [backgroundIsLoaded, isPlaying, hasStartedPlaying, startBackground]);
 
-  const handleBack = () => {
-    stopPlaying();
-    stopBackground();
-    router.back();
-  };
 
   const handlePlayPause = () => {
     if (isPlaying) {
@@ -122,33 +123,18 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
           
         </View>
         
-        {/* Main Controls */}
-        <View style={styles.mainControls}>
+        {/* Secondary Controls */}
+        <View style={styles.secondaryControls}>
           <TouchableOpacity style={styles.controlButton}>
             <Ionicons name="shuffle" size={24} color="#ffffff" />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.controlButton}>
-            <Ionicons name="add-circle-outline" size={24} color="#ffffff" />
+            <Ionicons name="add" size={24} color="#ffffff" />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.controlButton}>
             <Ionicons name="ellipsis-horizontal" size={24} color="#ffffff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Play/Pause Button */}
-        <View style={styles.playControlContainer}>
-          <TouchableOpacity 
-            onPress={handlePlayPause} 
-            style={styles.playButton}
-          >
-            <Ionicons 
-              name={isPlaying ? "pause" : "play"} 
-              size={40} 
-              color="#ffffff" 
-              style={!isPlaying ? { marginLeft: 4 } : {}}
-            />
           </TouchableOpacity>
         </View>
 
@@ -161,11 +147,24 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
             <Text style={styles.controlLabel}>Voice</Text>
           </TouchableOpacity>
           
+          {/* Play/Pause Button */}
+          <TouchableOpacity 
+            onPress={handlePlayPause} 
+            style={styles.centerPlayButton}
+          >
+            <Ionicons 
+              name={isPlaying ? "pause" : "play"} 
+              size={32} 
+              color="#ffffff" 
+              style={!isPlaying ? { marginLeft: 3 } : {}}
+            />
+          </TouchableOpacity>
+          
           <TouchableOpacity 
             style={styles.bottomControlButton}
             onPress={() => setShowMusicModal(true)}
           >
-            <View style={styles.avatarCircle}>
+            <View style={styles.musicAvatarCircle}>
               <Ionicons name="musical-notes" size={24} color="#ffffff" />
             </View>
             <Text style={styles.controlLabel}>Music</Text>
@@ -222,6 +221,16 @@ const styles = StyleSheet.create({
     padding: 8,
     marginRight: -8
   },
+  secondaryControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 40,
+    marginBottom: 30,
+  },
+  controlButton: {
+    padding: 12,
+  },
   centerContent: {
     flex: 1,
     justifyContent: 'center',
@@ -246,26 +255,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 2
   },
-  mainControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 40,
-    marginBottom: 30,
-  },
-  controlButton: {
-    padding: 12,
-  },
-  playControlContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
   bottomControls: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingBottom: 40,
-    paddingHorizontal: 60,
+    paddingHorizontal: 40,
   },
   bottomControlButton: {
     alignItems: 'center',
@@ -278,6 +273,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  musicAvatarCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#8B4513',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  centerPlayButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -32, // Move up to align center with avatar circles
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8
   },
   controlLabel: {
     fontSize: 14,
