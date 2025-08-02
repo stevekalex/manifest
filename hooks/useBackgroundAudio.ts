@@ -1,38 +1,58 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 
-export const useBackgroundAudio = () => {
+type SoundId = 'ethereal' | 'atmospheric' | 'amazonian' | 'blue-beings';
+
+const SOUND_FILES: Record<SoundId, any> = {
+  'ethereal': require('../ethereal-ambient-music-55115.mp3'),
+  'atmospheric': require('../lst-atmospheric-ambient-310691.mp3'),
+  'amazonian': require('../ethereal-ambient-music-55115.mp3'), // Placeholder - same file for now
+  'blue-beings': require('../ethereal-ambient-music-55115.mp3'), // Placeholder - same file for now
+};
+
+export const useBackgroundAudio = (selectedSoundId: SoundId = 'ethereal') => {
+  console.log('🔧 useBackgroundAudio hook called with selectedSoundId:', selectedSoundId);
+  
   const soundRef = useRef<Audio.Sound | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [volume, setVolumeState] = useState(0.3);
+  const volumeRef = useRef<number>(0.3); // Use ref to prevent re-renders
+  const [currentSoundId, setCurrentSoundId] = useState<SoundId>(selectedSoundId);
   const originalVolumeRef = useRef<number>(0.3);
   const isDuckedRef = useRef<boolean>(false);
 
-  const loadBackgroundMusic = useCallback(async () => {
+  const loadBackgroundMusic = useCallback(async (soundId: SoundId) => {
     try {
-      console.log('Loading background music...');
+      // Unload previous sound if it exists
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        setIsLoaded(false);
+      }
+
+      console.log(`Loading background music: ${soundId}...`);
+      const soundFile = SOUND_FILES[soundId];
       const { sound } = await Audio.Sound.createAsync(
-        require('../ethereal-ambient-music-55115.mp3'),
+        soundFile,
         { 
           shouldPlay: false,
           isLooping: true,
-          volume: volume
+          volume: volumeRef.current
         },
         onPlaybackStatusUpdate
       );
       
       soundRef.current = sound;
+      setCurrentSoundId(soundId);
       setIsLoaded(true);
       setError(null);
-      console.log('Background music loaded successfully');
+      console.log(`Background music loaded successfully: ${soundId}`);
     } catch (err) {
       console.error('Error loading background music:', err);
       setError('Failed to load background music');
       setIsLoaded(false);
     }
-  }, [volume]);
+  }, []); // Remove volume dependency since we use volumeRef now
 
   const setupAudio = useCallback(async () => {
     try {
@@ -46,12 +66,12 @@ export const useBackgroundAudio = () => {
       });
       console.log('Audio mode set successfully');
       
-      await loadBackgroundMusic();
+      await loadBackgroundMusic(currentSoundId);
     } catch (err) {
       console.error('Audio setup error:', err);
       setError('Failed to setup audio');
     }
-  }, [loadBackgroundMusic]);
+  }, [loadBackgroundMusic, currentSoundId]);
 
   const cleanup = useCallback(async () => {
     if (soundRef.current) {
@@ -83,11 +103,18 @@ export const useBackgroundAudio = () => {
 
   const start = useCallback(async () => {
     console.log('Attempting to start background music, isLoaded:', isLoaded, 'isPlaying:', isPlaying);
-    if (soundRef.current && isLoaded && !isPlaying) {
+    if (soundRef.current && !isPlaying) {
       try {
-        console.log('Starting background music...');
-        await soundRef.current.playAsync();
-        console.log('Background music started');
+        // Always check actual sound status, not just state
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          console.log('Starting background music...');
+          await soundRef.current.playAsync();
+          console.log('Background music started');
+        } else {
+          console.log('❌ Sound not loaded, cannot start');
+          setError('Sound not loaded');
+        }
       } catch (err) {
         console.error('Play error:', err);
         setError('Failed to play music');
@@ -95,7 +122,7 @@ export const useBackgroundAudio = () => {
     } else {
       console.log('Cannot start: soundRef.current:', !!soundRef.current, 'isLoaded:', isLoaded, 'isPlaying:', isPlaying);
     }
-  }, [isLoaded, isPlaying]);
+  }, [isPlaying]); // Remove isLoaded dependency since we check directly
 
   const pause = useCallback(async () => {
     console.log('Attempting to pause background music');
@@ -122,31 +149,38 @@ export const useBackgroundAudio = () => {
   }, [isLoaded]);
 
   const setVolume = useCallback(async (newVolume: number) => {
+    console.log('🔊 setVolume called with:', newVolume);
+    volumeRef.current = newVolume; // Update ref immediately
+    
     if (soundRef.current && isLoaded) {
       try {
         await soundRef.current.setVolumeAsync(newVolume);
-        setVolumeState(newVolume);
         if (!isDuckedRef.current) {
           originalVolumeRef.current = newVolume;
         }
+        console.log('✅ Volume set successfully to:', newVolume);
       } catch (err) {
         console.error('Set volume error:', err);
       }
+    } else {
+      // Store volume even if sound not loaded yet
+      originalVolumeRef.current = newVolume;
+      console.log('📦 Volume stored for when sound loads:', newVolume);
     }
   }, [isLoaded]);
 
   const duckVolume = useCallback(async () => {
     if (!isDuckedRef.current && soundRef.current && isLoaded) {
       try {
-        originalVolumeRef.current = volume;
-        const duckedVolume = volume * 0.2;
+        originalVolumeRef.current = volumeRef.current;
+        const duckedVolume = volumeRef.current * 0.2;
         await soundRef.current.setVolumeAsync(duckedVolume);
         isDuckedRef.current = true;
       } catch (err) {
         console.error('Duck volume error:', err);
       }
     }
-  }, [volume, isLoaded]);
+  }, [isLoaded]);
 
   const restoreVolume = useCallback(async () => {
     if (isDuckedRef.current && soundRef.current && isLoaded) {
@@ -166,6 +200,84 @@ export const useBackgroundAudio = () => {
     }
   }, [isLoaded]);
 
+  const changeSoundRef = useRef<(newSoundId: SoundId) => Promise<void>>(async () => {});
+  
+  changeSoundRef.current = async (newSoundId: SoundId) => {
+    // Early return if trying to switch to the same sound
+    if (newSoundId === currentSoundId) {
+      console.log('🚫 Ignoring switch to same sound:', newSoundId);
+      return;
+    }
+    
+    console.log('🔄 changeSound called:', { newSoundId, currentSoundId, isPlaying });
+    const wasPlaying = isPlaying;
+    const currentVolume = volumeRef.current;
+    
+    if (isPlaying) {
+      console.log('⏸️ Pausing current sound for switch');
+      await pause();
+    }
+    
+    console.log('📂 Loading new sound:', newSoundId);
+    await loadBackgroundMusic(newSoundId);
+    
+    // Wait for the NEW sound to be loaded by checking soundRef status directly
+    let attempts = 0;
+    while (attempts < 20) { // Increased attempts for safety
+      if (soundRef.current) {
+        try {
+          const status = await soundRef.current.getStatusAsync();
+          if (status.isLoaded) {
+            console.log('✅ New sound confirmed loaded');
+            break;
+          }
+        } catch (err) {
+          console.log('⚠️ Error checking sound status:', err);
+        }
+      }
+      console.log('⏳ Waiting for new sound to load... attempt', attempts + 1);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    if (attempts >= 20) {
+      console.error('❌ Sound failed to load after 20 attempts');
+      return;
+    }
+    
+    // Restore volume after loading new sound
+    if (soundRef.current && currentVolume !== 0.3) {
+      console.log('🔊 Restoring volume to:', currentVolume);
+      await soundRef.current.setVolumeAsync(currentVolume);
+    }
+    
+    if (wasPlaying && soundRef.current) {
+      console.log('▶️ Resuming playback with new sound');
+      try {
+        // Double-check sound status before playing
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          await soundRef.current.playAsync();
+          console.log('✅ New sound started successfully');
+        } else {
+          console.log('⚠️ Sound not ready for playback, skipping auto-start');
+        }
+      } catch (err) {
+        console.error('❌ Failed to start new sound:', err);
+        // Don't throw, let the component handle restart
+      }
+    }
+  };
+
+  const changeSound = useCallback(async (newSoundId: SoundId) => {
+    return changeSoundRef.current?.(newSoundId);
+  }, []);
+
+  // Note: Removed automatic sound change useEffect since we're managing changes manually via changeSound function
+
+  // Getter function for current volume
+  const getVolume = useCallback(() => volumeRef.current, []);
+
   return {
     start,
     pause,
@@ -173,9 +285,12 @@ export const useBackgroundAudio = () => {
     setVolume,
     duckVolume,
     restoreVolume,
+    changeSound,
     isLoaded,
     isPlaying,
-    volume,
+    getVolume,
+    get volume() { return volumeRef.current; }, // Compatibility getter
+    currentSoundId,
     error
   };
 };

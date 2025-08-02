@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,9 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSimpleTTS } from '../../hooks/useSimpleTTS';
 import { useBackgroundAudio } from '../../hooks/useBackgroundAudio';
+import { BackgroundMusicModal } from './BackgroundMusicModal';
 
-export const SimpleManifestationPlayer: React.FC = () => {
+const SimpleManifestationPlayerComponent: React.FC = () => {
   const router = useRouter();
+  const [showMusicModal, setShowMusicModal] = useState(false);
+  const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
+  const selectedSoundRef = useRef('ethereal');
+  const isChangingSoundRef = useRef(false);
   
   const {
     start: startBackground,
@@ -19,30 +24,50 @@ export const SimpleManifestationPlayer: React.FC = () => {
     restoreVolume,
     isLoaded: backgroundIsLoaded,
     volume,
-    error: backgroundError
-  } = useBackgroundAudio();
+    changeSound
+  } = useBackgroundAudio('ethereal'); // Fixed initial value to prevent hook recreation
   
   const { 
     isPlaying,
-    currentIndex, 
     startPlaying, 
     pausePlaying,
     stopPlaying, 
-    getCurrentAffirmation,
-    totalAffirmations 
+    getCurrentAffirmation
   } = useSimpleTTS(duckVolume, restoreVolume);
 
-  // Auto-start TTS immediately when component mounts
-  useEffect(() => {
-    startPlaying();
-  }, [startPlaying]);
+  // Handle sound selection via changeSound function instead of state
+  const handleSoundSelect = useCallback(async (newSound: string) => {
+    console.log('🎵 Changing sound to:', newSound);
+    selectedSoundRef.current = newSound;
+    isChangingSoundRef.current = true;
+    
+    try {
+      await changeSound(newSound as any);
+      console.log('🎵 Sound change completed');
+      isChangingSoundRef.current = false;
+      // Remove the duplicate restart logic - let the hook handle it
+    } catch (error) {
+      console.error('🎵 Sound change failed:', error);
+      isChangingSoundRef.current = false;
+    }
+  }, [changeSound]);
 
-  // Start background music as soon as it's loaded
+  // Auto-start TTS only once when component mounts
   useEffect(() => {
-    if (backgroundIsLoaded && isPlaying) {
+    if (!hasStartedPlaying) {
+      console.log('Starting TTS for the first time');
+      startPlaying();
+      setHasStartedPlaying(true);
+    }
+  }, [hasStartedPlaying, startPlaying]);
+
+  // Start background music as soon as it's loaded, but only if TTS is playing and not changing sounds
+  useEffect(() => {
+    if (backgroundIsLoaded && isPlaying && hasStartedPlaying && !isChangingSoundRef.current) {
+      console.log('Starting background music');
       startBackground();
     }
-  }, [backgroundIsLoaded, isPlaying, startBackground]);
+  }, [backgroundIsLoaded, isPlaying, hasStartedPlaying, startBackground]);
 
   const handleBack = () => {
     stopPlaying();
@@ -97,8 +122,23 @@ export const SimpleManifestationPlayer: React.FC = () => {
           
         </View>
         
-        {/* Controls */}
-        <View style={styles.controls}>
+        {/* Main Controls */}
+        <View style={styles.mainControls}>
+          <TouchableOpacity style={styles.controlButton}>
+            <Ionicons name="shuffle" size={24} color="#ffffff" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.controlButton}>
+            <Ionicons name="add-circle-outline" size={24} color="#ffffff" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.controlButton}>
+            <Ionicons name="ellipsis-horizontal" size={24} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Play/Pause Button */}
+        <View style={styles.playControlContainer}>
           <TouchableOpacity 
             onPress={handlePlayPause} 
             style={styles.playButton}
@@ -111,10 +151,46 @@ export const SimpleManifestationPlayer: React.FC = () => {
             />
           </TouchableOpacity>
         </View>
+
+        {/* Bottom Controls */}
+        <View style={styles.bottomControls}>
+          <TouchableOpacity style={styles.bottomControlButton}>
+            <View style={styles.avatarCircle}>
+              <Ionicons name="person" size={24} color="#ffffff" />
+            </View>
+            <Text style={styles.controlLabel}>Voice</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.bottomControlButton}
+            onPress={() => setShowMusicModal(true)}
+          >
+            <View style={styles.avatarCircle}>
+              <Ionicons name="musical-notes" size={24} color="#ffffff" />
+            </View>
+            <Text style={styles.controlLabel}>Music</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
+      
+      <BackgroundMusicModal
+        visible={showMusicModal}
+        onClose={() => setShowMusicModal(false)}
+        currentVolume={volume}
+        onVolumeChange={(newVolume) => {
+          console.log('📢 Modal requesting volume change to:', newVolume);
+          setVolume(newVolume);
+        }}
+        selectedSound={selectedSoundRef.current}
+        onSoundSelect={handleSoundSelect}
+      />
     </View>
   );
 };
+
+SimpleManifestationPlayerComponent.displayName = 'SimpleManifestationPlayer';
+
+export const SimpleManifestationPlayer = React.memo(SimpleManifestationPlayerComponent);
 
 const styles = StyleSheet.create({
   container: {
@@ -170,9 +246,43 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 2
   },
-  controls: {
+  mainControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 40
+    gap: 40,
+    marginBottom: 30,
+  },
+  controlButton: {
+    padding: 12,
+  },
+  playControlContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  bottomControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingBottom: 40,
+    paddingHorizontal: 60,
+  },
+  bottomControlButton: {
+    alignItems: 'center',
+  },
+  avatarCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  controlLabel: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '500',
   },
   playButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
