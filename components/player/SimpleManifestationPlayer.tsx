@@ -1,33 +1,65 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSimpleTTS } from '../../hooks/useSimpleTTS';
+import { useBackgroundAudio } from '../../hooks/useBackgroundAudio';
 
 export const SimpleManifestationPlayer: React.FC = () => {
   const router = useRouter();
+  
+  const {
+    start: startBackground,
+    pause: pauseBackground,
+    stop: stopBackground,
+    setVolume,
+    duckVolume,
+    restoreVolume,
+    isLoaded: backgroundIsLoaded,
+    volume,
+    error: backgroundError
+  } = useBackgroundAudio();
+  
   const { 
-    isPlaying, 
-    isPaused,
+    isPlaying,
     currentIndex, 
     startPlaying, 
     pausePlaying,
     stopPlaying, 
     getCurrentAffirmation,
     totalAffirmations 
-  } = useSimpleTTS();
+  } = useSimpleTTS(duckVolume, restoreVolume);
+
+  // Auto-start TTS immediately when component mounts
+  useEffect(() => {
+    startPlaying();
+  }, [startPlaying]);
+
+  // Start background music as soon as it's loaded
+  useEffect(() => {
+    if (backgroundIsLoaded && isPlaying) {
+      startBackground();
+    }
+  }, [backgroundIsLoaded, isPlaying, startBackground]);
 
   const handleBack = () => {
     stopPlaying();
+    stopBackground();
     router.back();
   };
 
   const handlePlayPause = () => {
     if (isPlaying) {
+      // Pause both TTS and background music
       pausePlaying();
+      pauseBackground();
     } else {
+      // Start both TTS and background music together
+      if (backgroundIsLoaded) {
+        startBackground();
+      }
       startPlaying();
     }
   };

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import * as Speech from 'expo-speech';
 
-export const useSimpleTTS = () => {
+export const useSimpleTTS = (onSpeechStart?: () => void, onSpeechEnd?: () => void) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   
@@ -23,17 +23,27 @@ export const useSimpleTTS = () => {
 
   const playAffirmation = useCallback(async (text: string): Promise<void> => {
     return new Promise((resolve) => {
+      onSpeechStart?.();
       Speech.speak(text, {
         language: 'en-US',
         pitch: 1.0,
         rate: 0.5,
         volume: 1.0,
-        onDone: () => resolve(),
-        onStopped: () => resolve(),
-        onError: () => resolve()
+        onDone: () => {
+          onSpeechEnd?.();
+          resolve();
+        },
+        onStopped: () => {
+          onSpeechEnd?.();
+          resolve();
+        },
+        onError: () => {
+          onSpeechEnd?.();
+          resolve();
+        }
       });
     });
-  }, []);
+  }, [onSpeechStart, onSpeechEnd]);
 
   const playNext = useCallback(async (index: number) => {
     if (!isPlayingRef.current || index >= affirmations.length) {
@@ -74,6 +84,7 @@ export const useSimpleTTS = () => {
     }
     
     Speech.stop();
+    // Don't increment currentIndex when pausing - keep it at current affirmation
   }, []);
 
   const stopPlaying = useCallback(() => {
@@ -92,11 +103,8 @@ export const useSimpleTTS = () => {
     return affirmations[currentIndex] || affirmations[0];
   }, [currentIndex, affirmations]);
 
-  // Auto-start when component mounts
+  // Cleanup when component unmounts
   useEffect(() => {
-    startPlaying();
-    
-    // Cleanup when component unmounts
     return () => {
       isPlayingRef.current = false;
       if (timeoutRef.current) {
@@ -104,7 +112,7 @@ export const useSimpleTTS = () => {
       }
       Speech.stop();
     };
-  }, [startPlaying]);
+  }, []);
 
   return {
     isPlaying,
