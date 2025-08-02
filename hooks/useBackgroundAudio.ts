@@ -253,18 +253,30 @@ export const useBackgroundAudio = (selectedSoundId: SoundId = 'ethereal') => {
     
     if (wasPlaying && soundRef.current) {
       console.log('▶️ Resuming playback with new sound');
-      try {
-        // Double-check sound status before playing
-        const status = await soundRef.current.getStatusAsync();
-        if (status.isLoaded) {
-          await soundRef.current.playAsync();
-          console.log('✅ New sound started successfully');
-        } else {
-          console.log('⚠️ Sound not ready for playback, skipping auto-start');
+      
+      // Simple retry logic - 3 attempts with 200ms delay
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const status = await soundRef.current.getStatusAsync();
+          if (status.isLoaded) {
+            await soundRef.current.playAsync();
+            console.log('✅ New sound started successfully');
+            break;
+          } else {
+            throw new Error('Sound status not loaded');
+          }
+        } catch (err) {
+          const isNotLoadedError = err instanceof Error && 
+            (err.message.includes('sound is not loaded') || err.message.includes('Sound status not loaded'));
+          
+          if (isNotLoadedError && attempt < 3) {
+            console.log(`⏳ Retry ${attempt}/3 for sound restart in 200ms`);
+            await new Promise(resolve => setTimeout(resolve, 200));
+          } else {
+            console.error('❌ Failed to start new sound after retries:', err);
+            break;
+          }
         }
-      } catch (err) {
-        console.error('❌ Failed to start new sound:', err);
-        // Don't throw, let the component handle restart
       }
     }
   };
