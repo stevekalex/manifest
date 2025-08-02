@@ -1,28 +1,17 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useUserStore, useAppStore } from '@/store';
 
 export default function HomeScreen() {
-  const { user, setUser } = useUserStore();
-  const { isFirstLaunch, setFirstLaunch, lastOpenedTab, settings } = useAppStore();
+  const router = useRouter();
 
-  const handleCreateUser = () => {
-    const newUser = {
-      id: Date.now().toString(),
-      name: 'Demo User',
-      email: 'demo@example.com',
-      preferences: {
-        theme: 'auto' as const,
-        notifications: true,
-      },
-    };
-    setUser(newUser);
-    setFirstLaunch(false);
+  const handleOpenManifestationPlayer = () => {
+    router.push('/player');
   };
 
   return (
@@ -35,40 +24,18 @@ export default function HomeScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome{user ? `, ${user.name}` : ''}!</ThemedText>
+        <ThemedText type="title">Welcome to Manifestation!</ThemedText>
         <HelloWave />
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">App State Demo</ThemedText>
+        <ThemedText type="subtitle">Manifestation Player</ThemedText>
         <ThemedText>
-          First launch: {isFirstLaunch ? 'Yes' : 'No'}
+          Access the manifestation player to listen to affirmations and positive messages.
         </ThemedText>
-        <ThemedText>
-          Last opened tab: {lastOpenedTab}
-        </ThemedText>
-        <ThemedText>
-          Haptic feedback: {settings.hapticFeedback ? 'Enabled' : 'Disabled'}
-        </ThemedText>
-        {!user && (
-          <ThemedText onPress={handleCreateUser} style={styles.button}>
-            Create Demo User
-          </ThemedText>
-        )}
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">User Info</ThemedText>
-        {user ? (
-          <>
-            <ThemedText>ID: {user.id}</ThemedText>
-            <ThemedText>Email: {user.email}</ThemedText>
-            <ThemedText>Theme: {user.preferences.theme}</ThemedText>
-            <ThemedText>Notifications: {user.preferences.notifications ? 'On' : 'Off'}</ThemedText>
-          </>
-        ) : (
-          <ThemedText>No user logged in</ThemedText>
-        )}
+        <Pressable onPress={handleOpenManifestationPlayer} style={styles.playerButton}>
+          <ThemedText style={styles.playerButtonText}>Open Manifestation Player</ThemedText>
+        </Pressable>
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
@@ -106,9 +73,16 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
   },
-  button: {
-    color: '#007AFF',
+  playerButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
     marginTop: 8,
-    textDecorationLine: 'underline',
+    alignItems: 'center',
+  },
+  playerButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
