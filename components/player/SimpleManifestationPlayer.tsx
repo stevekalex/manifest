@@ -95,9 +95,6 @@ export const SimpleManifestationPlayer: React.FC = () => {
             {getCurrentAffirmation()}
           </Text>
           
-          <Text style={styles.progressText}>
-            {currentIndex + 1} of {totalAffirmations}
-          </Text>
         </View>
         
         {/* Controls */}

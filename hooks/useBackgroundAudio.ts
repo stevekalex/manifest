@@ -151,10 +151,17 @@ export const useBackgroundAudio = () => {
   const restoreVolume = useCallback(async () => {
     if (isDuckedRef.current && soundRef.current && isLoaded) {
       try {
-        await soundRef.current.setVolumeAsync(originalVolumeRef.current);
-        isDuckedRef.current = false;
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          await soundRef.current.setVolumeAsync(originalVolumeRef.current);
+          isDuckedRef.current = false;
+        }
       } catch (err) {
-        console.error('Restore volume error:', err);
+        if (err instanceof Error && err.message?.includes('sound is not loaded')) {
+          isDuckedRef.current = false;
+        } else {
+          console.error('Restore volume error:', err);
+        }
       }
     }
   }, [isLoaded]);
