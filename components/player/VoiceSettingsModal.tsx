@@ -211,32 +211,32 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
       if (gender === 'female') {
         switch (voiceId) {
           case 'serenity':
-            return ['#E0BBE4', '#957DAD', '#D291BC']; // Soft purple/pink for calming serenity
+            return ['#E8DFF5', '#C8D5E3', '#6C5CE7']; // Pale Lilac to Misty Blue to Rich Purple
           case 'whisper':
-            return ['#FFF0F5', '#E6E6FA', '#DDA0DD']; // Very light lavender for gentle whisper
+            return ['#F2F2F2', '#E8DFF5', '#B19CD9']; // Pearl White to Pale Lilac to Light Purple
           case 'aurora':
-            return ['#00CED1', '#48D1CC', '#AFEEEE']; // Turquoise like northern lights
+            return ['#B19CD9', '#C8D5E3', '#E8DFF5']; // Light Purple to Misty Blue to Pale Lilac
           case 'crystal':
-            return ['#B0E0E6', '#87CEEB', '#E0FFFF']; // Clear crystal blue
+            return ['#C8D5E3', '#6C5CE7', '#E8DFF5']; // Misty Blue to Rich Purple to Pale Lilac
           case 'harmony':
-            return ['#FFB347', '#FFA07A', '#FFDAB9']; // Warm peachy harmony
+            return ['#E8DFF5', '#6C5CE7', '#B19CD9']; // Pale Lilac to Rich Purple to Light Purple
           default:
-            return ['#E0BBE4', '#957DAD', '#D291BC'];
+            return ['#E8DFF5', '#C8D5E3', '#6C5CE7'];
         }
       } else {
         switch (voiceId) {
           case 'titan':
-            return ['#2F4F4F', '#708090', '#A9A9A9']; // Strong dark gray for powerful titan
+            return ['#1A252F', '#6C5CE7', '#C8D5E3']; // Deep Navy to Rich Purple to Misty Blue
           case 'sage':
-            return ['#8FBC8F', '#9ACD32', '#ADFF2F']; // Wise green sage colors
+            return ['#6C5CE7', '#C8D5E3', '#E8DFF5']; // Rich Purple to Misty Blue to Pale Lilac
           case 'thunder':
-            return ['#191970', '#483D8B', '#6A5ACD']; // Deep storm blues
+            return ['#1A252F', '#6C5CE7', '#B19CD9']; // Deep Navy to Rich Purple to Light Purple
           case 'mystic':
-            return ['#800080', '#9932CC', '#BA55D3']; // Deep mystical purples
+            return ['#6C5CE7', '#1A252F', '#C8D5E3']; // Rich Purple to Deep Navy to Misty Blue
           case 'echo':
-            return ['#2F2F2F', '#696969', '#A9A9A9']; // Echoing grays
+            return ['#B19CD9', '#C8D5E3', '#F2F2F2']; // Light Purple to Misty Blue to Pearl White
           default:
-            return ['#2F4F4F', '#708090', '#A9A9A9'];
+            return ['#1A252F', '#6C5CE7', '#C8D5E3'];
         }
       }
     };
@@ -289,7 +289,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
         <Pressable style={styles.overlay} onPress={onClose}>
           <Pressable style={styles.modalContainer} onPress={(e) => e.stopPropagation()}>
             <LinearGradient
-              colors={['#1a1a2e', '#16213e', '#0f3460', '#1a1a2e']}
+              colors={['#F2F2F2', '#C8D5E3', '#E8DFF5', '#C8D5E3']}
               style={styles.modalBackground}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -418,13 +418,13 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 16,
-    color: '#ffffff',
+    color: '#1A252F',
     fontWeight: '500',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#2C3E50',
     textAlign: 'center',
   },
   headerSpacer: {
@@ -448,10 +448,10 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   selectedAvatarContainer: {
-    shadowColor: '#ffffff',
+    shadowColor: '#6C5CE7',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowRadius: 20,
     elevation: 6,
   },
   voiceAvatar: {
@@ -494,13 +494,13 @@ const styles = StyleSheet.create({
   lockText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#2C3E50',
     letterSpacing: 0.5,
   },
   voiceName: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#ffffff',
+    color: '#2C3E50',
     textAlign: 'center',
   },
   delaySection: {
@@ -513,12 +513,12 @@ const styles = StyleSheet.create({
   },
   delayLabel: {
     fontSize: 16,
-    color: '#ffffff',
+    color: '#2C3E50',
     fontWeight: '500',
   },
   delayValue: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#2C3E50',
     fontWeight: '500',
   },
   delayControls: {
@@ -553,12 +553,12 @@ const styles = StyleSheet.create({
   },
   volumeLabel: {
     fontSize: 16,
-    color: '#ffffff',
+    color: '#2C3E50',
     fontWeight: '500',
   },
   volumePercentage: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#2C3E50',
     fontWeight: '500',
   },
   sliderContainer: {

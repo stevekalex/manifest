@@ -122,15 +122,15 @@ export const BackgroundMusicModal: React.FC<BackgroundMusicModalProps> = ({
     const getCardGradient = (soundId: string): [string, string, string] => {
       switch (soundId) {
         case 'ethereal':
-          return ['#8B4513', '#D2691E', '#CD853F'];
+          return ['#FFB3BA', '#FFCCCB', '#FFE4E1']; // Soft peach/coral
         case 'atmospheric':
-          return ['#4169E1', '#87CEEB', '#E6E6FA'];
+          return ['#E6E6FA', '#DDA0DD', '#F0E68C']; // Soft lavender to light yellow
         case 'amazonian':
-          return ['#228B22', '#32CD32', '#90EE90'];
+          return ['#C8E6C9', '#A5D6A7', '#E8F5E8']; // Soft sage green
         case 'blue-beings':
-          return ['#1E90FF', '#4169E1', '#0000CD'];
+          return ['#CCCCFF', '#E6E6FA', '#F0F8FF']; // Soft periwinkle
         default:
-          return ['#666', '#888', '#AAA'];
+          return ['#E8DFF5', '#C8D5E3', '#F2F2F2'];
       }
     };
 
@@ -170,7 +170,7 @@ export const BackgroundMusicModal: React.FC<BackgroundMusicModalProps> = ({
         <Pressable style={styles.overlay} onPress={onClose}>
           <Pressable style={styles.modalContainer} onPress={(e) => e.stopPropagation()}>
             <LinearGradient
-              colors={['#1a1a2e', '#16213e', '#0f3460', '#1a1a2e']}
+              colors={['#F2F2F2', '#C8D5E3', '#E8DFF5', '#C8D5E3']}
               style={styles.modalBackground}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -267,13 +267,13 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 16,
-    color: '#ffffff',
+    color: '#2C3E50',
     fontWeight: '500',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#2C3E50',
     textAlign: 'center',
   },
   headerSpacer: {
@@ -294,7 +294,12 @@ const styles = StyleSheet.create({
   },
   selectedCard: {
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#6C5CE7',
+    shadowColor: '#6C5CE7',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
   soundImage: {
     width: '100%',
@@ -315,7 +320,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 14,
     fontWeight: '500',
-    color: '#ffffff',
+    color: '#2C3E50',
     textAlign: 'center',
   },
   volumeSection: {
@@ -329,12 +334,12 @@ const styles = StyleSheet.create({
   },
   volumeLabel: {
     fontSize: 16,
-    color: '#ffffff',
+    color: '#2C3E50',
     fontWeight: '500',
   },
   volumePercentage: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#2C3E50',
     fontWeight: '500',
   },
   sliderContainer: {

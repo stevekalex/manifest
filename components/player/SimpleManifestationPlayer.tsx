@@ -16,6 +16,7 @@ import { useSimpleTTS } from '../../hooks/useSimpleTTS';
 import { useBackgroundAudio } from '../../hooks/useBackgroundAudio';
 import { BackgroundMusicModal } from './BackgroundMusicModal';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
+import { StarField } from './StarField';
 
 const SimpleManifestationPlayerComponent: React.FC = () => {
   const router = useRouter();
@@ -182,26 +183,29 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       
       <LinearGradient
-        colors={['#1a1a2e', '#16213e', '#0f3460', '#1a1a2e']}
+        colors={['#F2F2F2', '#C8D5E3', '#E8DFF5', '#C8D5E3']}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
       
+      {/* Starry Background Animation */}
+      <StarField />
+      
       <SafeAreaView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color="#ffffff" />
+            <Ionicons name="chevron-back" size={28} color="#1A252F" />
           </TouchableOpacity>
           
           <Text style={styles.title}>Believe In Yourself</Text>
           
           <TouchableOpacity style={styles.menuButton}>
-            <Ionicons name="infinite-outline" size={24} color="#ffffff" />
+            <Ionicons name="infinite-outline" size={24} color="#1A252F" />
           </TouchableOpacity>
         </View>
         
@@ -216,15 +220,15 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
         {/* Secondary Controls */}
         <View style={styles.secondaryControls}>
           <TouchableOpacity style={styles.controlButton}>
-            <Ionicons name="shuffle" size={24} color="#ffffff" />
+            <Ionicons name="shuffle" size={24} color="#6C5CE7" />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.controlButton}>
-            <Ionicons name="add" size={24} color="#ffffff" />
+            <Ionicons name="add" size={24} color="#6C5CE7" />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.controlButton}>
-            <Ionicons name="ellipsis-horizontal" size={24} color="#ffffff" />
+            <Ionicons name="ellipsis-horizontal" size={24} color="#6C5CE7" />
           </TouchableOpacity>
         </View>
 
@@ -235,7 +239,7 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
             onPress={() => setShowVoiceModal(true)}
           >
             <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={24} color="#ffffff" />
+              <Ionicons name="person" size={24} color="#6C5CE7" />
             </View>
             <Text style={styles.controlLabel}>Voice</Text>
           </TouchableOpacity>
@@ -248,7 +252,7 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
             <Ionicons 
               name={isPlaying ? "pause" : "play"} 
               size={32} 
-              color="#ffffff" 
+              color="#1A252F" 
               style={!isPlaying ? { marginLeft: 3 } : {}}
             />
           </TouchableOpacity>
@@ -258,7 +262,7 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
             onPress={() => setShowMusicModal(true)}
           >
             <View style={styles.musicAvatarCircle}>
-              <Ionicons name="musical-notes" size={24} color="#ffffff" />
+              <Ionicons name="musical-notes" size={24} color="#6C5CE7" />
             </View>
             <Text style={styles.controlLabel}>Music</Text>
           </TouchableOpacity>
@@ -343,7 +347,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#2C3E50',
     letterSpacing: 0.5
   },
   menuButton: {
@@ -362,7 +366,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(108, 92, 231, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(108, 92, 231, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -375,12 +381,12 @@ const styles = StyleSheet.create({
   affirmationText: {
     fontSize: 28,
     fontWeight: '500',
-    color: '#ffffff',
+    color: '#2C3E50',
     textAlign: 'center',
     lineHeight: 42,
-    textShadowColor: 'rgba(255, 255, 255, 0.2)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 15,
+    textShadowColor: 'rgba(44, 62, 80, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
     marginBottom: 20
   },
   progressText: {
@@ -405,7 +411,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(108, 92, 231, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(108, 92, 231, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -414,7 +422,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8B4513',
+    backgroundColor: 'rgba(108, 92, 231, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(108, 92, 231, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -423,13 +433,13 @@ const styles = StyleSheet.create({
     width: 65,
     height: 65,
     borderRadius: 32.5,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(108, 92, 231, 0.15)',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderColor: 'rgba(108, 92, 231, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: -20,
-    shadowColor: '#000',
+    shadowColor: '#6C5CE7',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -437,7 +447,7 @@ const styles = StyleSheet.create({
   },
   controlLabel: {
     fontSize: 14,
-    color: '#ffffff',
+    color: '#2C3E50',
     fontWeight: '500',
   },
   countdownText: {
