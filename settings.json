@@ -1,0 +1,51 @@
+{
+  "commands": {
+    "qnew": "Understand all BEST PRACTICES listed in CLAUDE.md. Your code SHOULD ALWAYS follow these best practices.",
+    "qplan": "Analyze similar parts of the codebase and determine whether your plan: is consistent with rest of codebase, introduces minimal changes, reuses existing code",
+    "qcode": "Implement your plan and make sure your new tests pass. Always run tests to make sure you didn't break anything else. Always run prettier on the newly created files to ensure standard formatting. Always run turbo typecheck lint to make sure type checking and linting passes.",
+    "qcheck": "You are a SKEPTICAL senior software engineer. Perform this analysis for every MAJOR code change you introduced (skip minor changes): 1. CLAUDE.md checklist Writing Functions Best Practices. 2. CLAUDE.md checklist Writing Tests Best Practices. 3. CLAUDE.md checklist Implementation Best Practices.",
+    "qcheckf": "You are a SKEPTICAL senior software engineer. Perform this analysis for every MAJOR function you added or edited (skip minor changes): 1. CLAUDE.md checklist Writing Functions Best Practices.",
+    "qcheckt": "You are a SKEPTICAL senior software engineer. Perform this analysis for every MAJOR test you added or edited (skip minor changes): 1. CLAUDE.md checklist Writing Tests Best Practices.",
+    "qux": "Imagine you are a human UX tester of the feature you implemented. Output a comprehensive list of scenarios you would test, sorted by highest priority.",
+    "qgit": "Add all changes to staging, create a commit, and push to remote. Follow this checklist for writing your commit message: SHOULD use Conventional Commits format, SHOULD NOT refer to Claude or Anthropic in the commit message."
+  },
+  "tools": {
+    "preferred_test_runner": "jest",
+    "preferred_linter": "eslint",
+    "preferred_formatter": "prettier",
+    "preferred_type_checker": "typescript"
+  },
+  "project": {
+    "type": "react-native-expo",
+    "test_command": "npm test",
+    "lint_command": "npm run lint",
+    "typecheck_command": "npx tsc --noEmit",
+    "format_command": "npx prettier --write",
+    "build_command": "npx expo build"
+  },
+  "workflows": {
+    "feature_development": [
+      "qnew",
+      "qplan", 
+      "qcode",
+      "qcheck"
+    ],
+    "testing_focus": [
+      "qnew",
+      "qcheckt",
+      "run tests"
+    ],
+    "deployment_ready": [
+      "qcheck",
+      "qux",
+      "qgit"
+    ]
+  },
+  "reminders": {
+    "always_plan_first": true,
+    "follow_tdd": true,
+    "run_tests_after_changes": true,
+    "use_conventional_commits": true,
+    "follow_claude_md_guidelines": true
+  }
+}
