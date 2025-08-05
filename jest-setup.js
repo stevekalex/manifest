@@ -1,10 +1,15 @@
 // Global setup for tests
 global.__DEV__ = true;
 
-// Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
-);
+// Mock AsyncStorage - only if package is installed
+try {
+  require.resolve('@react-native-async-storage/async-storage');
+  jest.mock('@react-native-async-storage/async-storage', () =>
+    require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+  );
+} catch (e) {
+  // Package not installed, skip mock
+}
 
 // Mock Expo modules
 jest.mock('expo-font');
@@ -29,6 +34,25 @@ jest.mock('@react-navigation/native', () => {
     }),
   };
 });
+
+// Mock expo-av for audio system tests
+jest.mock('expo-av', () => ({
+  Audio: {
+    setAudioModeAsync: jest.fn(() => Promise.resolve()),
+    Sound: {
+      createAsync: jest.fn(() => Promise.resolve({
+        sound: {
+          playAsync: jest.fn(() => Promise.resolve()),
+          pauseAsync: jest.fn(() => Promise.resolve()),
+          stopAsync: jest.fn(() => Promise.resolve()),
+          setVolumeAsync: jest.fn(() => Promise.resolve()),
+          getStatusAsync: jest.fn(() => Promise.resolve({ isLoaded: true })),
+          unloadAsync: jest.fn(() => Promise.resolve()),
+        }
+      })),
+    },
+  },
+}));
 
 // Suppress console.error for cleaner test output
 global.console = {

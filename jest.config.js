@@ -1,8 +1,8 @@
-module.exports = {
+export default {
   setupFilesAfterEnv: ['<rootDir>/jest-setup.js'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   transformIgnorePatterns: [
-    'node_modules/(?!(jest-)?@?react-native|@react-native-community|expo|@expo|@react-navigation|zustand)',
+    'node_modules/(?!(jest-)?@?react-native|@react-native-community|expo|@expo|@react-navigation|zustand|xstate)',
   ],
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',
