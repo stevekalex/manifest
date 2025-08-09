@@ -23,7 +23,7 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
   const [showMusicModal, setShowMusicModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
-  const selectedSoundRef = useRef('ethereal');
+  const [selectedSound, setSelectedSound] = useState('ethereal');
 
   // New machine-backed audio system
   const audio = useAudioSystem();
@@ -195,10 +195,30 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
       <BackgroundMusicModal
         visible={showMusicModal}
         onClose={() => setShowMusicModal(false)}
-        currentVolume={0.3}
-        onVolumeChange={() => {}}
-        selectedSound={selectedSoundRef.current}
-        onSoundSelect={() => {}}
+        currentVolume={audio.backgroundVolume}
+        onVolumeChange={async (volume: number) => {
+          console.log('🎵 UI: Background volume slider changed to:', volume);
+          await audio.setBackgroundVolume(volume);
+          console.log('✅ UI: Background volume change completed');
+        }}
+        selectedSound={selectedSound}
+        onSoundSelect={async (soundId: string) => {
+          console.log('🎵 UI: Background music selection changed to:', soundId);
+          console.log('🎵 UI: Previous selection was:', selectedSound);
+          
+          // Update selection immediately for responsive UI - triggers re-render!
+          setSelectedSound(soundId);
+          
+          try {
+            console.log('🎵 UI: Starting background track switch...');
+            await audio.switchBackgroundTrack(soundId);
+            console.log('✅ UI: Background track switching completed successfully');
+          } catch (error) {
+            console.error('❌ UI: Background track switching failed:', error);
+            // Revert selection on failure
+            // Note: You might want to store the previous selection to revert to
+          }
+        }}
       />
 
       <VoiceSettingsModal
@@ -207,15 +227,22 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
           setShowVoiceModal(false);
           audio.closeVoiceModal();
         }}
-        currentVolume={1}
-        onVolumeChange={() => {}}
+        currentVolume={audio.affirmationVolume}
+        onVolumeChange={async (volume: number) => {
+          console.log('🎤 UI: Affirmation volume slider changed to:', volume);
+          await audio.setAffirmationVolume(volume);
+          console.log('✅ UI: Affirmation volume change completed');
+        }}
         selectedVoice={audio.currentVoiceId}
         onVoiceSelect={(voiceId) => {
           // Preview the selected voice using the machine; machine handles pausing/snapshot
           audio.previewVoice(voiceId as any);
         }}
-        affirmationDelay={PRODUCTION_PLAYLIST.affirmations[0]?.durationMs ?? 5000}
-        onDelayChange={() => {}}
+        affirmationDelay={audio.globalDelayMs}
+        onDelayChange={(delayMs) => {
+          console.log('🎛️ Delay slider changed to:', delayMs, 'ms');
+          audio.updateDelay(delayMs);
+        }}
       />
 
       {/* Debug Panel */}
@@ -226,7 +253,7 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
         <Text style={{ color: '#0f0' }}>Index: {audio.currentTrackIndex}</Text>
         <Text style={{ color: '#0f0' }}>Voice: {audio.currentVoiceId}</Text>
         <Text style={{ color: '#0f0' }}>Modal: {audio.modalOpen ? 'OPEN' : 'CLOSED'}</Text>
-        <Text style={{ color: '#0f0' }}>Delay(ms): {/* global delay not exposed here; use playlist defaults for now */}</Text>
+        <Text style={{ color: '#0f0' }}>Delay(ms): {audio.globalDelayMs}</Text>
         <Text style={{ color: '#0f0' }}>Displayed: &quot;{displayedText}&quot;</Text>
       </View>
     </View>
