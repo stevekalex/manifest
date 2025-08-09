@@ -35,7 +35,10 @@ interface AudioContext {
   | { type: 'PLAYER_ERROR'; playerType: 'background' | 'affirmations'; error: Error }
   | { type: 'RETRY' }
   | { type: 'SKIP' }
-  | { type: 'NEXT_TRACK' };
+  | { type: 'NEXT_TRACK' }
+  | { type: 'TRACK_ADVANCED'; trackIndex: number }
+  // DOUBEL CHECK NEXT_TRACK vs TRACK_ADVANCED
+  | { type: 'SKIP_DELAY' };
 
 // High-level flow
 //
@@ -91,7 +94,13 @@ export const audioMachine = createMachine({
               currentTrackIndex: 0,
             };
           }),
-        }
+        },
+        UPDATE_DELAY: {
+          actions: assign(({ event }) => {
+            if (event?.type !== 'UPDATE_DELAY') return {};
+            return { globalDelayMs: event.delayMs };
+          }),
+        },
       },
     },
     
@@ -110,12 +119,73 @@ export const audioMachine = createMachine({
           actions: assign(({ event }) => ({ error: (event as any).data })),
         },
       },
+      on: {
+        UPDATE_DELAY: {
+          actions: assign(({ event }) => {
+            if (event?.type !== 'UPDATE_DELAY') return {};
+            return { globalDelayMs: event.delayMs };
+          }),
+        },
+      },
     },
     
     playing: {
+      initial: 'playingTrack',
+      states: {
+        playingTrack: {
+          on: {
+            TRACK_ADVANCED: {
+              target: 'waitingForNext',
+              actions: assign(({ event }) => ({
+                currentTrackIndex: (event as any).trackIndex // Use TrackPlayer index as source of truth
+              }))
+            },
+            // Remote control actions - immediate response
+            NEXT_TRACK: {
+              actions: assign(({ context }) => ({ currentTrackIndex: context.currentTrackIndex + 1 }))
+            }
+          }
+        },
+        waitingForNext: {
+          entry: 'pauseAffirmations',
+          exit: 'resumeAffirmations', 
+          invoke: {
+            id: 'delayTimer',
+            src: 'createDelay',
+            input: ({ context }) => ({ delayMs: context.globalDelayMs }),
+            onDone: [
+              {
+                target: '#audio.voiceSelecting',
+                guard: ({ context }) => context.modalOpen
+              },
+              {
+                target: 'playingTrack'
+              }
+            ]
+          },
+          on: {
+            // User actions cancel delay immediately
+            SKIP_DELAY: 'playingTrack',
+            NEXT_TRACK: 'playingTrack', // User skip cancels delay
+            
+            // Modal opens but delay continues - handled by parent state
+            
+            // Delay change restarts timer
+            UPDATE_DELAY: {
+              target: 'waitingForNext',
+              actions: assign(({ event }) => ({ globalDelayMs: (event as any).delayMs }))
+            },
+            
+            // Race condition protection
+            TRACK_ADVANCED: {
+              target: 'waitingForNext', // Restart delay for new track
+              actions: assign(({ event }) => ({ currentTrackIndex: (event as any).trackIndex }))
+            }
+          }
+        }
+      },
       on: {
         OPEN_VOICE_MODAL: {
-          target: 'voiceSelecting',
           actions: assign(() => ({ modalOpen: true }))
         },
         PAUSE_FOR_INTERRUPTION: {
@@ -134,9 +204,6 @@ export const audioMachine = createMachine({
             }),
             'updateUpcomingTracks'
           ],
-        },
-        NEXT_TRACK: {
-          actions: assign(({ context }) => ({ currentTrackIndex: context.currentTrackIndex + 1 }))
         },
         STOP_PLAYBACK: 'idle',
         RESUME_PLAYBACK: undefined,
@@ -169,7 +236,7 @@ export const audioMachine = createMachine({
     },
     
     voiceSelecting: {
-      exit: assign(() => ({ modalOpen: false })),
+      exit: ['resumeBackground', assign(() => ({ modalOpen: false }))],
       on: {
         PREVIEW_VOICE: 'voiceSelecting.previewing',
         CANCEL_VOICE_MODAL: {
@@ -184,11 +251,19 @@ export const audioMachine = createMachine({
         },
         CONFIRM_VOICE: 'voiceSwitching',
         SET_VOICE: 'voiceSwitching',
+        UPDATE_DELAY: {
+          actions: assign(({ event }) => {
+            if (event?.type !== 'UPDATE_DELAY') return {};
+            return { globalDelayMs: event.delayMs };
+          }),
+        },
       },
       initial: 'idle',
       states: {
         idle: {},
         previewing: {
+          entry: 'pauseAffirmations',
+          exit: 'resumeAffirmations',
           invoke: {
             id: 'playPreview',
             src: 'playPreviewService',
