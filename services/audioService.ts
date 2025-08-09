@@ -1,6 +1,7 @@
 import { AudioPlaybackService } from './audioPlaybackService';
 import { Playlist, VoiceId, PausedState } from '@/types/audio';
 import { Track } from 'react-native-track-player';
+import { useAudioStore } from '../store/audioStore';
 
 export class AudioServices {
   private audioSystem: AudioPlaybackService;
@@ -12,10 +13,15 @@ export class AudioServices {
   // Assumes playlist URLs are already local (file://, asset:/, or absolute path).
   bootstrapPlaylist = async (context: { playlist: Playlist; currentVoiceId: VoiceId; globalDelayMs: number }) => {
     const { playlist, currentVoiceId, globalDelayMs } = context;
+    console.log('🚀 AudioServices.bootstrapPlaylist started for:', playlist.name);
+    
     if (!playlist) throw new Error('No playlist selected');
 
     // 1) Play background directly (accept require module or uri string)
-    await this.audioSystem.playBackground(playlist.backgroundTrackUrl as any);
+    const store = useAudioStore.getState();
+    console.log('🎵 AudioServices: Starting background with URL:', playlist.backgroundTrackUrl, 'at volume:', store.backgroundVolume);
+    await this.audioSystem.playBackground(playlist.backgroundTrackUrl as any, store.backgroundVolume);
+    console.log('✅ AudioServices: Background playback initiated');
 
     // 2) Build initial queue from local paths (no downloads)
     const INITIAL_COUNT = 5;
@@ -29,6 +35,8 @@ export class AudioServices {
     }
     await this.audioSystem.setupAffirmationsQueue(tracks);
     await this.audioSystem.playAffirmations();
+    // Set initial affirmation volume from store
+    await this.audioSystem.setAffirmationVolume(store.affirmationVolume);
 
     return { success: true };
   };
@@ -81,12 +89,20 @@ export class AudioServices {
 
   getMachineActions() {
     return {
-      pauseAffirmations: async () => { await this.audioSystem.pauseAffirmations(); },
+      pauseAffirmations: async () => { 
+        console.log('🔇 pauseAffirmations action called');
+        await this.audioSystem.pauseAffirmations(); 
+      },
       savePausedState: async () => await this.audioSystem.pauseAffirmations(),
-      resumeAffirmations: async () => { await this.audioSystem.resumeAffirmations(); },
+      resumeAffirmations: async () => { 
+        console.log('🔊 resumeAffirmations action called');
+        await this.audioSystem.resumeAffirmations(); 
+      },
       skipToNextTrack: async () => { await this.audioSystem.skipToNextTrack(); },
       pauseAllPlayers: async () => { await this.audioSystem.pauseAll(); },
       resumeAllPlayers: async () => { await this.audioSystem.resumeAll(); },
+      pauseBackground: async () => { await this.audioSystem.pauseBackground(); },
+      resumeBackground: async () => { await this.audioSystem.resumeBackground(); },
       previewVoice: async (args: any) => {
         const { context, event } = args || {};
         if (event?.type !== 'PREVIEW_VOICE') return;
@@ -123,8 +139,7 @@ export class AudioServices {
     
     console.log('🎤 Starting voice preview for:', event.voiceId);
     
-    // PAUSE main affirmations during preview (requirement update)
-    await this.audioSystem.pauseAffirmations();
+    // Note: State machine handles pausing/resuming affirmations via entry/exit actions
     
     // For simplicity, always preview the first affirmation (affirmation-0) 
     // regardless of current track index
@@ -174,6 +189,40 @@ export class AudioServices {
       pauseAndSnapshot: this.pauseAndSnapshot,
       playPreviewService: this.playPreviewService,
     };
+  }
+
+  async setBackgroundVolume(volume: number) {
+    console.log('🎵 AudioServices.setBackgroundVolume called with:', volume);
+    await this.audioSystem.setBackgroundVolume(volume);
+    console.log('✅ AudioServices.setBackgroundVolume completed');
+  }
+
+  async setAffirmationVolume(volume: number) {
+    await this.audioSystem.setAffirmationVolume(volume);
+  }
+
+  async switchBackgroundTrack(soundId: string, playlist: Playlist) {
+    console.log('🔄 AudioServices.switchBackgroundTrack called:', { soundId, playlistName: playlist.name });
+    
+    // Map sound IDs to actual background music files
+    const backgroundTracks: Record<string, any> = {
+      'ethereal': require('../ethereal-ambient-music-55115.mp3'),
+      'atmospheric': require('../lst-atmospheric-ambient-310691.mp3'),
+      // Fallback to current track for locked options
+      'amazonian': playlist.backgroundTrackUrl,
+      'blue-beings': playlist.backgroundTrackUrl,
+    };
+    
+    const trackUrl = backgroundTracks[soundId];
+    
+    if (!trackUrl) {
+      console.warn('⚠️ AudioServices: No background track found for sound ID:', soundId);
+      throw new Error(`Background track not found: ${soundId}`);
+    }
+    
+    console.log('🎵 AudioServices: Switching to background track:', { soundId, trackUrl });
+    await this.audioSystem.switchBackground(trackUrl);
+    console.log('✅ AudioServices.switchBackgroundTrack completed');
   }
 
   getAudioSystem() {

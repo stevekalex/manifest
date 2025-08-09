@@ -44,5 +44,31 @@ export const useAudioSystem = () => {
     setVoice: async (voiceId: VoiceId) => {
       await coordinator.confirmVoiceSelection(voiceId);
     },
+    
+    skipDelay: () => {
+      coordinator.skipDelay();
+    },
+    
+    updateDelay: (delayMs: number) => {
+      coordinator.updateDelay(delayMs);
+    },
+    
+    setBackgroundVolume: async (volume: number) => {
+      console.log('🎵 useAudioSystem.setBackgroundVolume called with:', volume);
+      await coordinator.setBackgroundVolume(volume);
+      console.log('✅ useAudioSystem.setBackgroundVolume completed');
+    },
+    
+    setAffirmationVolume: async (volume: number) => {
+      console.log('🎤 useAudioSystem.setAffirmationVolume called with:', volume);
+      await coordinator.setAffirmationVolume(volume);
+      console.log('✅ useAudioSystem.setAffirmationVolume completed');
+    },
+    
+    switchBackgroundTrack: async (soundId: string) => {
+      console.log('🔄 useAudioSystem.switchBackgroundTrack called with:', soundId);
+      await coordinator.switchBackgroundTrack(soundId);
+      console.log('✅ useAudioSystem.switchBackgroundTrack completed');
+    },
   };
 };

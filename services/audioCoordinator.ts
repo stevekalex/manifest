@@ -10,13 +10,16 @@ export class AudioCoordinator {
   private actor: ActorRefFrom<typeof audioMachine>;
   private services: AudioServices;
   private appStateSubscription: any;
+  private instanceId: string;
   
   constructor() {
+    this.instanceId = Math.random().toString(36).substring(2, 9);
+    console.log('🎮 AudioCoordinator instance created with ID:', this.instanceId);
     this.services = new AudioServices();
 
-    // Wire track change events
-    this.services.getAudioSystem().onTrackChanged = () => {
-      this.actor.send({ type: 'NEXT_TRACK' });
+    // Wire track advancement events
+    this.services.getAudioSystem().onTrackAdvanced = (trackIndex: number) => {
+      this.actor.send({ type: 'TRACK_ADVANCED', trackIndex });
     };
 
     const machineServices = this.services.getMachineServices();
@@ -27,6 +30,11 @@ export class AudioCoordinator {
         voiceSwitchTransaction: fromPromise(({ input }) => machineServices.voiceSwitchTransaction(input)),
         pauseAndSnapshot: fromPromise(() => machineServices.pauseAndSnapshot()),
         playPreviewService: fromPromise(({ input }) => machineServices.playPreviewService(input)),
+        createDelay: fromPromise(({ input }: { input: { delayMs: number } }) => 
+          new Promise<void>((resolve) => {
+            setTimeout(resolve, input.delayMs);
+          })
+        ),
       },
       actions: this.services.getMachineActions(),
     });
@@ -45,6 +53,7 @@ export class AudioCoordinator {
       store.setVoiceId(snapshot.context.currentVoiceId);
       store.setIsPlaying(snapshot.matches('playing'));
       store.setCurrentTrackIndex(snapshot.context.currentTrackIndex || 0);
+      store.setGlobalDelay(snapshot.context.globalDelayMs || 3000);
     });
   }
 
@@ -65,6 +74,7 @@ export class AudioCoordinator {
 
   // Public API
   async selectPlaylist(playlist: Playlist) {
+    console.log(`🎮 AudioCoordinator[${this.instanceId}].selectPlaylist called for:`, playlist.name);
     this.actor.send({ type: 'SELECT_PLAYLIST', playlist });
   }
 
@@ -86,6 +96,10 @@ export class AudioCoordinator {
 
   updateDelay(delayMs: number) {
     this.actor.send({ type: 'UPDATE_DELAY', delayMs });
+  }
+
+  skipDelay() {
+    this.actor.send({ type: 'SKIP_DELAY' });
   }
 
   pause() {
@@ -110,6 +124,38 @@ export class AudioCoordinator {
 
   getCurrentState() {
     return this.actor.getSnapshot();
+  }
+
+  async setBackgroundVolume(volume: number) {
+    console.log(`🎵 AudioCoordinator[${this.instanceId}].setBackgroundVolume called with:`, volume);
+    await this.services.setBackgroundVolume(volume);
+    console.log('📋 AudioCoordinator: Updating store with volume:', volume);
+    // Update store to reflect volume change
+    const store = useAudioStore.getState();
+    store.setBackgroundVolume(volume);
+    console.log('✅ AudioCoordinator.setBackgroundVolume completed');
+  }
+
+  async setAffirmationVolume(volume: number) {
+    console.log('🎤 AudioCoordinator.setAffirmationVolume called with:', volume);
+    await this.services.setAffirmationVolume(volume);
+    console.log('📋 AudioCoordinator: Updating store with volume:', volume);
+    // Update store to reflect volume change
+    const store = useAudioStore.getState();
+    store.setAffirmationVolume(volume);
+    console.log('✅ AudioCoordinator.setAffirmationVolume completed');
+  }
+
+  async switchBackgroundTrack(soundId: string) {
+    console.log(`🔄 AudioCoordinator[${this.instanceId}].switchBackgroundTrack called with:`, soundId);
+    const store = useAudioStore.getState();
+    if (!store.playlist) {
+      console.warn('⚠️ AudioCoordinator: No playlist available for background track switching');
+      return;
+    }
+    
+    await this.services.switchBackgroundTrack(soundId, store.playlist);
+    console.log(`✅ AudioCoordinator[${this.instanceId}].switchBackgroundTrack completed`);
   }
 
   getAudioSystem() {

@@ -8,18 +8,33 @@ import TrackPlayer, {
     IOSCategoryOptions,
     AndroidAudioContentType
   } from 'react-native-track-player';
-import { useAudioStore } from '../store/audioStore';
 
   import { BackGroundAndPreviewPlayer } from './backgroundAndPreviewPlayer';
   import { PausedState, DELAY_STEPS } from '../types/audio';
   import { AppState, AppStateStatus } from 'react-native';
   import AsyncStorage from '@react-native-async-storage/async-storage';
   
+  // Event debouncing service
+  class EventDebouncer {
+    private lastTrackChangeTime = 0;
+    private readonly DEBOUNCE_MS = 100;
+
+    shouldProcessTrackChange(): boolean {
+      const now = Date.now();
+      if (now - this.lastTrackChangeTime < this.DEBOUNCE_MS) {
+        return false; // Ignore rapid duplicate events
+      }
+      this.lastTrackChangeTime = now;
+      return true;
+    }
+  }
+
   export class AudioPlaybackService {
     private backgroundPlayer: BackGroundAndPreviewPlayer;
     private affirmationsReady = false;
     private appStateSubscription?: any;
-    public onTrackChanged?: (trackIndex: number) => void;
+    private debouncer = new EventDebouncer();
+    public onTrackAdvanced?: (trackIndex: number) => void;
     
     constructor() {
       this.backgroundPlayer = new BackGroundAndPreviewPlayer();
@@ -62,10 +77,10 @@ import { useAudioStore } from '../store/audioStore';
       TrackPlayer.addEventListener(TrackPlayerEvent.RemoteNext, () => TrackPlayer.skipToNext());
       TrackPlayer.addEventListener(TrackPlayerEvent.RemotePrevious, () => TrackPlayer.skipToPrevious());
       
-      // Notify coordinator when track changes
+      // Notify coordinator when track advances with debouncing
       TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackTrackChanged, (event) => {
-        if (event.nextTrack !== null && this.onTrackChanged) {
-          this.onTrackChanged(event.nextTrack);
+        if (event.nextTrack !== null && this.debouncer.shouldProcessTrackChange() && this.onTrackAdvanced) {
+          this.onTrackAdvanced(event.nextTrack);
         }
       });
     }
@@ -84,8 +99,8 @@ import { useAudioStore } from '../store/audioStore';
       }
     }
     
-    async playBackground(localPath: string) {
-      await this.backgroundPlayer.playBackground(localPath);
+    async playBackground(localPath: string | number, volume: number = 0.7) {
+      await this.backgroundPlayer.playBackground(localPath, volume);
     }
     
     async setupAffirmationsQueue(tracks: Track[]) {
@@ -97,8 +112,7 @@ import { useAudioStore } from '../store/audioStore';
     
     async playAffirmations() {
       await TrackPlayer.play();
-      const setPlaying = (useAudioStore as any).getState?.().setIsPlaying;
-      if (typeof setPlaying === 'function') setPlaying(true);
+      // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
     async pauseAffirmations(): Promise<PausedState> {
@@ -118,8 +132,7 @@ import { useAudioStore } from '../store/audioStore';
           indexRes.status === 'fulfilled' ? (indexRes.value as number) : 0;
 
         await TrackPlayer.pause();
-        const setPlaying = (useAudioStore as any).getState?.().setIsPlaying;
-        if (typeof setPlaying === 'function') setPlaying(false);
+        // Note: Don't set store.isPlaying here - let state machine handle it
 
         return {
           trackIndex,
@@ -129,8 +142,7 @@ import { useAudioStore } from '../store/audioStore';
       } catch {
         // Fallback to safe defaults
         await TrackPlayer.pause().catch(() => {});
-        const setPlaying = (useAudioStore as any).getState?.().setIsPlaying;
-        if (typeof setPlaying === 'function') setPlaying(false);
+        // Note: Don't set store.isPlaying here - let state machine handle it
         return { trackIndex: 0, positionMs: 0, timestamp: Date.now() };
       }
     }
@@ -141,15 +153,13 @@ import { useAudioStore } from '../store/audioStore';
         await TrackPlayer.seekTo(pausedState.positionMs / 1000);
       }
       await TrackPlayer.play();
-      const setPlaying = (useAudioStore as any).getState?.().setIsPlaying;
-      if (typeof setPlaying === 'function') setPlaying(true);
+      // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
     async skipToNextTrack() {
       await TrackPlayer.skipToNext();
       await TrackPlayer.play();
-      const setPlaying = (useAudioStore as any).getState?.().setIsPlaying;
-      if (typeof setPlaying === 'function') setPlaying(true);
+      // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
     async previewVoice(sampleUrl: string | number) {
@@ -221,6 +231,33 @@ import { useAudioStore } from '../store/audioStore';
     async resumeAll() {
       await this.resumeAffirmations();
       await this.backgroundPlayer.resumeBackground();
+    }
+
+    async pauseBackground() {
+      await this.backgroundPlayer.pauseBackground();
+    }
+
+    async resumeBackground() {
+      await this.backgroundPlayer.resumeBackground();
+    }
+
+    async setBackgroundVolume(volume: number) {
+      console.log('🎵 AudioPlaybackService.setBackgroundVolume called with:', volume);
+      await this.backgroundPlayer.setBackgroundVolume(volume);
+      console.log('✅ AudioPlaybackService.setBackgroundVolume completed');
+    }
+
+    async setAffirmationVolume(volume: number) {
+      console.log('🎤 AudioPlaybackService.setAffirmationVolume called with:', volume);
+      const clampedVolume = Math.max(0, Math.min(1, volume));
+      await TrackPlayer.setVolume(clampedVolume);
+      console.log('✅ AudioPlaybackService: TrackPlayer volume set to:', clampedVolume);
+    }
+
+    async switchBackground(localPath: string | number) {
+      console.log('🔄 AudioPlaybackService.switchBackground called with:', localPath);
+      await this.backgroundPlayer.switchBackground(localPath);
+      console.log('✅ AudioPlaybackService.switchBackground completed');
     }
     
     private async savePlaybackState() {

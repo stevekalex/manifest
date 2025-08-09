@@ -12,6 +12,8 @@ interface AudioStore {
   globalDelayMs: number;
   isPlaying: boolean;
   currentTrackIndex: number;
+  backgroundVolume: number;
+  affirmationVolume: number;
   
   // Actions
   setPlaylist: (playlist: Playlist) => void;
@@ -21,6 +23,8 @@ interface AudioStore {
   setGlobalDelay: (delayMs: number) => void;
   setIsPlaying: (playing: boolean) => void;
   setCurrentTrackIndex: (index: number) => void;
+  setBackgroundVolume: (volume: number) => void;
+  setAffirmationVolume: (volume: number) => void;
   
   // Computed
   getCurrentAffirmation: () => Affirmation | undefined;
@@ -33,6 +37,8 @@ export const useAudioStore = create<AudioStore>()(
     globalDelayMs: 3000,
     isPlaying: false,
     currentTrackIndex: 0,
+    backgroundVolume: 0.7, // Default background volume
+    affirmationVolume: 1.0, // Default affirmation volume
     
     setPlaylist: (playlist) => set({ playlist }),
     setVoiceId: (voiceId) => set({ currentVoiceId: voiceId }),
@@ -41,6 +47,8 @@ export const useAudioStore = create<AudioStore>()(
     setGlobalDelay: (delayMs) => set({ globalDelayMs: delayMs }),
     setIsPlaying: (playing) => set({ isPlaying: playing }),
     setCurrentTrackIndex: (index) => set({ currentTrackIndex: index }),
+    setBackgroundVolume: (volume) => set({ backgroundVolume: Math.max(0, Math.min(1, volume)) }),
+    setAffirmationVolume: (volume) => set({ affirmationVolume: Math.max(0, Math.min(1, volume)) }),
     
     getCurrentAffirmation: () => {
       const { playlist, currentTrackIndex } = get();
