@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import Animated, { 
   useSharedValue, 
@@ -12,11 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSimpleTTS } from '../../hooks/useSimpleTTS';
-import { useBackgroundAudio } from '../../hooks/useBackgroundAudio';
 import { BackgroundMusicModal } from './BackgroundMusicModal';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { StarField } from './StarField';
+import { PRODUCTION_PLAYLIST } from '../../data/productionPlaylist';
+import { useAudioSystem } from '../../hooks/useAudioSystem';
 
 const SimpleManifestationPlayerComponent: React.FC = () => {
   const router = useRouter();
@@ -24,44 +24,24 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
   const selectedSoundRef = useRef('ethereal');
-  const isChangingSoundRef = useRef(false);
-  
-  const {
-    start: startBackground,
-    pause: pauseBackground,
-    stop: stopBackground,
-    setVolume,
-    duckVolume,
-    restoreVolume,
-    isLoaded: backgroundIsLoaded,
-    volume,
-    changeSound
-  } = useBackgroundAudio('ethereal'); // Fixed initial value to prevent hook recreation
-  
-  const { 
-    isPlaying,
-    startPlaying, 
-    pausePlaying,
-    stopPlaying, 
-    getCurrentAffirmation,
-    setVoiceSettings,
-    selectedVoice,
-    voiceVolume,
-    affirmationDelay,
-    remainingDelay
-  } = useSimpleTTS(duckVolume, restoreVolume);
+
+  // New machine-backed audio system
+  const audio = useAudioSystem();
 
   // Animation values for swipe up effect
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
   const breatheScale = useSharedValue(1);
-  
-  // Use state for displayed text (cleaner than refs)
-  const [displayedText, setDisplayedText] = useState(getCurrentAffirmation());
-  
-  // Start gentle breathing pulse when playing (keep this - it's great!)
+
+  // Text to display based on currentTrackIndex from machine/store
+  const currentAffirmationText = PRODUCTION_PLAYLIST.affirmations[audio.currentTrackIndex]?.text
+    || PRODUCTION_PLAYLIST.affirmations[0]?.text
+    || 'Loading affirmation...';
+  const [displayedText, setDisplayedText] = useState(currentAffirmationText);
+
+  // Start gentle breathing pulse when playing
   useEffect(() => {
-    if (isPlaying) {
+    if (audio.isPlaying) {
       breatheScale.value = withRepeat(
         withSequence(
           withTiming(1.015, { 
@@ -79,41 +59,22 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
     } else {
       breatheScale.value = withTiming(1, { duration: 500 });
     }
-  }, [isPlaying]);
+  }, [audio.isPlaying]);
 
-  // Listen to currentIndex changes (more reliable than text changes)
+  // Animate on currentTrackIndex/text change
   useEffect(() => {
-    const newText = getCurrentAffirmation();
-    
-    // If text is different, animate the transition
+    const newText = currentAffirmationText;
     if (displayedText !== newText) {
-      // Slide current text up and out (higher!)
-      translateY.value = withTiming(-150, {
-        duration: 400,
-        easing: Easing.in(Easing.quad)
-      });
-      opacity.value = withTiming(0, {
-        duration: 300,
-        easing: Easing.in(Easing.quad)
-      });
-      
-      // After exit animation, update text and slide new one in
+      translateY.value = withTiming(-150, { duration: 400, easing: Easing.in(Easing.quad) });
+      opacity.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.quad) });
       setTimeout(() => {
         setDisplayedText(newText);
-        translateY.value = 150; // Position lower below screen (no animation)
-        
-        // Slide new text up into view
-        translateY.value = withTiming(0, {
-          duration: 500,
-          easing: Easing.out(Easing.quad)
-        });
-        opacity.value = withTiming(1, {
-          duration: 400,
-          easing: Easing.out(Easing.quad)
-        });
-      }, 400); // Match exit animation duration
+        translateY.value = 150;
+        translateY.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.quad) });
+        opacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) });
+      }, 400);
     }
-  }, [getCurrentAffirmation(), displayedText]);
+  }, [audio.currentTrackIndex, currentAffirmationText, displayedText]);
 
   // Animated styles
   const animatedTextStyle = useAnimatedStyle(() => {
@@ -127,106 +88,68 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
   });
 
   const handleBack = () => {
-    stopPlaying();
-    stopBackground();
+    // audio.stop();
     router.back();
   };
 
-  // Handle sound selection via changeSound function instead of state
-  const handleSoundSelect = useCallback(async (newSound: string) => {
-    console.log('🎵 Changing sound to:', newSound);
-    selectedSoundRef.current = newSound;
-    isChangingSoundRef.current = true;
-    
-    try {
-      await changeSound(newSound as any);
-      console.log('🎵 Sound change completed');
-      isChangingSoundRef.current = false;
-      // Remove the duplicate restart logic - let the hook handle it
-    } catch (error) {
-      console.error('🎵 Sound change failed:', error);
-      isChangingSoundRef.current = false;
-    }
-  }, [changeSound]);
-
-  // Auto-start TTS only once when component mounts
+  // Auto-start playlist once on mount via machine
   useEffect(() => {
     if (!hasStartedPlaying) {
-      console.log('Starting TTS for the first time');
-      startPlaying();
+      audio.playPlaylist(PRODUCTION_PLAYLIST, PRODUCTION_PLAYLIST.defaultVoiceId);
       setHasStartedPlaying(true);
     }
-  }, [hasStartedPlaying, startPlaying]);
+  }, [hasStartedPlaying, audio]);
 
-  // Start background music as soon as it's loaded, but only if TTS is playing and not changing sounds
-  useEffect(() => {
-    if (backgroundIsLoaded && isPlaying && hasStartedPlaying && !isChangingSoundRef.current) {
-      console.log('Starting background music');
-      startBackground();
-    }
-  }, [backgroundIsLoaded, isPlaying, hasStartedPlaying, startBackground]);
-
+  // // If still idle shortly after mount, try again (defensive)
+  // useEffect(() => {
+  //   if (hasStartedPlaying && audio.playerState === 'idle') {
+  //     audio.playPlaylist(PRODUCTION_PLAYLIST, PRODUCTION_PLAYLIST.defaultVoiceId);
+  //   }
+  // }, [hasStartedPlaying, audio.playerState]);
 
   const handlePlayPause = () => {
-    if (isPlaying) {
-      // Pause both TTS and background music
-      pausePlaying();
-      pauseBackground();
-    } else {
-      // Start both TTS and background music together
-      if (backgroundIsLoaded) {
-        startBackground();
-      }
-      startPlaying();
-    }
+    audio.togglePlayback();
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-      
       <LinearGradient
         colors={['#F2F2F2', '#C8D5E3', '#E8DFF5', '#C8D5E3']}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
-      
-      {/* Starry Background Animation */}
+
       <StarField />
-      
+
       <SafeAreaView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color="#1A252F" />
           </TouchableOpacity>
-          
           <Text style={styles.title}>Believe In Yourself</Text>
-          
           <TouchableOpacity style={styles.menuButton}>
             <Ionicons name="infinite-outline" size={24} color="#1A252F" />
           </TouchableOpacity>
         </View>
-        
+
         {/* Affirmation Display */}
         <View style={styles.centerContent}>
           <Animated.Text style={[styles.affirmationText, animatedTextStyle]}>
             {displayedText}
           </Animated.Text>
-          
         </View>
-        
+
         {/* Secondary Controls */}
         <View style={styles.secondaryControls}>
           <TouchableOpacity style={styles.controlButton}>
             <Ionicons name="shuffle" size={24} color="#6C5CE7" />
           </TouchableOpacity>
-          
           <TouchableOpacity style={styles.controlButton}>
             <Ionicons name="add" size={24} color="#6C5CE7" />
           </TouchableOpacity>
-          
           <TouchableOpacity style={styles.controlButton}>
             <Ionicons name="ellipsis-horizontal" size={24} color="#6C5CE7" />
           </TouchableOpacity>
@@ -236,27 +159,27 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
         <View style={styles.bottomControls}>
           <TouchableOpacity 
             style={styles.bottomControlButton}
-            onPress={() => setShowVoiceModal(true)}
+            onPress={() => {
+              setShowVoiceModal(true);
+              audio.openVoiceModal();
+            }}
           >
             <View style={styles.avatarCircle}>
               <Ionicons name="person" size={24} color="#6C5CE7" />
             </View>
             <Text style={styles.controlLabel}>Voice</Text>
           </TouchableOpacity>
-          
+
           {/* Play/Pause Button */}
-          <TouchableOpacity 
-            onPress={handlePlayPause} 
-            style={styles.centerPlayButton}
-          >
+          <TouchableOpacity onPress={handlePlayPause} style={styles.centerPlayButton}>
             <Ionicons 
-              name={isPlaying ? "pause" : "play"} 
+              name={audio.isPlaying ? 'pause' : 'play'} 
               size={32} 
               color="#1A252F" 
-              style={!isPlaying ? { marginLeft: 3 } : {}}
+              style={!audio.isPlaying ? { marginLeft: 3 } : {}}
             />
           </TouchableOpacity>
-          
+
           <TouchableOpacity 
             style={styles.bottomControlButton}
             onPress={() => setShowMusicModal(true)}
@@ -268,54 +191,44 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
-      
+
       <BackgroundMusicModal
         visible={showMusicModal}
         onClose={() => setShowMusicModal(false)}
-        currentVolume={volume}
-        onVolumeChange={(newVolume) => {
-          console.log('📢 Modal requesting volume change to:', newVolume);
-          setVolume(newVolume);
-        }}
+        currentVolume={0.3}
+        onVolumeChange={() => {}}
         selectedSound={selectedSoundRef.current}
-        onSoundSelect={handleSoundSelect}
+        onSoundSelect={() => {}}
       />
-      
+
       <VoiceSettingsModal
         visible={showVoiceModal}
-        onClose={() => setShowVoiceModal(false)}
-        currentVolume={voiceVolume}
-        onVolumeChange={(newVolume) => {
-          console.log('🎤 Voice volume change to:', newVolume);
-          setVoiceSettings(selectedVoice, newVolume, affirmationDelay);
+        onClose={() => {
+          setShowVoiceModal(false);
+          audio.closeVoiceModal();
         }}
-        selectedVoice={selectedVoice}
+        currentVolume={1}
+        onVolumeChange={() => {}}
+        selectedVoice={audio.currentVoiceId}
         onVoiceSelect={(voiceId) => {
-          console.log('🎤 Voice selection change to:', voiceId);
-          const wasPlaying = isPlaying;
-          
-          // Stop current speech to apply new voice immediately
-          if (wasPlaying) {
-            pausePlaying();
-          }
-          
-          // Update voice settings
-          setVoiceSettings(voiceId, voiceVolume, affirmationDelay);
-          
-          // Restart with new voice if it was playing
-          if (wasPlaying) {
-            // Small delay to ensure voice settings are applied
-            setTimeout(() => {
-              startPlaying();
-            }, 100);
-          }
+          // Preview the selected voice using the machine; machine handles pausing/snapshot
+          audio.previewVoice(voiceId as any);
         }}
-        affirmationDelay={affirmationDelay}
-        onDelayChange={(delay) => {
-          console.log('⏱️ Affirmation delay change to:', delay);
-          setVoiceSettings(selectedVoice, voiceVolume, delay);
-        }}
+        affirmationDelay={PRODUCTION_PLAYLIST.affirmations[0]?.durationMs ?? 5000}
+        onDelayChange={() => {}}
       />
+
+      {/* Debug Panel */}
+      <View style={{ position: 'absolute', top: 80, right: 10, backgroundColor: 'rgba(0,0,0,0.85)', padding: 10, borderRadius: 8 }}>
+        <Text style={{ color: '#0f0', fontWeight: 'bold', marginBottom: 6 }}>Debug (Machine)</Text>
+        {/* <Text style={{ color: '#0f0' }}>State: {audio.playerState}</Text> */}
+        <Text style={{ color: '#0f0' }}>Playing: {audio.isPlaying ? 'YES' : 'NO'}</Text>
+        <Text style={{ color: '#0f0' }}>Index: {audio.currentTrackIndex}</Text>
+        <Text style={{ color: '#0f0' }}>Voice: {audio.currentVoiceId}</Text>
+        <Text style={{ color: '#0f0' }}>Modal: {audio.modalOpen ? 'OPEN' : 'CLOSED'}</Text>
+        <Text style={{ color: '#0f0' }}>Delay(ms): {/* global delay not exposed here; use playlist defaults for now */}</Text>
+        <Text style={{ color: '#0f0' }}>Displayed: &quot;{displayedText}&quot;</Text>
+      </View>
     </View>
   );
 };

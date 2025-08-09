@@ -14,11 +14,19 @@ export class AudioCoordinator {
   constructor() {
     this.services = new AudioServices();
 
+    // Wire track change events
+    this.services.getAudioSystem().onTrackChanged = () => {
+      this.actor.send({ type: 'NEXT_TRACK' });
+    };
+
+    const machineServices = this.services.getMachineServices();
+    
     const provided = audioMachine.provide({
       actors: {
-        bootstrapPlaylist: fromPromise(({ input }) => this.services.bootstrapPlaylist(input)),
-        voiceSwitchTransaction: fromPromise(({ input }) => this.services.voiceSwitchTransaction(input)),
-        // Add more invoked services here as you implement them
+        bootstrapPlaylist: fromPromise(({ input }) => machineServices.bootstrapPlaylist(input)),
+        voiceSwitchTransaction: fromPromise(({ input }) => machineServices.voiceSwitchTransaction(input)),
+        pauseAndSnapshot: fromPromise(() => machineServices.pauseAndSnapshot()),
+        playPreviewService: fromPromise(({ input }) => machineServices.playPreviewService(input)),
       },
       actions: this.services.getMachineActions(),
     });
@@ -36,6 +44,7 @@ export class AudioCoordinator {
       store.setPausedState(snapshot.context.pausedState);
       store.setVoiceId(snapshot.context.currentVoiceId);
       store.setIsPlaying(snapshot.matches('playing'));
+      store.setCurrentTrackIndex(snapshot.context.currentTrackIndex || 0);
     });
   }
 

@@ -83,22 +83,41 @@ export class BackGroundAndPreviewPlayer {
     } catch (e) {}
   }
   
-  async playPreview(sampleUrl: string): Promise<void> {
+  async playPreview(sampleUrl: string | number, onPreviewEnd?: () => Promise<void>): Promise<void> {
     try {
       await this.stopPreview();
-      await this.duckBackground(true);
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: sampleUrl },
+      
+      // Handle both require() modules (numbers) and URL strings
+      const source: any = typeof sampleUrl === 'number' ? sampleUrl : { uri: sampleUrl };
+      console.log('🎤 Creating preview sound with source type:', typeof sampleUrl);
+      
+      // PARALLEL EXECUTION: Start ducking and sound creation simultaneously
+      const duckPromise = this.duckBackground(true);
+      const soundPromise = Audio.Sound.createAsync(
+        source,
         { shouldPlay: true, volume: 1.0 }
       );
+      
+      // Wait for both operations to complete
+      const [, { sound }] = await Promise.all([duckPromise, soundPromise]);
       this.preview = sound;
-      this.preview.setOnPlaybackStatusUpdate((status) => {
+      this.preview.setOnPlaybackStatusUpdate(async (status) => {
         if (status.isLoaded && status.didJustFinish) {
-          this.stopPreview();
+          await this.stopPreview();
+          // Call the callback to resume main affirmations
+          if (onPreviewEnd) {
+            try {
+              await onPreviewEnd();
+            } catch (e) {
+              console.error('Error in preview end callback:', e);
+            }
+          }
         }
       });
     } catch (error) {
+      // Restore background volume if preview failed
       await this.duckBackground(false);
+      console.error('Preview failed:', error);
       throw error;
     }
   }
@@ -111,8 +130,10 @@ export class BackGroundAndPreviewPlayer {
         await this.preview.unloadAsync();
       } catch (e) {}
       this.preview = undefined;
+      // Restore background volume after preview ends
+      await this.duckBackground(false);
     }
-    await this.duckBackground(false);
+    // Skip ducking operation if no preview was playing
   }
   
   private onBackgroundStatusUpdate(status: AVPlaybackStatus) {

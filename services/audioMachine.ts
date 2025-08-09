@@ -114,7 +114,10 @@ export const audioMachine = createMachine({
     
     playing: {
       on: {
-        OPEN_VOICE_MODAL: 'pausingForModal',
+        OPEN_VOICE_MODAL: {
+          target: 'voiceSelecting',
+          actions: assign(() => ({ modalOpen: true }))
+        },
         PAUSE_FOR_INTERRUPTION: {
           target: 'interrupted',
           actions: 'pauseAllPlayers',
@@ -171,7 +174,13 @@ export const audioMachine = createMachine({
         PREVIEW_VOICE: 'voiceSelecting.previewing',
         CANCEL_VOICE_MODAL: {
           target: 'playing',
-          actions: 'resumeFromPausedState',
+          actions: [
+            assign(({ context }) => ({ 
+              currentTrackIndex: context.currentTrackIndex + 1,
+              modalOpen: false 
+            })),
+            'skipToNextTrack'
+          ],
         },
         CONFIRM_VOICE: 'voiceSwitching',
         SET_VOICE: 'voiceSwitching',
@@ -183,6 +192,11 @@ export const audioMachine = createMachine({
           invoke: {
             id: 'playPreview',
             src: 'playPreviewService',
+            input: ({ context, event }) => ({
+              event,
+              playlist: context.playlist,
+              context: { currentTrackIndex: context.currentTrackIndex }
+            }),
             onDone: 'idle',
             onError: {
               target: 'idle',
@@ -199,8 +213,9 @@ export const audioMachine = createMachine({
         src: 'voiceSwitchTransaction',
         onDone: {
           target: 'playing',
-          actions: assign(({ event }) => ({
+          actions: assign(({ context, event }) => ({
             currentVoiceId: (event as any).data.voiceId as VoiceId,
+            currentTrackIndex: context.currentTrackIndex + 1,
             pausedState: undefined,
           })),
         },

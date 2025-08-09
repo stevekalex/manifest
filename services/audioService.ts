@@ -84,6 +84,7 @@ export class AudioServices {
       pauseAffirmations: async () => { await this.audioSystem.pauseAffirmations(); },
       savePausedState: async () => await this.audioSystem.pauseAffirmations(),
       resumeAffirmations: async () => { await this.audioSystem.resumeAffirmations(); },
+      skipToNextTrack: async () => { await this.audioSystem.skipToNextTrack(); },
       pauseAllPlayers: async () => { await this.audioSystem.pauseAll(); },
       resumeAllPlayers: async () => { await this.audioSystem.resumeAll(); },
       previewVoice: async (args: any) => {
@@ -105,6 +106,7 @@ export class AudioServices {
       logVoiceSwitchSuccess: () => console.log('Voice switch successful'),
       logVoiceSwitchError: (args: any) => console.error('Voice switch failed:', args?.event?.data),
       resumeWithOldVoice: async () => { await this.audioSystem.resumeAffirmations(); },
+      logPreviewError: (args: any) => console.error('Voice preview failed:', args?.event?.data),
     };
   }
 
@@ -115,16 +117,53 @@ export class AudioServices {
   };
 
   // Play a preview voice sample
-  playPreviewService = async (context: { event: { voiceId: VoiceId; affirmationIndex?: number }; playlist?: Playlist }) => {
-    const { event, playlist } = context;
+  playPreviewService = async (context: { event: { voiceId: VoiceId; affirmationIndex?: number }; playlist?: Playlist; context: { currentTrackIndex: number } }) => {
+    const { event, playlist, context: machineContext } = context;
     if (!playlist) throw new Error('No playlist for voice preview');
     
-    const voice = playlist.voices.find(v => v.id === event.voiceId);
-    if (!voice) throw new Error(`Voice ${event.voiceId} not found`);
+    console.log('🎤 Starting voice preview for:', event.voiceId);
     
-    // Use the sample URL from the voice definition
-    await this.audioSystem.previewVoice(voice.sampleUrl);
+    // PAUSE main affirmations during preview (requirement update)
+    await this.audioSystem.pauseAffirmations();
     
+    // For simplicity, always preview the first affirmation (affirmation-0) 
+    // regardless of current track index
+    const previewAffirmation = playlist.affirmations[0]; // Always use first affirmation for preview
+    
+    if (!previewAffirmation) throw new Error('No first affirmation available for preview');
+    
+    // Get the URL for the first affirmation in the selected voice
+    let affirmationUrl = playlist.cdnUrls[event.voiceId]?.[previewAffirmation.id];
+    
+    // If no specific voice URL, fallback to serenity voice (which has audio files)
+    if (!affirmationUrl) {
+      console.warn(`No audio for voice ${event.voiceId}, using serenity voice as demo`);
+      affirmationUrl = playlist.cdnUrls['serenity']?.[previewAffirmation.id];
+      
+      if (!affirmationUrl) {
+        throw new Error(`No audio available for preview`);
+      }
+    }
+    
+    // Handle both require() modules (numbers) and string URLs
+    let previewUrl: any;
+    if (typeof affirmationUrl === 'number') {
+      // This is a require() module - use it directly
+      previewUrl = affirmationUrl;
+      console.log('🎤 Playing require() module for preview');
+    } else if (typeof affirmationUrl === 'string' && affirmationUrl.startsWith('tts://')) {
+      // TTS placeholder - skip preview
+      console.log(`🎤 Skipping preview for TTS placeholder: ${event.voiceId}`);
+      return { success: true };
+    } else {
+      // Regular URL string
+      previewUrl = affirmationUrl;
+    }
+    
+    // Play the preview (main affirmations continue in background)
+    await this.audioSystem.previewVoice(previewUrl);
+    
+    console.log('🎤 Voice preview completed for:', event.voiceId);
     return { success: true };
   };
 

@@ -19,6 +19,7 @@ import { useAudioStore } from '../store/audioStore';
     private backgroundPlayer: BackGroundAndPreviewPlayer;
     private affirmationsReady = false;
     private appStateSubscription?: any;
+    public onTrackChanged?: (trackIndex: number) => void;
     
     constructor() {
       this.backgroundPlayer = new BackGroundAndPreviewPlayer();
@@ -60,6 +61,13 @@ import { useAudioStore } from '../store/audioStore';
       TrackPlayer.addEventListener(TrackPlayerEvent.RemotePause, () => TrackPlayer.pause());
       TrackPlayer.addEventListener(TrackPlayerEvent.RemoteNext, () => TrackPlayer.skipToNext());
       TrackPlayer.addEventListener(TrackPlayerEvent.RemotePrevious, () => TrackPlayer.skipToPrevious());
+      
+      // Notify coordinator when track changes
+      TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackTrackChanged, (event) => {
+        if (event.nextTrack !== null && this.onTrackChanged) {
+          this.onTrackChanged(event.nextTrack);
+        }
+      });
     }
     
     private setupAppStateHandling() {
@@ -137,8 +145,16 @@ import { useAudioStore } from '../store/audioStore';
       if (typeof setPlaying === 'function') setPlaying(true);
     }
     
-    async previewVoice(sampleUrl: string) {
-      await this.backgroundPlayer.playPreview(sampleUrl);
+    async skipToNextTrack() {
+      await TrackPlayer.skipToNext();
+      await TrackPlayer.play();
+      const setPlaying = (useAudioStore as any).getState?.().setIsPlaying;
+      if (typeof setPlaying === 'function') setPlaying(true);
+    }
+    
+    async previewVoice(sampleUrl: string | number) {
+      // No auto-resume - loop should stay stopped until modal closes
+      await this.backgroundPlayer.playPreview(sampleUrl as any);
     }
     
     async stopPreview() {
