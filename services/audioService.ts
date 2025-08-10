@@ -1,5 +1,5 @@
 import { AudioPlaybackService } from './audioPlaybackService';
-import { Playlist, VoiceId, PausedState, OperationKey } from '../types/audio';
+import { Playlist, VoiceId, PausedState, OperationKey, PlaybackSnapshot } from '../types/audio';
 import { Track } from 'react-native-track-player';
 import { useAudioStore } from '../store/audioStore';
 import { gate, Priority } from './transactionGate';
@@ -51,7 +51,8 @@ export class AudioServices {
     console.log('✅ AudioServices: Background playback initiated');
 
     // 2) Build initial queue from local paths (no downloads)
-    const INITIAL_COUNT = 5;
+    // Phase 1B: Reduced from 5 to 3 for better performance with snapshot/restore system
+    const INITIAL_COUNT = 3;
     const affirmations = playlist.affirmations.slice(0, INITIAL_COUNT);
     const paths = affirmations.map(a => playlist.cdnUrls[currentVoiceId][a.id]).filter(Boolean) as any[];
 
@@ -160,16 +161,17 @@ export class AudioServices {
         if (event?.type !== 'PREVIEW_VOICE') return;
         const voice = context?.playlist?.voices?.find((v: any) => v.id === event.voiceId);
         if (voice) {
-          // Phase 1A: Gate preview at service boundary
+          // Phase 1B: RNTP preview with transaction gate
           await this.executeWithGate(
             `preview:${event.voiceId}`,
             Priority.Preview,
             async () => {
-              await this.audioSystem.previewVoice(voice.sampleUrl);
-              return { success: true };
+              // Use RNTP preview (Phase 1B) instead of Expo AV
+              const success = await this.audioSystem.previewVoiceRNTP(voice.sampleUrl, 5000);
+              return { success };
             },
             async () => {
-              // Fallback: execute anyway
+              // Fallback: Use legacy Expo AV preview
               await this.audioSystem.previewVoice(voice.sampleUrl);
               return { success: true };
             }
@@ -193,66 +195,79 @@ export class AudioServices {
     };
   }
 
-  // Pause playback and capture current state atomically
+  // Phase 1B: Enhanced pause and snapshot for voice switching
   pauseAndSnapshot = async (): Promise<PausedState> => {
-    // pauseAffirmations already returns the paused state
+    // Legacy method for backward compatibility - still returns PausedState
     return await this.audioSystem.pauseAffirmations();
   };
 
-  // Play a preview voice sample
+  // Phase 1B: New snapshot-based pause for voice switching
+  capturePlaybackSnapshot = async (): Promise<PlaybackSnapshot> => {
+    console.log('📸 AudioServices: Capturing playback snapshot');
+    await this.audioSystem.pauseAffirmations();
+    return await this.audioSystem.captureSnapshot();
+  };
+
+  // Phase 1B: Restore from snapshot with optional new tracks
+  restoreFromSnapshot = async (
+    snapshot: PlaybackSnapshot, 
+    newTracks?: Track[]
+  ): Promise<boolean> => {
+    console.log('🔄 AudioServices: Restoring from snapshot');
+    return await this.audioSystem.restoreFromSnapshot(snapshot, newTracks);
+  };
+
+  // Phase 1B: Play a preview voice sample via RNTP with snapshot/restore and gate  
   playPreviewService = async (context: { event: { voiceId: VoiceId; affirmationIndex?: number }; playlist?: Playlist; context: { currentTrackIndex: number } }) => {
-    return this.executeWithGate(
-      'preview:voice-sample',
-      Priority.Preview,
-      async () => {
-        const { event, playlist } = context;
-        if (!playlist) throw new Error('No playlist for voice preview');
-        
-        console.log('🎤 Starting voice preview for:', event.voiceId);
-        
-        // Note: State machine handles pausing/resuming affirmations via entry/exit actions
-        
-        // For simplicity, always preview the first affirmation (affirmation-0) 
-        // regardless of current track index
-        const previewAffirmation = playlist.affirmations[0]; // Always use first affirmation for preview
-        
-        if (!previewAffirmation) throw new Error('No first affirmation available for preview');
-        
-        // Get the URL for the first affirmation in the selected voice
-        let affirmationUrl = playlist.cdnUrls[event.voiceId]?.[previewAffirmation.id];
-        
-        // If no specific voice URL, fallback to serenity voice (which has audio files)
-        if (!affirmationUrl) {
-          console.warn(`No audio for voice ${event.voiceId}, using serenity voice as demo`);
-          affirmationUrl = playlist.cdnUrls['serenity']?.[previewAffirmation.id];
-          
-          if (!affirmationUrl) {
-            throw new Error(`No audio available for preview`);
-          }
-        }
-        
-        // Handle both require() modules (numbers) and string URLs
-        let previewUrl: any;
-        if (typeof affirmationUrl === 'number') {
-          // This is a require() module - use it directly
-          previewUrl = affirmationUrl;
-          console.log('🎤 Playing require() module for preview');
-        } else if (typeof affirmationUrl === 'string' && affirmationUrl.startsWith('tts://')) {
-          // TTS placeholder - skip preview
-          console.log(`🎤 Skipping preview for TTS placeholder: ${event.voiceId}`);
+    const { event, playlist } = context;
+    if (!playlist) throw new Error('No playlist for voice preview');
+    
+    console.log('🎤 Starting voice preview for:', event.voiceId);
+    
+    // For simplicity, always preview the first affirmation (affirmation-0) 
+    const previewAffirmation = playlist.affirmations[0];
+    if (!previewAffirmation) throw new Error('No first affirmation available for preview');
+    
+    // Get the URL for the first affirmation in the selected voice
+    let affirmationUrl = playlist.cdnUrls[event.voiceId]?.[previewAffirmation.id]
+      ?? playlist.cdnUrls['serenity']?.[previewAffirmation.id];
+    
+    if (!affirmationUrl) throw new Error('No audio available for preview');
+    
+    // Handle both require() modules (numbers) and string URLs
+    if (typeof affirmationUrl === 'string' && affirmationUrl.startsWith('tts://')) {
+      console.log(`🎤 Skipping preview for TTS placeholder: ${event.voiceId}`);
+      return { success: true };
+    }
+    
+    const previewUrl: any = affirmationUrl; // require() number or http(s) string is fine
+    
+    // 1) Snapshot current RNTP state
+    const snapshot = await this.audioSystem.captureSnapshot();
+    
+    try {
+      // 2) Gate + RNTP preview (5s timeout inside)
+      const opKey = `preview:${event.voiceId}` as const;
+      await this.executeWithGate(
+        opKey,
+        Priority.Preview,
+        async () => { 
+          await this.audioSystem.previewVoiceRNTP(previewUrl, 5000);
           return { success: true };
-        } else {
-          // Regular URL string
-          previewUrl = affirmationUrl;
+        },
+        async () => { 
+          await this.audioSystem.previewVoiceRNTP(previewUrl, 5000);
+          return { success: true };
         }
-        
-        // Play the preview (main affirmations continue in background)
-        await this.audioSystem.previewVoice(previewUrl);
-        
-        console.log('🎤 Voice preview completed for:', event.voiceId);
-        return { success: true };
-      }
-    );
+      );
+    } finally {
+      // 3) Always restore
+      console.log('🔄 Restoring snapshot after preview');
+      await this.audioSystem.restoreFromSnapshot(snapshot);
+    }
+    
+    console.log('🎤 Voice preview completed for:', event.voiceId);
+    return { success: true };
   };
 
   getMachineServices() {
@@ -261,6 +276,9 @@ export class AudioServices {
       voiceSwitchTransaction: this.voiceSwitchTransaction,
       pauseAndSnapshot: this.pauseAndSnapshot,
       playPreviewService: this.playPreviewService,
+      // Phase 1B: New snapshot-based services
+      capturePlaybackSnapshot: this.capturePlaybackSnapshot,
+      restoreFromSnapshot: this.restoreFromSnapshot,
     };
   }
 

@@ -95,3 +95,30 @@ export interface TransactionOperation {
   priority: number;
   timeoutMs?: number;
 }
+// Phase 1B: Snapshot system for RNTP state preservation
+export interface PlaybackSnapshot {
+  // Logical queue representation
+  affirmationIds: AffirmationId[];
+  
+  // Current playback position
+  currentIndex: number;
+  positionMs: number;
+  
+  // Playback state before snapshot
+  wasPlaying: boolean;
+  
+  // Hash of first N tracks for fast-path detection
+  headHash: string;
+  
+  // Metadata for validation
+  timestamp: number;
+  voiceId: VoiceId;
+  playlistId: PlaylistId;
+}
+
+// Helper type for snapshot validation results
+export interface SnapshotValidation {
+  isValid: boolean;
+  canUseFastPath: boolean;
+  reason?: string;
+}

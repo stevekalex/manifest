@@ -10,9 +10,13 @@ import TrackPlayer, {
   } from 'react-native-track-player';
 
   import { BackGroundAndPreviewPlayer } from './backgroundAndPreviewPlayer';
-  import { PausedState, DELAY_STEPS } from '../types/audio';
+  import { PausedState, DELAY_STEPS, PlaybackSnapshot, AffirmationId } from '../types/audio';
   import { AppState, AppStateStatus } from 'react-native';
   import AsyncStorage from '@react-native-async-storage/async-storage';
+  import { useAudioStore } from '../store/audioStore';
+  
+  // Phase 1B: Queue window optimization
+  const QUEUE_WINDOW_SIZE = 3; // current + 2 ahead for faster voice switching
   
   // Event debouncing service
   class EventDebouncer {
@@ -38,6 +42,9 @@ import TrackPlayer, {
     
     // Phase 1A: Event suppression function
     public shouldSuppressEvents?: () => boolean;
+    
+    // Phase 1B: Refined suppression for QueueEnded events
+    public shouldSuppressQueueEnded?: () => boolean;
     
     constructor() {
       this.backgroundPlayer = new BackGroundAndPreviewPlayer();
@@ -80,9 +87,10 @@ import TrackPlayer, {
       TrackPlayer.addEventListener(TrackPlayerEvent.RemoteNext, () => TrackPlayer.skipToNext());
       TrackPlayer.addEventListener(TrackPlayerEvent.RemotePrevious, () => TrackPlayer.skipToPrevious());
       
-      // Notify coordinator when track advances with debouncing and suppression
+      // Phase 1B: Enhanced event suppression for multiple RNTP events
+      
+      // Track change events (most important for coordination)
       TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackTrackChanged, (event) => {
-        // Phase 1A: Suppress events during preview or structural operations
         if (this.shouldSuppressEvents?.()) {
           console.log('🚫 Suppressing RNTP PlaybackTrackChanged event - preview/structural op active');
           return;
@@ -92,6 +100,41 @@ import TrackPlayer, {
           console.log(`🎵 RNTP Track advanced to index: ${event.nextTrack}`);
           this.onTrackAdvanced(event.nextTrack);
         }
+      });
+      
+      // Playback state events (suppress to prevent UI flickering during operations)
+      TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackState, (event) => {
+        if (this.shouldSuppressEvents?.()) {
+          console.log('🚫 Suppressing RNTP PlaybackState event - preview/structural op active');
+          return;
+        }
+        // Allow state changes through when not suppressed
+        console.log('🎵 RNTP Playback state:', event.state);
+      });
+      
+      // Queue end events (refined suppression for preview operations)
+      TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackQueueEnded, (event) => {
+        // Use refined suppression: allow during preview (for natural end), suppress during structural ops
+        if (this.shouldSuppressQueueEnded?.()) {
+          console.log('🚫 Suppressing RNTP PlaybackQueueEnded event - structural op active');
+          return;
+        }
+        console.log('🎵 RNTP Queue ended - main playback');
+      });
+      
+      // Progress events are generally OK but can be noisy during operations
+      TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackProgressUpdated, (event) => {
+        if (this.shouldSuppressEvents?.()) {
+          // Don't log these as they're very frequent
+          return;
+        }
+        // Progress events pass through - needed for UI updates
+      });
+      
+      // Always allow error events - these are critical for debugging
+      TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackError, (event) => {
+        console.error('❌ RNTP Playback error:', event);
+        // Never suppress errors
       });
     }
     
@@ -172,6 +215,7 @@ import TrackPlayer, {
       // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
+    // Legacy expo-av preview (Phase 1B: Being replaced by RNTP)
     async previewVoice(sampleUrl: string | number) {
       // No auto-resume - loop should stay stopped until modal closes
       await this.backgroundPlayer.playPreview(sampleUrl as any);
@@ -179,6 +223,86 @@ import TrackPlayer, {
     
     async stopPreview() {
       await this.backgroundPlayer.stopPreview();
+    }
+    
+    // Phase 1B: RNTP-based preview system
+    async previewVoiceRNTP(sampleUrl: string | number, timeoutMs: number = 5000): Promise<boolean> {
+      console.log('🎤 Starting RNTP preview for:', sampleUrl);
+      
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      let naturalEndListener: any;
+      
+      try {
+        // Duck background music
+        await this.backgroundPlayer.duckBackground(true);
+        
+        // Note: We don't need to capture original state for RNTP preview
+        // since we're using a separate preview system that doesn't affect main queue
+        
+        // Reset RNTP and prepare for preview
+        await TrackPlayer.reset();
+        
+        // Create preview track
+        // TODO - Is this enough? Don't we need to pull in the .mp3 file? Where does this come from? 
+        const previewTrack: Track = {
+          id: 'preview-sample',
+          url: sampleUrl as any,
+          title: 'Voice Preview',
+          artist: 'Manifestation App'
+        };
+        
+        // Add and play preview
+        await TrackPlayer.add(previewTrack);
+        await TrackPlayer.play();
+        
+        // Set up natural end detection
+        return new Promise<boolean>((resolve, reject) => {
+          // Timeout handler
+          timeoutId = setTimeout(() => {
+            console.log('⏰ RNTP preview timed out after', timeoutMs, 'ms');
+            resolve(false);
+          }, timeoutMs);
+          
+          // Natural end listener
+          naturalEndListener = TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackQueueEnded, () => {
+            console.log('✅ RNTP preview ended naturally');
+            resolve(true);
+          });
+        });
+        
+      } catch (error) {
+        console.error('❌ RNTP preview failed:', error);
+        return false;
+        
+      } finally {
+        // Cleanup timeout and listener
+        if (timeoutId) clearTimeout(timeoutId);
+        if (naturalEndListener) naturalEndListener.remove();
+        
+        // Phase 1B: RNTP reset hygiene - ensure clean state even on errors
+        try {
+          await TrackPlayer.stop();
+          await TrackPlayer.reset();
+        } catch (resetError) {
+          console.warn('⚠️ RNTP reset failed during preview cleanup:', resetError);
+        }
+        
+        // Always unduck background music
+        await this.backgroundPlayer.duckBackground(false);
+        
+        console.log('🔄 RNTP preview cleanup completed');
+      }
+    }
+    
+    // Phase 1B: Stop RNTP preview (for user cancellation)
+    async stopRNTPPreview(): Promise<void> {
+      console.log('🛑 Stopping RNTP preview');
+      try {
+        await TrackPlayer.stop();
+        await TrackPlayer.reset();
+      } catch (error) {
+        console.error('❌ Error stopping RNTP preview:', error);
+      }
     }
     
     async updateUpcomingTracks(tracks: Track[], fromIndex: number) {
@@ -289,12 +413,203 @@ import TrackPlayer, {
       }
     }
     
+    // Phase 1B: Capture full playback snapshot for voice switching
+    async captureSnapshot(): Promise<PlaybackSnapshot> {
+      console.log('📸 Capturing playback snapshot...');
+      
+      try {
+        // Get current queue and playback state
+        const [queue, currentTrack, progress, playbackState] = await Promise.all([
+          TrackPlayer.getQueue(),
+          TrackPlayer.getCurrentTrack(),
+          TrackPlayer.getProgress(),
+          TrackPlayer.getPlaybackState()
+        ]);
+        
+        // Extract affirmation IDs from queue
+        const affirmationIds = queue.map(track => track.id as AffirmationId);
+        
+        // Calculate head hash from first 3 tracks
+        const headSize = Math.min(3, queue.length);
+        const headTracks = queue.slice(0, headSize);
+        const headHash = this.calculateHeadHash(headTracks);
+        
+        // Get current voice and playlist from store
+        const store = useAudioStore.getState();
+        
+        const snapshot: PlaybackSnapshot = {
+          affirmationIds,
+          currentIndex: currentTrack || 0,
+          positionMs: Math.floor(progress.position * 1000),
+          wasPlaying: playbackState.state === State.Playing,
+          headHash,
+          timestamp: Date.now(),
+          voiceId: store.currentVoiceId,
+          playlistId: store.playlist?.id || ''
+        };
+        
+        console.log('📸 Snapshot captured:', {
+          trackCount: affirmationIds.length,
+          currentIndex: snapshot.currentIndex,
+          positionMs: snapshot.positionMs,
+          headHash: snapshot.headHash
+        });
+        
+        return snapshot;
+      } catch (error) {
+        console.error('❌ Failed to capture snapshot:', error);
+        // Return a minimal valid snapshot
+        return {
+          affirmationIds: [],
+          currentIndex: 0,
+          positionMs: 0,
+          wasPlaying: false,
+          headHash: '',
+          timestamp: Date.now(),
+          voiceId: '',
+          playlistId: ''
+        };
+      }
+    }
+    
+    // Helper to calculate head hash for fast-path detection
+    private calculateHeadHash(tracks: Track[]): string {
+      if (tracks.length === 0) return '';
+      
+      // Create a simple hash from track IDs and URLs
+      const hashInput = tracks.map(t => `${t.id}:${t.url}`).join('|');
+      
+      // Simple hash function (not cryptographic, just for comparison)
+      let hash = 0;
+      for (let i = 0; i < hashInput.length; i++) {
+        const char = hashInput.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      
+      return hash.toString(36);
+    }
+    
+    // Phase 1B: Restore playback from snapshot
+    async restoreFromSnapshot(
+      snapshot: PlaybackSnapshot,
+      newTracks?: Track[]
+    ): Promise<boolean> {
+      console.log('🔄 Restoring from snapshot...', {
+        currentIndex: snapshot.currentIndex,
+        positionMs: snapshot.positionMs,
+        wasPlaying: snapshot.wasPlaying,
+        headHash: snapshot.headHash
+      });
+      
+      try {
+        // Get current queue to check for fast path
+        const currentQueue = await TrackPlayer.getQueue();
+        const currentHeadHash = this.calculateHeadHash(currentQueue.slice(0, 3));
+        
+        // Fast path: If head hash matches, just seek to position
+        if (currentHeadHash === snapshot.headHash && !newTracks) {
+          console.log('⚡ Fast path: Head hash matches, seeking to position');
+          
+          // Seek to the saved position
+          await TrackPlayer.skip(snapshot.currentIndex);
+          await TrackPlayer.seekTo(snapshot.positionMs / 1000);
+          
+          // Resume if was playing
+          if (snapshot.wasPlaying) {
+            await TrackPlayer.play();
+          }
+          
+          console.log('✅ Fast path restore completed');
+          return true;
+        }
+        
+        // Rebuild path: Queue has changed, need full reconstruction
+        console.log('🔨 Rebuild path: Reconstructing queue');
+        
+        // If new tracks provided, use them; otherwise try to rebuild from snapshot
+        const tracksToLoad = newTracks || await this.reconstructTracksFromSnapshot(snapshot);
+        
+        if (!tracksToLoad || tracksToLoad.length === 0) {
+          console.error('❌ No tracks to restore');
+          return false;
+        }
+        
+        // Reset and rebuild queue
+        await TrackPlayer.reset();
+        await TrackPlayer.add(tracksToLoad);
+        await TrackPlayer.setRepeatMode(RepeatMode.Queue);
+        
+        // Skip to the correct track
+        if (snapshot.currentIndex > 0 && snapshot.currentIndex < tracksToLoad.length) {
+          await TrackPlayer.skip(snapshot.currentIndex);
+        }
+        
+        // Seek to position
+        await TrackPlayer.seekTo(snapshot.positionMs / 1000);
+        
+        // Resume if was playing
+        if (snapshot.wasPlaying) {
+          await TrackPlayer.play();
+        }
+        
+        console.log('✅ Rebuild path restore completed');
+        return true;
+        
+      } catch (error) {
+        console.error('❌ Failed to restore from snapshot:', error);
+        return false;
+      }
+    }
+    
+    // Helper to reconstruct tracks from snapshot affirmation IDs
+    private async reconstructTracksFromSnapshot(
+      snapshot: PlaybackSnapshot
+    ): Promise<Track[]> {
+      const store = useAudioStore.getState();
+      const playlist = store.playlist;
+      
+      if (!playlist) {
+        console.error('No playlist available for reconstruction');
+        return [];
+      }
+      
+      // Map affirmation IDs back to tracks
+      const tracks: Track[] = [];
+      
+      for (const affirmationId of snapshot.affirmationIds) {
+        const affirmation = playlist.affirmations.find(a => a.id === affirmationId);
+        if (!affirmation) continue;
+        
+        // Get URL for current voice
+        const url = playlist.cdnUrls[store.currentVoiceId]?.[affirmationId];
+        if (!url) continue;
+        
+        tracks.push({
+          id: affirmationId,
+          url: url as any,
+          title: affirmation.text || `Affirmation ${tracks.length + 1}`,
+          artist: 'Manifestation App'
+        });
+      }
+      
+      return tracks;
+    }
+    
     async cleanup() {
       if (this.appStateSubscription) {
         this.appStateSubscription.remove();
       }
       
-      await TrackPlayer.reset();
+      // Phase 1B: Enhanced RNTP reset hygiene during cleanup
+      try {
+        await TrackPlayer.stop();
+        await TrackPlayer.reset();
+        console.log('✅ RNTP reset completed during cleanup');
+      } catch (error) {
+        console.warn('⚠️ RNTP reset failed during cleanup:', error);
+      }
+      
       await this.backgroundPlayer.cleanup();
     }
   }

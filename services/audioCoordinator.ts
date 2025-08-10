@@ -33,6 +33,12 @@ export class AudioCoordinator {
       return this.previewMode || this.structuralOpInFlight;
     };
 
+    // Phase 1B: Wire refined suppression for QueueEnded events
+    this.services.getAudioSystem().shouldSuppressQueueEnded = () => {
+      // Only suppress QueueEnded during structural operations, not during preview
+      return this.structuralOpInFlight;
+    };
+
     const machineServices = this.services.getMachineServices();
     
     const provided = audioMachine.provide({
@@ -93,6 +99,11 @@ export class AudioCoordinator {
     gate.on('preview-preempted', (event) => {
       console.log(`🚫 Preview preempted by ${event.key}, clearing preview mode`);
       this.setPreviewMode(false);
+      
+      // Phase 1B: Stop RNTP preview on gate preemption
+      this.services.getAudioSystem().stopRNTPPreview().catch((error) => {
+        console.error('❌ Failed to stop RNTP preview on preemption:', error);
+      });
     });
   }
 
@@ -106,7 +117,11 @@ export class AudioCoordinator {
     this.actor.send({ type: 'OPEN_VOICE_MODAL' });
   }
 
-  closeVoiceModal() {
+  async closeVoiceModal() {
+    // Phase 1B: Stop any active RNTP preview before canceling voice modal
+    console.log('🛑 AudioCoordinator: Stopping RNTP preview before closing voice modal');
+    await this.services.getAudioSystem().stopRNTPPreview();
+    
     this.actor.send({ type: 'CANCEL_VOICE_MODAL' });
   }
 
