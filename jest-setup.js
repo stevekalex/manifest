@@ -11,6 +11,26 @@ try {
   // Package not installed, skip mock
 }
 
+// Mock React Native core modules
+jest.mock('react-native', () => ({
+  AppState: {
+    currentState: 'active',
+    addEventListener: jest.fn(() => ({
+      remove: jest.fn(),
+    })),
+    removeEventListener: jest.fn(),
+  },
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((options) => options.ios),
+  },
+  Dimensions: {
+    get: jest.fn(() => ({ width: 375, height: 667 })),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+  },
+}));
+
 // Mock Expo modules
 jest.mock('expo-font');
 jest.mock('expo-constants', () => ({

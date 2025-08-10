@@ -36,6 +36,9 @@ import TrackPlayer, {
     private debouncer = new EventDebouncer();
     public onTrackAdvanced?: (trackIndex: number) => void;
     
+    // Phase 1A: Event suppression function
+    public shouldSuppressEvents?: () => boolean;
+    
     constructor() {
       this.backgroundPlayer = new BackGroundAndPreviewPlayer();
       this.setupAppStateHandling();
@@ -77,9 +80,16 @@ import TrackPlayer, {
       TrackPlayer.addEventListener(TrackPlayerEvent.RemoteNext, () => TrackPlayer.skipToNext());
       TrackPlayer.addEventListener(TrackPlayerEvent.RemotePrevious, () => TrackPlayer.skipToPrevious());
       
-      // Notify coordinator when track advances with debouncing
+      // Notify coordinator when track advances with debouncing and suppression
       TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackTrackChanged, (event) => {
+        // Phase 1A: Suppress events during preview or structural operations
+        if (this.shouldSuppressEvents?.()) {
+          console.log('🚫 Suppressing RNTP PlaybackTrackChanged event - preview/structural op active');
+          return;
+        }
+        
         if (event.nextTrack !== null && this.debouncer.shouldProcessTrackChange() && this.onTrackAdvanced) {
+          console.log(`🎵 RNTP Track advanced to index: ${event.nextTrack}`);
           this.onTrackAdvanced(event.nextTrack);
         }
       });

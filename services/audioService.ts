@@ -1,13 +1,40 @@
 import { AudioPlaybackService } from './audioPlaybackService';
-import { Playlist, VoiceId, PausedState } from '@/types/audio';
+import { Playlist, VoiceId, PausedState, OperationKey } from '../types/audio';
 import { Track } from 'react-native-track-player';
 import { useAudioStore } from '../store/audioStore';
+import { gate, Priority } from './transactionGate';
 
 export class AudioServices {
   private audioSystem: AudioPlaybackService;
+  private transactionGateEnabled = false; // Feature flag
 
   constructor() {
     this.audioSystem = new AudioPlaybackService();
+  }
+
+  // Enable transaction gate for this service
+  enableTransactionGate(enabled: boolean = true) {
+    this.transactionGateEnabled = enabled;
+    console.log(`🔧 AudioServices transaction gate ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  // Helper to execute operations through gate when enabled
+  private async executeWithGate<T>(
+    operationKey: OperationKey,
+    priority: Priority,
+    operation: () => Promise<T>,
+    fallback?: () => Promise<T>
+  ): Promise<T> {
+    if (!this.transactionGateEnabled) {
+      return operation();
+    }
+
+    const result = await gate.exec(operationKey, priority, operation);
+    if (result === null && fallback) {
+      console.log(`⚠️ Operation ${operationKey} superseded, using fallback`);
+      return fallback();
+    }
+    return result || (undefined as any); // Type assertion for now
   }
 
   // Assumes playlist URLs are already local (file://, asset:/, or absolute path).
@@ -48,21 +75,46 @@ export class AudioServices {
     playlist: Playlist;
     globalDelayMs: number;
   }) => {
-    const { newVoiceId, pausedState, playlist, globalDelayMs } = data;
-    if (!playlist || !pausedState) throw new Error('Missing required data for voice switch');
+    return this.executeWithGate(
+      `accept:${data.newVoiceId}:${data.pausedState.trackIndex}`,
+      Priority.Accept,
+      async () => {
+        const { newVoiceId, pausedState, playlist, globalDelayMs } = data;
+        if (!playlist || !pausedState) throw new Error('Missing required data for voice switch');
 
-    const fromIndex = pausedState.trackIndex;
-    const remainingAffirmations = playlist.affirmations.slice(fromIndex);
-    const paths = remainingAffirmations
-      .map(a => playlist.cdnUrls[newVoiceId][a.id])
-      .filter(Boolean) as string[];
+        const fromIndex = pausedState.trackIndex;
+        const remainingAffirmations = playlist.affirmations.slice(fromIndex);
+        const paths = remainingAffirmations
+          .map(a => playlist.cdnUrls[newVoiceId][a.id])
+          .filter(Boolean) as string[];
 
-    const tracks = this.buildTracksWithDelays(remainingAffirmations, paths, globalDelayMs);
+        const tracks = this.buildTracksWithDelays(remainingAffirmations, paths, globalDelayMs);
 
-    await this.audioSystem.updateUpcomingTracks(tracks, fromIndex);
-    await this.audioSystem.resumeAffirmations(pausedState);
+        // TODO - consider the perofrmance of this code - would this be too blocking for what we need? Could we update a quick few tracks and then
+        // create a queue of tracks to play?
+        await this.audioSystem.updateUpcomingTracks(tracks, fromIndex);
+        await this.audioSystem.resumeAffirmations(pausedState);
 
-    return { voiceId: newVoiceId };
+        return { voiceId: newVoiceId };
+      },
+      // Fallback: try the operation anyway if gate is superseded
+      async () => {
+        const { newVoiceId, pausedState, playlist, globalDelayMs } = data;
+        console.log(`⚠️ Voice switch superseded; fallback for accept:${newVoiceId}:${pausedState.trackIndex}`);
+        
+        const fromIndex = pausedState.trackIndex;
+        const remainingAffirmations = playlist.affirmations.slice(fromIndex);
+        const paths = remainingAffirmations
+          .map(a => playlist.cdnUrls[newVoiceId][a.id])
+          .filter(Boolean) as string[];
+
+        const tracks = this.buildTracksWithDelays(remainingAffirmations, paths, globalDelayMs);
+        await this.audioSystem.updateUpcomingTracks(tracks, fromIndex);
+        await this.audioSystem.resumeAffirmations(pausedState);
+
+        return { voiceId: newVoiceId };
+      }
+    );
   };
 
   private buildTracksWithDelays(affirmations: { id: string; text?: string }[], localPaths: any[], globalDelayMs: number): Track[] {
@@ -107,7 +159,22 @@ export class AudioServices {
         const { context, event } = args || {};
         if (event?.type !== 'PREVIEW_VOICE') return;
         const voice = context?.playlist?.voices?.find((v: any) => v.id === event.voiceId);
-        if (voice) await this.audioSystem.previewVoice(voice.sampleUrl);
+        if (voice) {
+          // Phase 1A: Gate preview at service boundary
+          await this.executeWithGate(
+            `preview:${event.voiceId}`,
+            Priority.Preview,
+            async () => {
+              await this.audioSystem.previewVoice(voice.sampleUrl);
+              return { success: true };
+            },
+            async () => {
+              // Fallback: execute anyway
+              await this.audioSystem.previewVoice(voice.sampleUrl);
+              return { success: true };
+            }
+          );
+        }
       },
       updateGlobalDelay: (args: any) => {
         const { context, event } = args || {};
@@ -134,52 +201,58 @@ export class AudioServices {
 
   // Play a preview voice sample
   playPreviewService = async (context: { event: { voiceId: VoiceId; affirmationIndex?: number }; playlist?: Playlist; context: { currentTrackIndex: number } }) => {
-    const { event, playlist, context: machineContext } = context;
-    if (!playlist) throw new Error('No playlist for voice preview');
-    
-    console.log('🎤 Starting voice preview for:', event.voiceId);
-    
-    // Note: State machine handles pausing/resuming affirmations via entry/exit actions
-    
-    // For simplicity, always preview the first affirmation (affirmation-0) 
-    // regardless of current track index
-    const previewAffirmation = playlist.affirmations[0]; // Always use first affirmation for preview
-    
-    if (!previewAffirmation) throw new Error('No first affirmation available for preview');
-    
-    // Get the URL for the first affirmation in the selected voice
-    let affirmationUrl = playlist.cdnUrls[event.voiceId]?.[previewAffirmation.id];
-    
-    // If no specific voice URL, fallback to serenity voice (which has audio files)
-    if (!affirmationUrl) {
-      console.warn(`No audio for voice ${event.voiceId}, using serenity voice as demo`);
-      affirmationUrl = playlist.cdnUrls['serenity']?.[previewAffirmation.id];
-      
-      if (!affirmationUrl) {
-        throw new Error(`No audio available for preview`);
+    return this.executeWithGate(
+      'preview:voice-sample',
+      Priority.Preview,
+      async () => {
+        const { event, playlist } = context;
+        if (!playlist) throw new Error('No playlist for voice preview');
+        
+        console.log('🎤 Starting voice preview for:', event.voiceId);
+        
+        // Note: State machine handles pausing/resuming affirmations via entry/exit actions
+        
+        // For simplicity, always preview the first affirmation (affirmation-0) 
+        // regardless of current track index
+        const previewAffirmation = playlist.affirmations[0]; // Always use first affirmation for preview
+        
+        if (!previewAffirmation) throw new Error('No first affirmation available for preview');
+        
+        // Get the URL for the first affirmation in the selected voice
+        let affirmationUrl = playlist.cdnUrls[event.voiceId]?.[previewAffirmation.id];
+        
+        // If no specific voice URL, fallback to serenity voice (which has audio files)
+        if (!affirmationUrl) {
+          console.warn(`No audio for voice ${event.voiceId}, using serenity voice as demo`);
+          affirmationUrl = playlist.cdnUrls['serenity']?.[previewAffirmation.id];
+          
+          if (!affirmationUrl) {
+            throw new Error(`No audio available for preview`);
+          }
+        }
+        
+        // Handle both require() modules (numbers) and string URLs
+        let previewUrl: any;
+        if (typeof affirmationUrl === 'number') {
+          // This is a require() module - use it directly
+          previewUrl = affirmationUrl;
+          console.log('🎤 Playing require() module for preview');
+        } else if (typeof affirmationUrl === 'string' && affirmationUrl.startsWith('tts://')) {
+          // TTS placeholder - skip preview
+          console.log(`🎤 Skipping preview for TTS placeholder: ${event.voiceId}`);
+          return { success: true };
+        } else {
+          // Regular URL string
+          previewUrl = affirmationUrl;
+        }
+        
+        // Play the preview (main affirmations continue in background)
+        await this.audioSystem.previewVoice(previewUrl);
+        
+        console.log('🎤 Voice preview completed for:', event.voiceId);
+        return { success: true };
       }
-    }
-    
-    // Handle both require() modules (numbers) and string URLs
-    let previewUrl: any;
-    if (typeof affirmationUrl === 'number') {
-      // This is a require() module - use it directly
-      previewUrl = affirmationUrl;
-      console.log('🎤 Playing require() module for preview');
-    } else if (typeof affirmationUrl === 'string' && affirmationUrl.startsWith('tts://')) {
-      // TTS placeholder - skip preview
-      console.log(`🎤 Skipping preview for TTS placeholder: ${event.voiceId}`);
-      return { success: true };
-    } else {
-      // Regular URL string
-      previewUrl = affirmationUrl;
-    }
-    
-    // Play the preview (main affirmations continue in background)
-    await this.audioSystem.previewVoice(previewUrl);
-    
-    console.log('🎤 Voice preview completed for:', event.voiceId);
-    return { success: true };
+    );
   };
 
   getMachineServices() {
