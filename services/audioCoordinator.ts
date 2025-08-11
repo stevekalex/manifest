@@ -47,11 +47,30 @@ export class AudioCoordinator {
         voiceSwitchTransaction: fromPromise(({ input }) => machineServices.voiceSwitchTransaction(input)),
         pauseAndSnapshot: fromPromise(() => machineServices.pauseAndSnapshot()),
         playPreviewService: fromPromise(({ input }) => machineServices.playPreviewService(input)),
-        createDelay: fromPromise(({ input }: { input: { delayMs: number } }) => 
-          new Promise<void>((resolve) => {
-            setTimeout(resolve, input.delayMs);
-          })
-        ),
+        cancelPreviewAndRestore: fromPromise(() => machineServices.cancelPreviewAndRestore()),
+        createDelay: fromPromise(({ input }: { input: { delayMs: number } }) => {
+          console.log('⏱️ [DELAY-TIMER] Starting delay timer for', input.delayMs, 'ms');
+          const startTime = Date.now();
+          let cancelled = false;
+          
+          return new Promise<void>((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+              if (!cancelled) {
+                const actualDelay = Date.now() - startTime;
+                console.log('⏱️ [DELAY-TIMER] Delay timer completed after', actualDelay, 'ms (expected:', input.delayMs, 'ms)');
+                resolve();
+              }
+            }, input.delayMs);
+            
+            // Handle cancellation
+            return () => {
+              cancelled = true;
+              clearTimeout(timeoutId);
+              const cancelledAfter = Date.now() - startTime;
+              console.log('⏱️ [DELAY-TIMER-CANCEL] Delay timer cancelled after', cancelledAfter, 'ms (expected:', input.delayMs, 'ms)');
+            };
+          });
+        }),
       },
       actions: this.services.getMachineActions(),
     });
@@ -65,13 +84,26 @@ export class AudioCoordinator {
 
   private setupStoreSync() {
     this.actor.subscribe((snapshot: any) => {
+      console.log('🏃 [STATE] State machine transition:', {
+        state: snapshot.value,
+        modalOpen: snapshot.context.modalOpen,
+        currentTrackIndex: snapshot.context.currentTrackIndex,
+        currentVoiceId: snapshot.context.currentVoiceId,
+        globalDelayMs: snapshot.context.globalDelayMs,
+        isPlaying: snapshot.matches('playing') || snapshot.matches('voiceSelecting'),
+        // TODO - this is fine for now, but once we do voice previews this might need to change
+        isPreviewMode: snapshot.matches('voiceSelecting.previewing'),
+        isVoiceSwitching: snapshot.matches('voiceSwitching'),
+        isRestoring: snapshot.matches('voiceSelecting.restoring')
+      });
+      
       const store = useAudioStore.getState();
       store.setModalOpen(!!snapshot.context.modalOpen);
       store.setPausedState(snapshot.context.pausedState);
       store.setVoiceId(snapshot.context.currentVoiceId);
-      store.setIsPlaying(snapshot.matches('playing'));
+      store.setIsPlaying(snapshot.matches('playing') || snapshot.matches('voiceSelecting'));
       store.setCurrentTrackIndex(snapshot.context.currentTrackIndex || 0);
-      store.setGlobalDelay(snapshot.context.globalDelayMs || 3000);
+      store.setGlobalDelay(snapshot.context.globalDelayMs ?? 3000);
       
       // Phase 1A: Derive coordinator flags from actual machine state
       this.setPreviewMode(snapshot.matches('voiceSelecting.previewing'));
@@ -114,28 +146,37 @@ export class AudioCoordinator {
   }
 
   openVoiceModal() {
+    console.log('🔓 [MODAL] Opening voice modal - sending OPEN_VOICE_MODAL event');
     this.actor.send({ type: 'OPEN_VOICE_MODAL' });
   }
 
   async closeVoiceModal() {
-    // Phase 1B: Stop any active RNTP preview before canceling voice modal
-    console.log('🛑 AudioCoordinator: Stopping RNTP preview before closing voice modal');
-    await this.services.getAudioSystem().stopRNTPPreview();
-    
+    // Let the state machine handle preview cleanup and restoration
+    console.log('🔒 [MODAL] Closing voice modal via state machine - sending CANCEL_VOICE_MODAL event');
     this.actor.send({ type: 'CANCEL_VOICE_MODAL' });
   }
 
   previewVoice(voiceId: VoiceId) {
     // Phase 1A: Let machine state drive flags, don't manually manage them
+    console.log('🎤 [MODAL] Previewing voice:', voiceId, '- sending PREVIEW_VOICE event');
     this.actor.send({ type: 'PREVIEW_VOICE', voiceId });
   }
 
   async confirmVoiceSelection(voiceId: VoiceId) {
     // Phase 1A: Let machine state drive flags, don't manually manage them
+    console.log('✅ [MODAL] Confirming voice selection:', voiceId, '- sending CONFIRM_VOICE event');
     this.actor.send({ type: 'CONFIRM_VOICE', voiceId });
   }
 
   updateDelay(delayMs: number) {
+    console.log('⏰ [DELAY] updateDelay called with:', delayMs, 'ms');
+    const currentState = this.actor.getSnapshot();
+    console.log('⏰ [DELAY] Current state when updating delay:', {
+      state: currentState.value,
+      currentDelayMs: currentState.context.globalDelayMs,
+      isWaitingForNext: currentState.matches('playing.waitingForNext')
+    });
+    console.log('⏰ [DELAY] Sending UPDATE_DELAY event to state machine');
     this.actor.send({ type: 'UPDATE_DELAY', delayMs });
   }
 

@@ -40,32 +40,46 @@ export class AudioServices {
   // Assumes playlist URLs are already local (file://, asset:/, or absolute path).
   bootstrapPlaylist = async (context: { playlist: Playlist; currentVoiceId: VoiceId; globalDelayMs: number }) => {
     const { playlist, currentVoiceId, globalDelayMs } = context;
-    console.log('🚀 AudioServices.bootstrapPlaylist started for:', playlist.name);
+    console.log('🚀 [BOOTSTRAP] Starting playlist bootstrap for:', playlist.name, 'voice:', currentVoiceId);
     
     if (!playlist) throw new Error('No playlist selected');
 
     // 1) Play background directly (accept require module or uri string)
     const store = useAudioStore.getState();
-    console.log('🎵 AudioServices: Starting background with URL:', playlist.backgroundTrackUrl, 'at volume:', store.backgroundVolume);
+    console.log('🎵 [BOOTSTRAP] Step 1: Starting background music');
+    console.log('🎵 [BOOTSTRAP] Background URL:', playlist.backgroundTrackUrl, 'volume:', store.backgroundVolume);
     await this.audioSystem.playBackground(playlist.backgroundTrackUrl as any, store.backgroundVolume);
-    console.log('✅ AudioServices: Background playback initiated');
+    console.log('✅ [BOOTSTRAP] Background playback initiated');
 
     // 2) Build initial queue from local paths (no downloads)
+    console.log('🎵 [BOOTSTRAP] Step 2: Building initial affirmation queue');
     // Phase 1B: Reduced from 5 to 3 for better performance with snapshot/restore system
     const INITIAL_COUNT = 3;
     const affirmations = playlist.affirmations.slice(0, INITIAL_COUNT);
+    console.log('🎵 [BOOTSTRAP] Initial affirmations count:', affirmations.length);
+    
     const paths = affirmations.map(a => playlist.cdnUrls[currentVoiceId][a.id]).filter(Boolean) as any[];
+    console.log('🎵 [BOOTSTRAP] Resolved paths for voice', currentVoiceId, ':', paths.length, 'out of', affirmations.length);
 
     const tracks = this.buildTracksWithDelays(affirmations, paths, globalDelayMs);
+    console.log('🎵 [BOOTSTRAP] Built tracks with delays:', tracks.length, 'globalDelayMs:', globalDelayMs);
 
     if (!tracks.length) {
-      console.warn('No tracks resolved for initial queue. Ensure playlist.cdnUrls uses require() or http(s) urls.');
+      console.warn('⚠️ [BOOTSTRAP] No tracks resolved for initial queue. Ensure playlist.cdnUrls uses require() or http(s) urls.');
     }
+    
+    console.log('🎵 [BOOTSTRAP] Step 3: Setting up affirmations queue');
     await this.audioSystem.setupAffirmationsQueue(tracks);
+    
+    console.log('🎵 [BOOTSTRAP] Step 4: Starting affirmations playback');
     await this.audioSystem.playAffirmations();
+    
     // Set initial affirmation volume from store
+    console.log('🎵 [BOOTSTRAP] Step 5: Setting initial volumes');
+    console.log('🎵 [BOOTSTRAP] Affirmation volume:', store.affirmationVolume);
     await this.audioSystem.setAffirmationVolume(store.affirmationVolume);
 
+    console.log('🎉 [BOOTSTRAP] Playlist bootstrap completed successfully');
     return { success: true };
   };
 
@@ -76,26 +90,44 @@ export class AudioServices {
     playlist: Playlist;
     globalDelayMs: number;
   }) => {
+    console.log('🔄 [VOICE-SWITCH] Starting voice switch transaction:', {
+      newVoiceId: data.newVoiceId,
+      fromIndex: data.pausedState.trackIndex,
+      positionMs: data.pausedState.positionMs,
+      globalDelayMs: data.globalDelayMs
+    });
+    
     return this.executeWithGate(
       `accept:${data.newVoiceId}:${data.pausedState.trackIndex}`,
       Priority.Accept,
       async () => {
+        console.log('🔄 [VOICE-SWITCH] Executing main voice switch operation');
         const { newVoiceId, pausedState, playlist, globalDelayMs } = data;
         if (!playlist || !pausedState) throw new Error('Missing required data for voice switch');
 
         const fromIndex = pausedState.trackIndex;
+        console.log('🔄 [VOICE-SWITCH] Building tracks from index:', fromIndex);
+        
         const remainingAffirmations = playlist.affirmations.slice(fromIndex);
+        console.log('🔄 [VOICE-SWITCH] Remaining affirmations:', remainingAffirmations.length);
+        
         const paths = remainingAffirmations
           .map(a => playlist.cdnUrls[newVoiceId][a.id])
           .filter(Boolean) as string[];
+        console.log('🔄 [VOICE-SWITCH] Found paths for voice:', paths.length);
 
         const tracks = this.buildTracksWithDelays(remainingAffirmations, paths, globalDelayMs);
+        console.log('🔄 [VOICE-SWITCH] Built tracks with delays:', tracks.length);
 
         // TODO - consider the perofrmance of this code - would this be too blocking for what we need? Could we update a quick few tracks and then
         // create a queue of tracks to play?
+        console.log('🔄 [VOICE-SWITCH] Updating upcoming tracks...');
         await this.audioSystem.updateUpcomingTracks(tracks, fromIndex);
+        
+        console.log('🔄 [VOICE-SWITCH] Resuming affirmations with paused state...');
         await this.audioSystem.resumeAffirmations(pausedState);
 
+        console.log('✅ [VOICE-SWITCH] Voice switch completed successfully to:', newVoiceId);
         return { voiceId: newVoiceId };
       },
       // Fallback: try the operation anyway if gate is superseded
@@ -143,12 +175,12 @@ export class AudioServices {
   getMachineActions() {
     return {
       pauseAffirmations: async () => { 
-        console.log('🔇 pauseAffirmations action called');
+        console.log('🔇 [DELAY-PAUSE] pauseAffirmations action called - pausing for delay timer');
         await this.audioSystem.pauseAffirmations(); 
       },
       savePausedState: async () => await this.audioSystem.pauseAffirmations(),
       resumeAffirmations: async () => { 
-        console.log('🔊 resumeAffirmations action called');
+        console.log('🔊 [DELAY-RESUME] resumeAffirmations action called - resuming after delay timer');
         await this.audioSystem.resumeAffirmations(); 
       },
       skipToNextTrack: async () => { await this.audioSystem.skipToNextTrack(); },
@@ -157,35 +189,62 @@ export class AudioServices {
       pauseBackground: async () => { await this.audioSystem.pauseBackground(); },
       resumeBackground: async () => { await this.audioSystem.resumeBackground(); },
       previewVoice: async (args: any) => {
+        console.log('🎤 [VOICE] Preview voice action called');
         const { context, event } = args || {};
+        console.log('🎤 [VOICE] Preview event details:', { 
+          eventType: event?.type, 
+          voiceId: event?.voiceId,
+          hasPlaylist: !!context?.playlist 
+        });
+        
         if (event?.type !== 'PREVIEW_VOICE') return;
         const voice = context?.playlist?.voices?.find((v: any) => v.id === event.voiceId);
+        
         if (voice) {
+          console.log('🎤 [VOICE] Found voice for preview:', voice.id, 'sampleUrl:', voice.sampleUrl);
+          
           // Phase 1B: RNTP preview with transaction gate
           await this.executeWithGate(
             `preview:${event.voiceId}`,
             Priority.Preview,
             async () => {
+              console.log('🎤 [VOICE] Starting RNTP preview via transaction gate');
               // Use RNTP preview (Phase 1B) instead of Expo AV
               const success = await this.audioSystem.previewVoiceRNTP(voice.sampleUrl, 5000);
+              console.log('🎤 [VOICE] RNTP preview completed, success:', success);
               return { success };
             },
             async () => {
+              console.log('🎤 [VOICE] Using fallback Expo AV preview');
               // Fallback: Use legacy Expo AV preview
               await this.audioSystem.previewVoice(voice.sampleUrl);
               return { success: true };
             }
           );
+        } else {
+          console.warn('⚠️ [VOICE] No voice found for preview:', event.voiceId);
         }
       },
       updateGlobalDelay: (args: any) => {
+        console.log('⏰ [DELAY] updateGlobalDelay action called');
         const { context, event } = args || {};
+        console.log('⏰ [DELAY] Event details:', { 
+          eventType: event?.type, 
+          delayMs: event?.delayMs,
+          currentDelay: context?.globalDelayMs 
+        });
+        
         if (event?.type !== 'UPDATE_DELAY') return;
-        if (context) context.globalDelayMs = event.delayMs;
+        if (context) {
+          console.log('⏰ [DELAY] Updating context delay from', context.globalDelayMs, 'to', event.delayMs);
+          context.globalDelayMs = event.delayMs;
+        }
       },
       updateUpcomingTracks: async (args: any) => {
+        console.log('🔄 [DELAY] updateUpcomingTracks action called');
         const { context } = args || {};
-        console.log('Update upcoming tracks with new delay:', context?.globalDelayMs);
+        console.log('🔄 [DELAY] Context delay for upcoming tracks:', context?.globalDelayMs);
+        // TODO: Actually implement track updates with new delay if needed
       },
       logBootstrapSuccess: () => console.log('Playlist bootstrap successful'),
       logVoiceSwitchSuccess: () => console.log('Voice switch successful'),
@@ -261,14 +320,42 @@ export class AudioServices {
         }
       );
     } finally {
-      // 3) Always restore
-      console.log('🔄 Restoring snapshot after preview');
-      await this.audioSystem.restoreFromSnapshot(snapshot);
+      // 3) Only restore if preview wasn't cancelled (cancel path handles its own restore)
+      if (!this.audioSystem.isPreviewCancelled) {
+        console.log('🔄 Restoring snapshot after preview');
+        await this.audioSystem.restoreFromSnapshot(snapshot);
+      } else {
+        console.log('🔄 Skipping restore - preview was cancelled');
+      }
     }
     
     console.log('🎤 Voice preview completed for:', event.voiceId);
     return { success: true };
   };
+
+  // Cancel preview and restore the main queue
+  cancelPreviewAndRestore = async () => {
+    console.log('🔄 [RESTORE] cancelPreviewAndRestore service starting');
+    
+    // Check if there's actually a snapshot to restore (meaning preview was active)
+    const hasSnapshot = this.audioSystem.hasSnapshotForRestore();
+    console.log('🔄 [RESTORE] Has snapshot to restore:', hasSnapshot);
+    
+    if (hasSnapshot) {
+      console.log('🛑 [RESTORE] Step 1: Stopping RNTP preview...');
+      await this.audioSystem.stopRNTPPreview();
+      console.log('✅ [RESTORE] RNTP preview stopped');
+      
+      console.log('🔄 [RESTORE] Step 2: Restoring last snapshot...');
+      await this.audioSystem.restoreLastSnapshot();
+      console.log('✅ [RESTORE] Last snapshot restored');
+    } else {
+      console.log('ℹ️ [RESTORE] No preview was active, skipping restoration');
+    }
+    
+    console.log('🎉 [RESTORE] cancelPreviewAndRestore service completed successfully');
+    return { cancelled: true };
+  }
 
   getMachineServices() {
     return {
@@ -279,6 +366,7 @@ export class AudioServices {
       // Phase 1B: New snapshot-based services
       capturePlaybackSnapshot: this.capturePlaybackSnapshot,
       restoreFromSnapshot: this.restoreFromSnapshot,
+      cancelPreviewAndRestore: this.cancelPreviewAndRestore,
     };
   }
 

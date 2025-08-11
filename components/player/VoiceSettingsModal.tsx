@@ -121,6 +121,12 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
 
   useEffect(() => {
     const delayInSeconds = affirmationDelay / 1000;
+    console.log('🔧 [DELAY-SYNC] useEffect syncing delay slider:', {
+      affirmationDelay,
+      delayInSeconds,
+      sliderWidth,
+      newTranslateX: (delayInSeconds / 15) * sliderWidth
+    });
     setDelaySliderValue(delayInSeconds);
     delayTranslateX.value = (delayInSeconds / 15) * sliderWidth;
   }, [affirmationDelay, sliderWidth, delayTranslateX]);
@@ -140,6 +146,12 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
   const handleDelayChange = async (newValue: number) => {
     const delayInSeconds = Math.max(0, Math.min(15, newValue));
     const delayInMs = delayInSeconds * 1000;
+    console.log('🔧 [DELAY-SLIDER] handleDelayChange called:', {
+      inputValue: newValue,
+      clampedSeconds: delayInSeconds,
+      delayInMs: delayInMs,
+      currentAffirmationDelay: affirmationDelay
+    });
     setDelaySliderValue(delayInSeconds);
     try {
       console.log('⏱️ Delay slider changed to:', delayInSeconds, 'seconds');
@@ -275,7 +287,10 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
   };
 
   const formatDelayDisplay = (delayMs: number) => {
-    return `${Math.round(delayMs / 1000)}s`;
+    // Handle undefined/null values and ensure we have a valid number
+    const validDelayMs = typeof delayMs === 'number' && !isNaN(delayMs) ? delayMs : 0;
+    const seconds = Math.max(0, Math.round(validDelayMs / 1000));
+    return `${seconds}s`;
   };
 
   return (

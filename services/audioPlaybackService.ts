@@ -38,6 +38,8 @@ import TrackPlayer, {
     private affirmationsReady = false;
     private appStateSubscription?: any;
     private debouncer = new EventDebouncer();
+    private lastSnapshot?: PlaybackSnapshot;
+    private previewCancelled = false;
     public onTrackAdvanced?: (trackIndex: number) => void;
     
     // Phase 1A: Event suppression function
@@ -45,6 +47,16 @@ import TrackPlayer, {
     
     // Phase 1B: Refined suppression for QueueEnded events
     public shouldSuppressQueueEnded?: () => boolean;
+    
+    // Getter for preview cancelled state
+    get isPreviewCancelled(): boolean {
+      return this.previewCancelled;
+    }
+    
+    // Check if there's a snapshot available for restoration
+    hasSnapshotForRestore(): boolean {
+      return !!this.lastSnapshot;
+    }
     
     constructor() {
       this.backgroundPlayer = new BackGroundAndPreviewPlayer();
@@ -91,25 +103,45 @@ import TrackPlayer, {
       
       // Track change events (most important for coordination)
       TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackTrackChanged, (event) => {
+        console.log('🎵 [EVENT] PlaybackTrackChanged fired:', {
+          nextTrack: event.nextTrack,
+          prevTrack: event.track,
+          suppressEvents: this.shouldSuppressEvents?.()
+        });
+        
         if (this.shouldSuppressEvents?.()) {
-          console.log('🚫 Suppressing RNTP PlaybackTrackChanged event - preview/structural op active');
+          console.log('🚫 [EVENT] Suppressing RNTP PlaybackTrackChanged event - preview/structural op active');
           return;
         }
         
         if (event.nextTrack !== null && this.debouncer.shouldProcessTrackChange() && this.onTrackAdvanced) {
-          console.log(`🎵 RNTP Track advanced to index: ${event.nextTrack}`);
+          console.log(`🎵 [EVENT] Track advanced to index: ${event.nextTrack} - calling onTrackAdvanced`);
+          // Log current delay value for debugging
+          const store = useAudioStore.getState();
+          console.log(`⏰ [TRACK-ADVANCE] Current globalDelayMs: ${store.globalDelayMs}ms`);
           this.onTrackAdvanced(event.nextTrack);
+        } else {
+          console.log('🎵 [EVENT] Track change ignored:', {
+            nextTrack: event.nextTrack,
+            shouldProcess: this.debouncer.shouldProcessTrackChange(),
+            hasCallback: !!this.onTrackAdvanced
+          });
         }
       });
       
       // Playback state events (suppress to prevent UI flickering during operations)
       TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackState, (event) => {
+        console.log('🎵 [EVENT] PlaybackState changed:', {
+          state: event.state,
+          suppressEvents: this.shouldSuppressEvents?.()
+        });
+        
         if (this.shouldSuppressEvents?.()) {
-          console.log('🚫 Suppressing RNTP PlaybackState event - preview/structural op active');
+          console.log('🚫 [EVENT] Suppressing RNTP PlaybackState event - preview/structural op active');
           return;
         }
         // Allow state changes through when not suppressed
-        console.log('🎵 RNTP Playback state:', event.state);
+        console.log('🎵 [EVENT] RNTP Playback state allowed through:', event.state);
       });
       
       // Queue end events (refined suppression for preview operations)
@@ -157,18 +189,42 @@ import TrackPlayer, {
     }
     
     async setupAffirmationsQueue(tracks: Track[]) {
+      console.log('🎵 [QUEUE] Setting up affirmations queue with', tracks.length, 'tracks');
+      console.log('🎵 [QUEUE] Track details:', tracks.map(t => ({ id: t.id, title: t.title })));
+      
       await this.initialize();
       await TrackPlayer.reset();
+      console.log('🎵 [QUEUE] RNTP reset completed');
+      
       await TrackPlayer.add(tracks);
+      console.log('🎵 [QUEUE] Added', tracks.length, 'tracks to RNTP queue');
+      
       await TrackPlayer.setRepeatMode(RepeatMode.Queue);
+      console.log('🎵 [QUEUE] Set repeat mode to Queue');
+      
+      // Verify queue was set up correctly
+      const queue = await TrackPlayer.getQueue();
+      console.log('🎵 [QUEUE] Final queue verification:', queue.length, 'tracks in queue');
     }
     
     async playAffirmations() {
+      console.log('▶️ [PLAY] Starting affirmation playback');
+      const beforeState = await TrackPlayer.getPlaybackState();
+      console.log('▶️ [PLAY] RNTP state before play:', beforeState.state);
+      
       await TrackPlayer.play();
+      
+      const afterState = await TrackPlayer.getPlaybackState();
+      console.log('▶️ [PLAY] RNTP state after play:', afterState.state);
+      
+      const currentTrack = await TrackPlayer.getActiveTrack();
+      console.log('▶️ [PLAY] Current active track:', currentTrack?.id, '-', currentTrack?.title);
+      
       // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
     async pauseAffirmations(): Promise<PausedState> {
+      console.log('⏸️ [PAUSE] Pausing affirmations');
       try {
         const [progressRes, indexRes] = await Promise.allSettled([
           TrackPlayer.getProgress(), // { position, duration, buffered }
@@ -184,34 +240,68 @@ import TrackPlayer, {
         const trackIndex =
           indexRes.status === 'fulfilled' ? (indexRes.value as number) : 0;
 
+        console.log('⏸️ [PAUSE] Current state before pause:', {
+          position,
+          trackIndex,
+          progressRes: progressRes.status,
+          indexRes: indexRes.status
+        });
+
         await TrackPlayer.pause();
+        console.log('⏸️ [PAUSE] TrackPlayer.pause() completed');
+        
         // Note: Don't set store.isPlaying here - let state machine handle it
 
-        return {
+        const pausedState = {
           trackIndex,
           positionMs: Math.floor(position * 1000),
           timestamp: Date.now(),
         };
-      } catch {
+        
+        console.log('⏸️ [PAUSE] Returning paused state:', pausedState);
+        return pausedState;
+      } catch (error) {
+        console.error('❌ [PAUSE] Error pausing affirmations:', error);
         // Fallback to safe defaults
         await TrackPlayer.pause().catch(() => {});
         // Note: Don't set store.isPlaying here - let state machine handle it
-        return { trackIndex: 0, positionMs: 0, timestamp: Date.now() };
+        const fallbackState = { trackIndex: 0, positionMs: 0, timestamp: Date.now() };
+        console.log('⏸️ [PAUSE] Using fallback state:', fallbackState);
+        return fallbackState;
       }
     }
     
     async resumeAffirmations(pausedState?: PausedState) {
+      console.log('▶️ [RESUME] Resuming affirmations', pausedState ? 'with paused state' : 'without paused state');
       if (pausedState) {
+        console.log('▶️ [RESUME] Seeking to position:', pausedState.positionMs / 1000, 'seconds, track:', pausedState.trackIndex);
         // Seek to exact position
         await TrackPlayer.seekTo(pausedState.positionMs / 1000);
       }
+      
+      const beforeState = await TrackPlayer.getPlaybackState();
+      console.log('▶️ [RESUME] RNTP state before resume:', beforeState.state);
+      
       await TrackPlayer.play();
+      
+      const afterState = await TrackPlayer.getPlaybackState();
+      console.log('▶️ [RESUME] RNTP state after resume:', afterState.state);
+      
+      const currentTrack = await TrackPlayer.getActiveTrack();
+      console.log('▶️ [RESUME] Current active track after resume:', currentTrack?.id, '-', currentTrack?.title);
+      
       // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
     async skipToNextTrack() {
+      console.log('⏭️ [SKIP] Skipping to next track');
       await TrackPlayer.skipToNext();
+      
+      const currentTrack = await TrackPlayer.getActiveTrack();
+      console.log('⏭️ [SKIP] New current track:', currentTrack?.id, '-', currentTrack?.title);
+      
       await TrackPlayer.play();
+      console.log('⏭️ [SKIP] Playback started after skip');
       // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
@@ -236,8 +326,9 @@ import TrackPlayer, {
         // Duck background music
         await this.backgroundPlayer.duckBackground(true);
         
-        // Note: We don't need to capture original state for RNTP preview
-        // since we're using a separate preview system that doesn't affect main queue
+        // Capture snapshot before resetting for preview
+        this.lastSnapshot = await this.captureSnapshot();
+        this.previewCancelled = false;
         
         // Reset RNTP and prepare for preview
         await TrackPlayer.reset();
@@ -297,6 +388,7 @@ import TrackPlayer, {
     // Phase 1B: Stop RNTP preview (for user cancellation)
     async stopRNTPPreview(): Promise<void> {
       console.log('🛑 Stopping RNTP preview');
+      this.previewCancelled = true;
       try {
         await TrackPlayer.stop();
         await TrackPlayer.reset();
@@ -594,6 +686,32 @@ import TrackPlayer, {
       }
       
       return tracks;
+    }
+    
+    // Restore from the last captured snapshot (used when cancelling preview)
+    async restoreLastSnapshot() {
+      console.log('🔄 [SNAPSHOT] restoreLastSnapshot called', {
+        hasSnapshot: !!this.lastSnapshot,
+        previewCancelled: this.previewCancelled
+      });
+      
+      if (this.lastSnapshot && this.previewCancelled) {
+        console.log('🔄 [SNAPSHOT] Conditions met, restoring from last snapshot');
+        console.log('🔄 [SNAPSHOT] Snapshot details:', {
+          currentIndex: this.lastSnapshot.currentIndex,
+          positionMs: this.lastSnapshot.positionMs,
+          wasPlaying: this.lastSnapshot.wasPlaying,
+          affirmationIds: this.lastSnapshot.affirmationIds.length
+        });
+        await this.restoreFromSnapshot(this.lastSnapshot);
+        this.previewCancelled = false;
+        console.log('✅ [SNAPSHOT] Last snapshot restoration completed');
+      } else {
+        console.log('❌ [SNAPSHOT] Cannot restore - conditions not met:', {
+          hasSnapshot: !!this.lastSnapshot,
+          previewCancelled: this.previewCancelled
+        });
+      }
     }
     
     async cleanup() {

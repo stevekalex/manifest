@@ -147,33 +147,56 @@ export const audioMachine = createMachine({
           }
         },
         waitingForNext: {
-          entry: 'pauseAffirmations',
-          exit: 'resumeAffirmations', 
+          entry: [
+            'pauseAffirmations',
+            () => console.log('🔄 [STATE] Entering waitingForNext - delay timer will start')
+          ],
+          exit: [
+            () => console.log('🔄 [STATE] Exiting waitingForNext - delay timer completed or cancelled')
+          ], 
           invoke: {
             id: 'delayTimer',
             src: 'createDelay',
-            input: ({ context }) => ({ delayMs: context.globalDelayMs }),
+            input: ({ context }) => {
+              console.log('⏱️ [DELAY-INPUT] Creating delay timer with input:', context.globalDelayMs, 'ms');
+              return { delayMs: context.globalDelayMs };
+            },
             onDone: [
               {
                 target: '#audio.voiceSelecting',
-                guard: ({ context }) => context.modalOpen
+                guard: ({ context }) => context.modalOpen,
+                actions: 'resumeAffirmations' // Start next track even with modal open
               },
               {
-                target: 'playingTrack'
+                target: 'playingTrack',
+                actions: 'resumeAffirmations'
               }
             ]
           },
           on: {
             // User actions cancel delay immediately
-            SKIP_DELAY: 'playingTrack',
-            NEXT_TRACK: 'playingTrack', // User skip cancels delay
+            SKIP_DELAY: {
+              target: 'playingTrack',
+              actions: 'resumeAffirmations'
+            },
+            NEXT_TRACK: {
+              target: 'playingTrack', 
+              actions: 'resumeAffirmations'
+            },
             
             // Modal opens but delay continues - handled by parent state
             
             // Delay change restarts timer
             UPDATE_DELAY: {
               target: 'waitingForNext',
-              actions: assign(({ event }) => ({ globalDelayMs: (event as any).delayMs }))
+              actions: [
+                assign(({ event }) => {
+                  console.log('⏰ [DELAY-UPDATE] waitingForNext state UPDATE_DELAY handler triggered');
+                  console.log('⏰ [DELAY-UPDATE] Changing delay from', (event as any).context?.globalDelayMs, 'to', (event as any).delayMs);
+                  console.log('⏰ [DELAY-UPDATE] This will restart the delay timer immediately');
+                  return { globalDelayMs: (event as any).delayMs };
+                })
+              ]
             },
             
             // Race condition protection
@@ -188,6 +211,12 @@ export const audioMachine = createMachine({
         OPEN_VOICE_MODAL: {
           actions: assign(() => ({ modalOpen: true }))
         },
+        CLOSE_VOICE_MODAL: {
+          actions: assign(() => ({ modalOpen: false }))
+        },
+        CANCEL_VOICE_MODAL: {
+          actions: assign(() => ({ modalOpen: false }))
+        },
         PAUSE_FOR_INTERRUPTION: {
           target: 'interrupted',
           actions: 'pauseAllPlayers',
@@ -200,6 +229,8 @@ export const audioMachine = createMachine({
           actions: [
             assign(({ event }) => {
               if (event?.type !== 'UPDATE_DELAY') return {};
+              console.log('⏰ [DELAY-UPDATE] Playing state UPDATE_DELAY handler triggered');
+              console.log('⏰ [DELAY-UPDATE] Updating globalDelayMs to:', event.delayMs, 'ms');
               return { globalDelayMs: event.delayMs };
             }),
             'updateUpcomingTracks'
@@ -216,6 +247,12 @@ export const audioMachine = createMachine({
           actions: 'resumeAllPlayers',
         },
         STOP_PLAYBACK: 'idle',
+        CLOSE_VOICE_MODAL: {
+          actions: assign(() => ({ modalOpen: false }))
+        },
+        CANCEL_VOICE_MODAL: {
+          actions: assign(() => ({ modalOpen: false }))
+        },
       },
     },
     
@@ -236,26 +273,27 @@ export const audioMachine = createMachine({
     },
     
     voiceSelecting: {
-      exit: ['resumeBackground', assign(() => ({ modalOpen: false }))],
+      exit: ['resumeBackground', assign(() => ({ modalOpen: false })), 'resumeAffirmations'],
       on: {
         PREVIEW_VOICE: 'voiceSelecting.previewing',
         CANCEL_VOICE_MODAL: {
-          target: 'playing',
-          actions: [
-            assign(({ context }) => ({ 
-              currentTrackIndex: context.currentTrackIndex + 1,
-              modalOpen: false 
-            })),
-            'skipToNextTrack'
-          ],
+          target: 'voiceSelecting.restoring'
         },
         CONFIRM_VOICE: 'voiceSwitching',
         SET_VOICE: 'voiceSwitching',
         UPDATE_DELAY: {
           actions: assign(({ event }) => {
             if (event?.type !== 'UPDATE_DELAY') return {};
+            console.log('⏰ [DELAY-UPDATE] voiceSelecting state UPDATE_DELAY handler - updating globalDelayMs to:', event.delayMs);
             return { globalDelayMs: event.delayMs };
           }),
+        },
+        TRACK_ADVANCED: {
+          target: '#audio.playing.waitingForNext',
+          actions: assign(({ event }) => {
+            console.log('⏰ [TRACK-ADVANCE] voiceSelecting received TRACK_ADVANCED - transitioning to waitingForNext with delay');
+            return { currentTrackIndex: (event as any).trackIndex };
+          })
         },
       },
       initial: 'idle',
@@ -263,7 +301,6 @@ export const audioMachine = createMachine({
         idle: {},
         previewing: {
           entry: 'pauseAffirmations',
-          exit: 'resumeAffirmations',
           invoke: {
             id: 'playPreview',
             src: 'playPreviewService',
@@ -278,6 +315,23 @@ export const audioMachine = createMachine({
               actions: 'logPreviewError',
             },
           },
+        },
+        restoring: {
+          invoke: {
+            id: 'cancelPreviewAndRestore',
+            src: 'cancelPreviewAndRestore',
+            onDone: {
+              target: '#audio.playing',
+              actions: assign(() => ({ modalOpen: false }))
+            },
+            onError: {
+              target: '#audio.playing',
+              actions: [
+                assign(() => ({ modalOpen: false })),
+                ({ event }) => console.error('❌ Failed to cancel and restore:', event)
+              ]
+            }
+          }
         },
       },
     },
@@ -306,6 +360,12 @@ export const audioMachine = createMachine({
         RESUME_FROM_INTERRUPTION: {
           target: 'playing',
           actions: 'resumeAllPlayers',
+        },
+        CLOSE_VOICE_MODAL: {
+          actions: assign(() => ({ modalOpen: false }))
+        },
+        CANCEL_VOICE_MODAL: {
+          actions: assign(() => ({ modalOpen: false }))
         },
       },
     },
