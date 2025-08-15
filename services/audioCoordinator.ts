@@ -5,6 +5,7 @@ import { audioMachine } from './audioMachine';
 import { AudioPlaybackService } from './audioPlaybackService';
 import { URLResolver } from './urlResolver';
 import { BundledAssets } from './bundledAssets';
+import { getDelayTimerManager } from './delayTimerManager';
 import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId, PausedState, PlaybackSnapshot } from '../types/audio';
 import { Track } from 'react-native-track-player';
@@ -12,6 +13,14 @@ import { Track } from 'react-native-track-player';
 // Constants
 const INITIAL_TRACK_COUNT = 3; // Phase 1B: Reduced from 5 to 3 for better performance
 const DEFAULT_ARTIST_NAME = 'Manifestation App';
+
+// Phase 4: Critical states where event suppression is required
+const CRITICAL_STATES = [
+  'preparing',
+  'voiceSwitching', 
+  'pausingForModal',
+  'voiceSelecting.restoring'
+] as const;
 
 export class AudioCoordinator {
   private actor: ActorRefFrom<typeof audioMachine>;
@@ -35,7 +44,17 @@ export class AudioCoordinator {
     // Wire track advancement events
     this.audioSystem.onTrackAdvanced = (trackIndex: number) => {
       this.actor.send({ type: 'TRACK_ADVANCED', trackIndex });
+      
+      // Phase 4: Check queue expansion during safe states only
+      const currentState = this.actor.getSnapshot();
+      if (currentState.matches('playing.waitingForNext') || currentState.matches('paused')) {
+        // Safe to expand queue during delay or when paused
+        this.handleQueueExpansion();
+      }
     };
+
+    // Phase 4: Enhanced event suppression during critical transitions
+    this.audioSystem.shouldSuppressEvents = this.shouldSuppressEvents;
 
     const machineServices = this.getMachineServices();
     
@@ -46,24 +65,26 @@ export class AudioCoordinator {
         pauseAndSnapshot: fromPromise(() => machineServices.pauseAndSnapshot()),
         createDelay: fromPromise(({ input }: { input: { delayMs: number } }) => {
           console.log('⏱️ [DELAY-TIMER] Starting delay timer for', input.delayMs, 'ms');
-          const startTime = Date.now();
-          let cancelled = false;
           
+          // Phase 4: Use managed delay timer with app state handling
           return new Promise<void>((resolve) => {
-            const timeoutId = setTimeout(() => {
-              if (!cancelled) {
-                const actualDelay = Date.now() - startTime;
-                console.log('⏱️ [DELAY-TIMER] Delay timer completed after', actualDelay, 'ms (expected:', input.delayMs, 'ms)');
-                resolve();
+            const timerManager = getDelayTimerManager();
+            const timer = timerManager.createManagedTimer(input.delayMs, () => {
+              console.log('⏱️ [DELAY-TIMER] Timer completed via managed timer');
+              resolve();
+            }, {
+              enableDriftCompensation: true,
+              onCancel: (elapsed) => {
+                console.log('⏱️ [DELAY-TIMER-CANCEL] Timer cancelled after', elapsed, 'ms (expected:', input.delayMs, 'ms)');
               }
-            }, input.delayMs);
+            });
             
-            // Handle cancellation
+            timer.start();
+            
+            // Return cleanup function for XState
             return () => {
-              cancelled = true;
-              clearTimeout(timeoutId);
-              const cancelledAfter = Date.now() - startTime;
-              console.log('⏱️ [DELAY-TIMER-CANCEL] Delay timer cancelled after', cancelledAfter, 'ms (expected:', input.delayMs, 'ms)');
+              timer.cancel();
+              timer.cleanup();
             };
           });
         }),
@@ -248,8 +269,45 @@ export class AudioCoordinator {
 
   async cleanup() {
     if (this.appStateSubscription) this.appStateSubscription.remove();
+    
+    // Phase 4: Cleanup delay timer manager
+    const timerManager = getDelayTimerManager();
+    timerManager.cleanup();
+    
     this.actor.stop();
     await this.audioSystem.cleanup();
+  }
+
+  // === PHASE 4 PRIVATE HELPERS ===
+
+  /**
+   * Check if events should be suppressed during critical state machine transitions
+   * @returns True if events should be suppressed
+   */
+  private shouldSuppressEvents = (): boolean => {
+    const currentState = this.actor.getSnapshot();
+    const shouldSuppress = CRITICAL_STATES.some(state => currentState.matches(state));
+    
+    if (shouldSuppress) {
+      console.log(`🚫 AudioCoordinator[${this.instanceId}] Suppressing events during:`, currentState.value);
+    }
+    
+    return shouldSuppress;
+  };
+
+  /**
+   * Handle queue expansion during safe states with proper error handling
+   */
+  private async handleQueueExpansion(): Promise<void> {
+    try {
+      const expanded = await this.audioSystem.checkAndExpandQueue();
+      if (expanded) {
+        console.log(`🎵 AudioCoordinator[${this.instanceId}] Queue expanded during safe state`);
+      }
+    } catch (error) {
+      console.error(`❌ AudioCoordinator[${this.instanceId}] Queue expansion failed:`, error);
+      // Could add retry logic or user notification here
+    }
   }
 
   // === PRIVATE BUSINESS LOGIC (moved from AudioServices) ===
@@ -286,7 +344,7 @@ export class AudioCoordinator {
     }
     
     console.log('🎵 [BOOTSTRAP] Step 3: Setting up affirmations queue');
-    await this.audioSystem.setupAffirmationsQueue(tracks);
+    await this.audioSystem.setupAffirmationsQueueWindowed(tracks);
     
     console.log('🎵 [BOOTSTRAP] Step 4: Starting affirmations playback');
     await this.audioSystem.playAffirmations();

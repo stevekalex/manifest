@@ -15,19 +15,47 @@ import TrackPlayer, {
   import AsyncStorage from '@react-native-async-storage/async-storage';
   import { useAudioStore } from '../store/audioStore';
   
-  // Phase 1B: Queue window optimization
-  const QUEUE_WINDOW_SIZE = 3; // current + 2 ahead for faster voice switching
+  // Phase 4: Enhanced queue management configuration
+  interface QueueConfig {
+    readonly initialWindowSize: number;    // Tracks to load initially
+    readonly preloadThreshold: number;     // When to expand window (tracks remaining)
+    readonly expansionSize: number;        // How many tracks to add when expanding
+    readonly maxWindowSize: number;        // Maximum tracks in memory
+    readonly enableDynamicLoading: boolean; // Feature flag for gradual rollout
+  }
+  
+  const DEFAULT_QUEUE_CONFIG: QueueConfig = {
+    initialWindowSize: 3,      // current + 2 ahead (backward compatible)
+    preloadThreshold: 1,       // Expand when 1 track remaining
+    expansionSize: 2,          // Add 2 more tracks when expanding
+    maxWindowSize: 8,          // Maximum 8 tracks in memory
+    enableDynamicLoading: false, // Start disabled for safety
+  };
+  
+  // Legacy constant for backward compatibility
+  const QUEUE_WINDOW_SIZE = DEFAULT_QUEUE_CONFIG.initialWindowSize;
   
   // Event debouncing service
   class EventDebouncer {
     private lastTrackChangeTime = 0;
-    private readonly DEBOUNCE_MS = 100;
+    private lastTrackIndex = -1;
+    private readonly DEBOUNCE_MS = 50; // Reduced for better responsiveness
 
-    shouldProcessTrackChange(): boolean {
+    shouldProcessTrackChange(trackIndex: number): boolean {
       const now = Date.now();
-      if (now - this.lastTrackChangeTime < this.DEBOUNCE_MS) {
-        return false; // Ignore rapid duplicate events
+      
+      // If track index actually changed, always process (no time debounce)
+      if (trackIndex !== this.lastTrackIndex) {
+        this.lastTrackIndex = trackIndex;
+        this.lastTrackChangeTime = now;
+        return true;
       }
+      
+      // Same track index - apply time-based debounce for duplicates
+      if (now - this.lastTrackChangeTime < this.DEBOUNCE_MS) {
+        return false; // Ignore rapid duplicate events for same track
+      }
+      
       this.lastTrackChangeTime = now;
       return true;
     }
@@ -47,15 +75,23 @@ import TrackPlayer, {
     // Phase 1B: Refined suppression for QueueEnded events
     public shouldSuppressQueueEnded?: () => boolean;
     
+    // Phase 4: Queue management configuration
+    private queueConfig: QueueConfig;
+    private allTracks: Track[] = []; // Full track list for windowing
+    private currentWindowStart = 0;  // Track index of current window start
+    
     
     // Check if there's a snapshot available for restoration
     hasSnapshotForRestore(): boolean {
       return !!this.lastSnapshot;
     }
     
-    constructor() {
+    constructor(queueConfig?: Partial<QueueConfig>) {
       this.backgroundPlayer = new BackgroundPlayer();
+      this.queueConfig = { ...DEFAULT_QUEUE_CONFIG, ...queueConfig };
       this.setupAppStateHandling();
+      
+      console.log('🎵 [QUEUE-CONFIG] AudioPlaybackService initialized with config:', this.queueConfig);
     }
     
     async initialize() {
@@ -109,16 +145,19 @@ import TrackPlayer, {
           return;
         }
         
-        if (event.nextTrack !== null && this.debouncer.shouldProcessTrackChange() && this.onTrackAdvanced) {
+        if (event.nextTrack !== null && this.debouncer.shouldProcessTrackChange(event.nextTrack) && this.onTrackAdvanced) {
           console.log(`🎵 [EVENT] Track advanced to index: ${event.nextTrack} - calling onTrackAdvanced`);
           // Log current delay value for debugging
           const store = useAudioStore.getState();
           console.log(`⏰ [TRACK-ADVANCE] Current globalDelayMs: ${store.globalDelayMs}ms`);
           this.onTrackAdvanced(event.nextTrack);
+          
+          // Phase 4: Queue expansion is now handled by the coordinator during waitingForNext state
+          // This prevents interrupting playback with queue operations
         } else {
           console.log('🎵 [EVENT] Track change ignored:', {
             nextTrack: event.nextTrack,
-            shouldProcess: this.debouncer.shouldProcessTrackChange(),
+            shouldProcess: event.nextTrack !== null ? this.debouncer.shouldProcessTrackChange(event.nextTrack) : false,
             hasCallback: !!this.onTrackAdvanced
           });
         }
@@ -202,6 +241,110 @@ import TrackPlayer, {
       console.log('🎵 [QUEUE] Final queue verification:', queue.length, 'tracks in queue');
     }
     
+    // Phase 4: Enhanced windowed queue setup
+    async setupAffirmationsQueueWindowed(tracks: Track[]) {
+      console.log('🎵 [QUEUE-WINDOWED] Setting up windowed queue with', tracks.length, 'total tracks');
+      console.log('🎵 [QUEUE-WINDOWED] Window config:', this.queueConfig);
+      
+      // Store all tracks for windowing
+      this.allTracks = tracks;
+      this.currentWindowStart = 0;
+      
+      // Use existing method if dynamic loading is disabled or tracks <= window size
+      if (!this.queueConfig.enableDynamicLoading || tracks.length <= this.queueConfig.initialWindowSize) {
+        console.log('🎵 [QUEUE-WINDOWED] Using legacy full-queue method');
+        return this.setupAffirmationsQueue(tracks);
+      }
+      
+      // Load initial window
+      const initialWindow = tracks.slice(0, this.queueConfig.initialWindowSize);
+      console.log('🎵 [QUEUE-WINDOWED] Loading initial window:', initialWindow.length, 'tracks');
+      
+      await this.initialize();
+      await TrackPlayer.reset();
+      console.log('🎵 [QUEUE-WINDOWED] RNTP reset completed');
+      
+      await TrackPlayer.add(initialWindow);
+      console.log('🎵 [QUEUE-WINDOWED] Added initial window to RNTP queue');
+      
+      await TrackPlayer.setRepeatMode(RepeatMode.Queue);
+      console.log('🎵 [QUEUE-WINDOWED] Set repeat mode to Queue');
+      
+      // Verify initial window was set up correctly
+      const queue = await TrackPlayer.getQueue();
+      console.log('🎵 [QUEUE-WINDOWED] Initial window verification:', queue.length, 'tracks in queue');
+    }
+    
+    // Phase 4: Check if queue needs expansion and expand if needed
+    async checkAndExpandQueue(): Promise<boolean> {
+      if (!this.queueConfig.enableDynamicLoading || this.allTracks.length === 0) {
+        return false; // Dynamic loading disabled or no tracks stored
+      }
+      
+      try {
+        const [queue, currentTrackIndex] = await Promise.all([
+          TrackPlayer.getQueue(),
+          TrackPlayer.getCurrentTrack()
+        ]);
+        
+        if (currentTrackIndex === null || currentTrackIndex === undefined) {
+          return false; // No current track
+        }
+        
+        const tracksRemaining = queue.length - (currentTrackIndex + 1);
+        console.log('🔍 [QUEUE-CHECK] Current position:', currentTrackIndex + 1, '/', queue.length, 'tracks remaining:', tracksRemaining);
+        
+        // Check if expansion is needed
+        if (tracksRemaining <= this.queueConfig.preloadThreshold && queue.length < this.queueConfig.maxWindowSize) {
+          const nextWindowStart = this.currentWindowStart + queue.length;
+          const availableTracksRemaining = this.allTracks.length - nextWindowStart;
+          
+          if (availableTracksRemaining > 0) {
+            console.log('🚀 [QUEUE-EXPAND] Expanding queue - tracks remaining in window:', tracksRemaining);
+            return await this.expandQueue();
+          }
+        }
+        
+        return false;
+      } catch (error) {
+        console.error('❌ [QUEUE-CHECK] Error checking queue expansion:', error);
+        return false;
+      }
+    }
+    
+    // Phase 4: Expand the queue window with next batch of tracks
+    private async expandQueue(): Promise<boolean> {
+      try {
+        const queue = await TrackPlayer.getQueue();
+        const nextWindowStart = this.currentWindowStart + queue.length;
+        const tracksToAdd = Math.min(
+          this.queueConfig.expansionSize,
+          this.allTracks.length - nextWindowStart,
+          this.queueConfig.maxWindowSize - queue.length
+        );
+        
+        if (tracksToAdd <= 0) {
+          console.log('🎵 [QUEUE-EXPAND] No tracks to add');
+          return false;
+        }
+        
+        const newTracks = this.allTracks.slice(nextWindowStart, nextWindowStart + tracksToAdd);
+        console.log('🎵 [QUEUE-EXPAND] Adding', newTracks.length, 'tracks to queue');
+        console.log('🎵 [QUEUE-EXPAND] Track IDs:', newTracks.map(t => t.id));
+        
+        await TrackPlayer.add(newTracks);
+        
+        // Verify expansion
+        const updatedQueue = await TrackPlayer.getQueue();
+        console.log('✅ [QUEUE-EXPAND] Queue expanded successfully. New size:', updatedQueue.length);
+        
+        return true;
+      } catch (error) {
+        console.error('❌ [QUEUE-EXPAND] Error expanding queue:', error);
+        return false;
+      }
+    }
+    
     async playAffirmations() {
       console.log('▶️ [PLAY] Starting affirmation playback');
       const beforeState = await TrackPlayer.getPlaybackState();
@@ -268,22 +411,44 @@ import TrackPlayer, {
     
     async resumeAffirmations(pausedState?: PausedState) {
       console.log('▶️ [RESUME] Resuming affirmations', pausedState ? 'with paused state' : 'without paused state');
-      if (pausedState) {
-        console.log('▶️ [RESUME] Seeking to position:', pausedState.positionMs / 1000, 'seconds, track:', pausedState.trackIndex);
-        // Seek to exact position
-        await TrackPlayer.seekTo(pausedState.positionMs / 1000);
+      
+      try {
+        if (pausedState) {
+          const currentProgress = await TrackPlayer.getProgress();
+          const currentTrack = await TrackPlayer.getCurrentTrack();
+          
+          // Only seek if we're on wrong track or position is significantly different (>100ms)
+          const positionDiff = Math.abs(currentProgress.position - pausedState.positionMs / 1000);
+          const needsSeek = currentTrack !== pausedState.trackIndex || positionDiff > 0.1;
+          
+          if (needsSeek) {
+            console.log('▶️ [RESUME] Seeking to position:', pausedState.positionMs / 1000, 'seconds, track:', pausedState.trackIndex);
+            await TrackPlayer.seekTo(pausedState.positionMs / 1000);
+          } else {
+            console.log('▶️ [RESUME] Position correct, skipping seek for seamless resume');
+          }
+        }
+        
+        const beforeState = await TrackPlayer.getPlaybackState();
+        console.log('▶️ [RESUME] RNTP state before resume:', beforeState.state);
+        
+        await TrackPlayer.play();
+        
+        const afterState = await TrackPlayer.getPlaybackState();
+        console.log('▶️ [RESUME] RNTP state after resume:', afterState.state);
+        
+        const currentTrack = await TrackPlayer.getActiveTrack();
+        console.log('▶️ [RESUME] Current active track after resume:', currentTrack?.id, '-', currentTrack?.title);
+        
+      } catch (error) {
+        console.error('❌ [RESUME] Error during resume:', error);
+        // Fallback: simple play without seek
+        try {
+          await TrackPlayer.play();
+        } catch (fallbackError) {
+          console.error('❌ [RESUME] Fallback play also failed:', fallbackError);
+        }
       }
-      
-      const beforeState = await TrackPlayer.getPlaybackState();
-      console.log('▶️ [RESUME] RNTP state before resume:', beforeState.state);
-      
-      await TrackPlayer.play();
-      
-      const afterState = await TrackPlayer.getPlaybackState();
-      console.log('▶️ [RESUME] RNTP state after resume:', afterState.state);
-      
-      const currentTrack = await TrackPlayer.getActiveTrack();
-      console.log('▶️ [RESUME] Current active track after resume:', currentTrack?.id, '-', currentTrack?.title);
       
       // Note: Don't set store.isPlaying here - let state machine handle it
     }
