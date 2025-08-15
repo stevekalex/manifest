@@ -4,7 +4,7 @@ import { Playlist, VoiceId, PausedState } from '../types/audio';
 import { Affirmation } from '../types/audio';
 
 interface AudioStore {
-  // State
+  // State (read-only for UI components)
   playlist?: Playlist;
   currentVoiceId: VoiceId;
   modalOpen: boolean;
@@ -15,7 +15,7 @@ interface AudioStore {
   backgroundVolume: number;
   affirmationVolume: number;
   
-  // Actions
+  // Internal setters (only for AudioCoordinator sync)
   setPlaylist: (playlist: Playlist) => void;
   setVoiceId: (voiceId: VoiceId) => void;
   setModalOpen: (open: boolean) => void;
@@ -26,8 +26,12 @@ interface AudioStore {
   setBackgroundVolume: (volume: number) => void;
   setAffirmationVolume: (volume: number) => void;
   
-  // Computed
+  // Derived selectors (safe for UI consumption)
   getCurrentAffirmation: () => Affirmation | undefined;
+  getCanSkipDelay: () => boolean;
+  getIsVoiceSelecting: () => boolean;
+  getTotalTracks: () => number;
+  getProgress: () => { current: number; total: number };
 }
 
 export const useAudioStore = create<AudioStore>()(
@@ -54,6 +58,30 @@ export const useAudioStore = create<AudioStore>()(
       const { playlist, currentTrackIndex } = get();
       if (!playlist) return undefined;
       return playlist.affirmations[currentTrackIndex];
+    },
+    
+    getCanSkipDelay: () => {
+      const { isPlaying, globalDelayMs } = get();
+      return isPlaying && globalDelayMs > 0;
+    },
+    
+    getIsVoiceSelecting: () => {
+      const { modalOpen } = get();
+      return modalOpen;
+    },
+    
+    getTotalTracks: () => {
+      const { playlist } = get();
+      return playlist?.affirmations?.length || 0;
+    },
+    
+    getProgress: () => {
+      const { currentTrackIndex, playlist } = get();
+      const total = playlist?.affirmations?.length || 0;
+      return { 
+        current: Math.min(currentTrackIndex + 1, total), 
+        total 
+      };
     },
   }))
 );

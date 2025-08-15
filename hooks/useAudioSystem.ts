@@ -13,7 +13,6 @@ export const useAudioSystem = () => {
     
     // Action methods that component expects
     playPlaylist: async (playlist: Playlist, voiceId: VoiceId) => {
-      storeState.setPlaylist(playlist);
       await coordinator.selectPlaylist(playlist);
     },
     
