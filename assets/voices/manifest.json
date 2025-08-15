@@ -12,62 +12,80 @@
           "bundledPath": "../assets/voices/serenity/0-hq.mp3"
         },
         {
-          "id": "serenity:affirmation-1", 
+          "id": "serenity:affirmation-1",
           "file": "1-hq.mp3",
           "bundledPath": "../assets/voices/serenity/1-hq.mp3"
         },
         {
           "id": "serenity:affirmation-2",
-          "file": "2-hq.mp3", 
+          "file": "2-hq.mp3",
           "bundledPath": "../assets/voices/serenity/2-hq.mp3"
         },
         {
           "id": "serenity:affirmation-3",
-          "file": "0-hq.mp3",
-          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
-          "note": "Fallback to affirmation-0"
+          "file": "3-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/3-hq.mp3"
         },
         {
           "id": "serenity:affirmation-4",
-          "file": "0-hq.mp3",
-          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
-          "note": "Fallback to affirmation-0"
+          "file": "4-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/4-hq.mp3"
         },
         {
           "id": "serenity:affirmation-5",
-          "file": "0-hq.mp3",
-          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
-          "note": "Fallback to affirmation-0"
+          "file": "5-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/5-hq.mp3"
         },
         {
           "id": "serenity:affirmation-6",
-          "file": "0-hq.mp3",
-          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
-          "note": "Fallback to affirmation-0"
+          "file": "6-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/6-hq.mp3"
         },
         {
           "id": "serenity:affirmation-7",
-          "file": "0-hq.mp3",
-          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
-          "note": "Fallback to affirmation-0"
+          "file": "7-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/7-hq.mp3"
         },
         {
           "id": "serenity:affirmation-8",
-          "file": "0-hq.mp3",
-          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
-          "note": "Fallback to affirmation-0"
+          "file": "8-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/8-hq.mp3"
         },
         {
           "id": "serenity:affirmation-9",
-          "file": "0-hq.mp3",
-          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
-          "note": "Fallback to affirmation-0"
+          "file": "9-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/9-hq.mp3"
+        },
+        {
+          "id": "serenity:affirmation-10",
+          "file": "10-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/10-hq.mp3"
+        },
+        {
+          "id": "serenity:affirmation-11",
+          "file": "11-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/11-hq.mp3"
+        },
+        {
+          "id": "serenity:affirmation-12",
+          "file": "12-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/12-hq.mp3"
+        },
+        {
+          "id": "serenity:affirmation-13",
+          "file": "13-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/13-hq.mp3"
+        },
+        {
+          "id": "serenity:affirmation-14",
+          "file": "14-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/14-hq.mp3"
         }
       ]
     },
     {
       "id": "titan",
-      "name": "Titan", 
+      "name": "Titan",
       "tracks": [
         {
           "id": "titan:affirmation-0",
@@ -76,13 +94,73 @@
         },
         {
           "id": "titan:affirmation-1",
-          "file": "1-hq.mp3", 
+          "file": "1-hq.mp3",
           "bundledPath": "../assets/voices/titan/1-hq.mp3"
         },
         {
           "id": "titan:affirmation-2",
           "file": "2-hq.mp3",
           "bundledPath": "../assets/voices/titan/2-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-3",
+          "file": "3-hq.mp3",
+          "bundledPath": "../assets/voices/titan/3-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-4",
+          "file": "4-hq.mp3",
+          "bundledPath": "../assets/voices/titan/4-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-5",
+          "file": "5-hq.mp3",
+          "bundledPath": "../assets/voices/titan/5-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-6",
+          "file": "6-hq.mp3",
+          "bundledPath": "../assets/voices/titan/6-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-7",
+          "file": "7-hq.mp3",
+          "bundledPath": "../assets/voices/titan/7-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-8",
+          "file": "8-hq.mp3",
+          "bundledPath": "../assets/voices/titan/8-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-9",
+          "file": "9-hq.mp3",
+          "bundledPath": "../assets/voices/titan/9-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-10",
+          "file": "10-hq.mp3",
+          "bundledPath": "../assets/voices/titan/10-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-11",
+          "file": "11-hq.mp3",
+          "bundledPath": "../assets/voices/titan/11-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-12",
+          "file": "12-hq.mp3",
+          "bundledPath": "../assets/voices/titan/12-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-13",
+          "file": "13-hq.mp3",
+          "bundledPath": "../assets/voices/titan/13-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-14",
+          "file": "14-hq.mp3",
+          "bundledPath": "../assets/voices/titan/14-hq.mp3"
         }
       ]
     }

@@ -104,53 +104,88 @@ export class BundledAssets {
     };
 
     // Static require statements for Metro bundler compatibility
-    // Serenity voice assets (primary assets)
-    try {
-      const serenity0 = require('../assets/voices/serenity/0-hq.mp3');
-      registry.serenity['affirmation-0'] = serenity0;
-      
-      // Use serenity-0 as fallback for missing affirmations
-      for (let i = FALLBACK_RANGE.start; i <= FALLBACK_RANGE.end; i++) {
-        registry.serenity[`affirmation-${i}`] = serenity0;
-      }
-    } catch (error) {
-      console.warn(`⚠️ [BUNDLED-ASSETS] Serenity voice 0 not found`);
+    // Serenity voice assets (15 total) - explicit requires for bundler
+    const serenityAssets = [
+      { id: 'affirmation-0', asset: null as any },
+      { id: 'affirmation-1', asset: null as any },
+      { id: 'affirmation-2', asset: null as any },
+      { id: 'affirmation-3', asset: null as any },
+      { id: 'affirmation-4', asset: null as any },
+      { id: 'affirmation-5', asset: null as any },
+      { id: 'affirmation-6', asset: null as any },
+      { id: 'affirmation-7', asset: null as any },
+      { id: 'affirmation-8', asset: null as any },
+      { id: 'affirmation-9', asset: null as any },
+      { id: 'affirmation-10', asset: null as any },
+      { id: 'affirmation-11', asset: null as any },
+      { id: 'affirmation-12', asset: null as any },
+      { id: 'affirmation-13', asset: null as any },
+      { id: 'affirmation-14', asset: null as any },
+    ];
+
+    // Load serenity assets with explicit requires
+    try { serenityAssets[0].asset = require('../assets/voices/serenity/0-hq.mp3'); } catch {}
+    try { serenityAssets[1].asset = require('../assets/voices/serenity/1-hq.mp3'); } catch {}
+    try { serenityAssets[2].asset = require('../assets/voices/serenity/2-hq.mp3'); } catch {}
+    try { serenityAssets[3].asset = require('../assets/voices/serenity/3-hq.mp3'); } catch {}
+    try { serenityAssets[4].asset = require('../assets/voices/serenity/4-hq.mp3'); } catch {}
+    try { serenityAssets[5].asset = require('../assets/voices/serenity/5-hq.mp3'); } catch {}
+    try { serenityAssets[6].asset = require('../assets/voices/serenity/6-hq.mp3'); } catch {}
+    try { serenityAssets[7].asset = require('../assets/voices/serenity/7-hq.mp3'); } catch {}
+    try { serenityAssets[8].asset = require('../assets/voices/serenity/8-hq.mp3'); } catch {}
+    try { serenityAssets[9].asset = require('../assets/voices/serenity/9-hq.mp3'); } catch {}
+    try { serenityAssets[10].asset = require('../assets/voices/serenity/10-hq.mp3'); } catch {}
+    try { serenityAssets[11].asset = require('../assets/voices/serenity/11-hq.mp3'); } catch {}
+    try { serenityAssets[12].asset = require('../assets/voices/serenity/12-hq.mp3'); } catch {}
+    try { serenityAssets[13].asset = require('../assets/voices/serenity/13-hq.mp3'); } catch {}
+    try { serenityAssets[14].asset = require('../assets/voices/serenity/14-hq.mp3'); } catch {}
+
+    // Add serenity assets to registry (use first as fallback for missing)
+    const serenityFallback = serenityAssets[0].asset;
+    for (const { id, asset } of serenityAssets) {
+      registry.serenity[id] = asset || serenityFallback;
     }
 
-    try {
-      const serenity1 = require('../assets/voices/serenity/1-hq.mp3');
-      registry.serenity['affirmation-1'] = serenity1;
-    } catch (error) {
-      console.warn(`⚠️ [BUNDLED-ASSETS] Serenity voice 1 not found`);
-    }
+    // Titan voice assets (15 total) - explicit requires for bundler
+    const titanAssets = [
+      { id: 'affirmation-0', asset: null as any },
+      { id: 'affirmation-1', asset: null as any },
+      { id: 'affirmation-2', asset: null as any },
+      { id: 'affirmation-3', asset: null as any },
+      { id: 'affirmation-4', asset: null as any },
+      { id: 'affirmation-5', asset: null as any },
+      { id: 'affirmation-6', asset: null as any },
+      { id: 'affirmation-7', asset: null as any },
+      { id: 'affirmation-8', asset: null as any },
+      { id: 'affirmation-9', asset: null as any },
+      { id: 'affirmation-10', asset: null as any },
+      { id: 'affirmation-11', asset: null as any },
+      { id: 'affirmation-12', asset: null as any },
+      { id: 'affirmation-13', asset: null as any },
+      { id: 'affirmation-14', asset: null as any },
+    ];
 
-    try {
-      const serenity2 = require('../assets/voices/serenity/2-hq.mp3');
-      registry.serenity['affirmation-2'] = serenity2;
-    } catch (error) {
-      console.warn(`⚠️ [BUNDLED-ASSETS] Serenity voice 2 not found`);
-    }
+    // Load titan assets with explicit requires
+    try { titanAssets[0].asset = require('../assets/voices/titan/0-hq.mp3'); } catch {}
+    try { titanAssets[1].asset = require('../assets/voices/titan/1-hq.mp3'); } catch {}
+    try { titanAssets[2].asset = require('../assets/voices/titan/2-hq.mp3'); } catch {}
+    try { titanAssets[3].asset = require('../assets/voices/titan/3-hq.mp3'); } catch {}
+    try { titanAssets[4].asset = require('../assets/voices/titan/4-hq.mp3'); } catch {}
+    try { titanAssets[5].asset = require('../assets/voices/titan/5-hq.mp3'); } catch {}
+    try { titanAssets[6].asset = require('../assets/voices/titan/6-hq.mp3'); } catch {}
+    try { titanAssets[7].asset = require('../assets/voices/titan/7-hq.mp3'); } catch {}
+    try { titanAssets[8].asset = require('../assets/voices/titan/8-hq.mp3'); } catch {}
+    try { titanAssets[9].asset = require('../assets/voices/titan/9-hq.mp3'); } catch {}
+    try { titanAssets[10].asset = require('../assets/voices/titan/10-hq.mp3'); } catch {}
+    try { titanAssets[11].asset = require('../assets/voices/titan/11-hq.mp3'); } catch {}
+    try { titanAssets[12].asset = require('../assets/voices/titan/12-hq.mp3'); } catch {}
+    try { titanAssets[13].asset = require('../assets/voices/titan/13-hq.mp3'); } catch {}
+    try { titanAssets[14].asset = require('../assets/voices/titan/14-hq.mp3'); } catch {}
 
-    // Titan voice assets (available assets only)
-    try {
-      const titan0 = require('../assets/voices/titan/0-hq.mp3');
-      registry.titan['affirmation-0'] = titan0;
-    } catch (error) {
-      console.warn(`⚠️ [BUNDLED-ASSETS] Titan voice 0 not found`);
-    }
-
-    try {
-      const titan1 = require('../assets/voices/titan/1-hq.mp3');
-      registry.titan['affirmation-1'] = titan1;
-    } catch (error) {
-      console.warn(`⚠️ [BUNDLED-ASSETS] Titan voice 1 not found`);
-    }
-
-    try {
-      const titan2 = require('../assets/voices/titan/2-hq.mp3');
-      registry.titan['affirmation-2'] = titan2;
-    } catch (error) {
-      console.warn(`⚠️ [BUNDLED-ASSETS] Titan voice 2 not found`);
+    // Add titan assets to registry (use first titan or serenity as fallback)
+    const titanFallback = titanAssets[0].asset || serenityFallback;
+    for (const { id, asset } of titanAssets) {
+      registry.titan[id] = asset || titanFallback;
     }
 
     return registry;

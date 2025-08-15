@@ -12,18 +12,42 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// App affirmations - HQ versions (matching useVoiceQueues.ts)
+// App affirmations - HQ versions (matching productionPlaylist.ts)
 const HQ_AFFIRMATIONS = [
-  "I allow myself to thrive",
-  "I am worthy of love and success", 
-  "I trust in my inner wisdom"
+  "I allow myself to be who I am meant to be",
+  "I am worthy of all the abundance the universe has to offer", 
+  "Success flows to me effortlessly and naturally",
+  "I attract positive opportunities into my life",
+  "I am confident in my ability to achieve my dreams",
+  "Money comes to me easily and frequently",
+  "I am grateful for all the blessings in my life",
+  "I radiate positive energy and attract positive people",
+  "My mind is focused on success and prosperity",
+  "Every day, I am becoming more successful",
+  "I trust in the perfect timing of my life",
+  "I am deserving of love, happiness, and fulfillment",
+  "My potential is unlimited and I embrace it fully",
+  "I release all fears and step into my power",
+  "I create my reality with intention and purpose"
 ];
 
-// Preview affirmations - different content for voice selection
+// Preview affirmations - shorter versions for voice selection
 const PREVIEW_AFFIRMATIONS = [
   "I embrace my unique journey with confidence",
   "I radiate peace and inner strength",
-  "I choose love and compassion in every moment"
+  "I choose love and compassion in every moment",
+  "I am grounded and centered in my truth",
+  "I welcome abundance into my life",
+  "I trust my intuition and inner wisdom",
+  "I am grateful for this moment of peace",
+  "I shine my light brightly in the world",
+  "I am focused on my highest good",
+  "I celebrate my growth and progress",
+  "I honor my journey and trust the process",
+  "I am worthy of all good things",
+  "I believe in my infinite potential",
+  "I release fear and embrace courage",
+  "I create with intention and love"
 ];
 
 // ElevenLabs configuration
