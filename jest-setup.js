@@ -74,6 +74,42 @@ jest.mock('expo-av', () => ({
   },
 }));
 
+// Mock React Native Track Player
+jest.mock('react-native-track-player', () => ({
+  setupPlayer: jest.fn(() => Promise.resolve()),
+  add: jest.fn(() => Promise.resolve()),
+  play: jest.fn(() => Promise.resolve()),
+  pause: jest.fn(() => Promise.resolve()),
+  stop: jest.fn(() => Promise.resolve()),
+  reset: jest.fn(() => Promise.resolve()),
+  skip: jest.fn(() => Promise.resolve()),
+  skipToNext: jest.fn(() => Promise.resolve()),
+  skipToPrevious: jest.fn(() => Promise.resolve()),
+  setVolume: jest.fn(() => Promise.resolve()),
+  getState: jest.fn(() => Promise.resolve('idle')),
+  getPosition: jest.fn(() => Promise.resolve(0)),
+  getDuration: jest.fn(() => Promise.resolve(0)),
+  getQueue: jest.fn(() => Promise.resolve([])),
+  getCurrentTrack: jest.fn(() => Promise.resolve(0)),
+  updateMetadataForTrack: jest.fn(() => Promise.resolve()),
+  addEventListener: jest.fn(() => jest.fn()), // Returns unsubscribe function
+  removeEventListener: jest.fn(),
+  State: {
+    None: 'none',
+    Stopped: 'stopped',
+    Paused: 'paused',
+    Playing: 'playing',
+    Ready: 'ready',
+    Buffering: 'buffering',
+  },
+  Event: {
+    PlaybackState: 'playback-state',
+    PlaybackTrackChanged: 'playback-track-changed',
+    PlaybackQueueEnded: 'playback-queue-ended',
+    PlaybackError: 'playback-error',
+  },
+}));
+
 // Suppress console.error for cleaner test output
 global.console = {
   ...console,

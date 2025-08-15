@@ -39,6 +39,7 @@ export interface Playlist {
   name: string;
   description?: string;
   backgroundTrackUrl: string;
+  backgroundTracks?: Record<string, string>; // Optional custom background tracks mapping
   affirmations: Affirmation[];
   voices: Voice[];
   defaultVoiceId: VoiceId;

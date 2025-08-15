@@ -1,6 +1,6 @@
 import { PlaybackSnapshot } from '../types/audio';
 import { AudioPlaybackService } from '../services/audioPlaybackService';
-import { AudioServices } from '../services/audioService';
+import { AudioCoordinator } from '../services/audioCoordinator';
 
 // Mock TrackPlayer
 jest.mock('react-native-track-player', () => ({
@@ -134,15 +134,16 @@ describe('Phase 1B: RNTP Integration Validation', () => {
   });
 
   describe('Integration Tests', () => {
-    test('should integrate snapshot services in AudioServices', async () => {
-      const services = new AudioServices();
+    test('should integrate snapshot services in AudioCoordinator', async () => {
+      const coordinator = new AudioCoordinator();
       
-      const machineServices = services.getMachineServices();
+      // Access private machine services through the coordinator's audio system
+      const audioSystem = coordinator.getAudioSystem();
       
-      expect(machineServices.capturePlaybackSnapshot).toBeDefined();
-      expect(machineServices.restoreFromSnapshot).toBeDefined();
-      expect(typeof machineServices.capturePlaybackSnapshot).toBe('function');
-      expect(typeof machineServices.restoreFromSnapshot).toBe('function');
+      expect(audioSystem.captureSnapshot).toBeDefined();
+      expect(audioSystem.restoreFromSnapshot).toBeDefined();
+      expect(typeof audioSystem.captureSnapshot).toBe('function');
+      expect(typeof audioSystem.restoreFromSnapshot).toBe('function');
     });
   });
 });
