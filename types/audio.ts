@@ -72,29 +72,7 @@ export type AudioErrorCode =
   | 'INSUFFICIENT_STORAGE'
   | 'PLAYBACK_ERROR';
 
-// Transaction Gate operation types
-export type OperationType = 
-  | 'accept'
-  | 'preview'
-  | 'background'
-  | 'critical';
-
-export type OperationKey =
-  | 'accept:voice-switch'
-  | 'preview:voice-sample'
-  | 'background:volume-change'
-  | 'background:track-switch'
-  | 'critical:emergency-stop'
-  | `accept:${string}:${number}` // Parameterized accept operations
-  | `preview:${string}` // Parameterized preview operations
-  | string; // Allow other parameterized keys
-
-// Transaction gate priorities (exported from Priority enum)
-export interface TransactionOperation {
-  key: OperationKey;
-  priority: number;
-  timeoutMs?: number;
-}
+// Transaction gate types removed - functionality no longer needed
 // Phase 1B: Snapshot system for RNTP state preservation
 export interface PlaybackSnapshot {
   // Logical queue representation

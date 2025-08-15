@@ -112,11 +112,8 @@ describe('Phase 1B: RNTP Integration Validation', () => {
       expect(typeof result).toBe('boolean');
     });
 
-    test('should stop RNTP preview cleanly', async () => {
-      const service = new AudioPlaybackService();
-      
-      // Should not throw
-      await expect(service.stopRNTPPreview()).resolves.toBeUndefined();
+    test.skip('should stop RNTP preview cleanly (DISABLED)', async () => {
+      // RNTP preview methods removed in Phase 6
     });
   });
 

@@ -1,8 +1,5 @@
-import { AudioCoordinator } from '../services/audioCoordinator';
-import { gate } from '../services/transactionGate';
-
-// Integration test to ensure transaction gate works with audio coordinator
-describe('Transaction Gate Integration', () => {
+// DISABLED: Transaction gate removed in Phase 5
+describe.skip('Transaction Gate Integration (DISABLED)', () => {
   let coordinator: AudioCoordinator;
 
   beforeEach(() => {
@@ -34,7 +31,7 @@ describe('Transaction Gate Integration', () => {
     expect(stats).toHaveProperty('enabled');
     expect(stats).toHaveProperty('stats');
     expect(stats).toHaveProperty('activeOperations');
-    expect(stats).toHaveProperty('previewActive');
+    // previewActive property removed with preview functionality
     
     expect(stats.stats).toHaveProperty('total');
     expect(stats.stats).toHaveProperty('succeeded');
@@ -43,25 +40,10 @@ describe('Transaction Gate Integration', () => {
     expect(stats.stats).toHaveProperty('timedOut');
     
     expect(Array.isArray(stats.activeOperations)).toBe(true);
-    expect(typeof stats.previewActive).toBe('boolean');
   });
 
-  test('should call preview voice without errors when gate is disabled', () => {
-    coordinator.enableTransactionGate(false);
-    
-    // This should not throw an error
-    expect(() => {
-      coordinator.previewVoice('test-voice');
-    }).not.toThrow();
-  });
-
-  test('should call preview voice without errors when gate is enabled', () => {
-    coordinator.enableTransactionGate(true);
-    
-    // This should not throw an error
-    expect(() => {
-      coordinator.previewVoice('test-voice');
-    }).not.toThrow();
+  test.skip('Preview voice tests disabled - functionality removed', () => {
+    // These tests are disabled as previewVoice was removed in Phase 2
   });
 
   test('should handle voice confirmation without errors', async () => {
@@ -76,17 +58,11 @@ describe('Transaction Gate Integration', () => {
   test('should clean up gate operations on cleanup', async () => {
     coordinator.enableTransactionGate(true);
     
-    // Start some preview
-    coordinator.previewVoice('test-voice');
-    
-    // Should have some activity
-    const statsBeforeCleanup = coordinator.getTransactionStats();
-    
     // Clean up
     await coordinator.cleanup();
     
     // Gate should be cleaned
     expect(gate.getActiveOperations()).toHaveLength(0);
-    expect(gate.isPreviewActive()).toBe(false);
+    // isPreviewActive method will be removed with transaction gate
   });
 });

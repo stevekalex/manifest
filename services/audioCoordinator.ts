@@ -5,18 +5,13 @@ import { audioMachine } from './audioMachine';
 import { AudioServices } from './audioService';
 import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId } from '../types/audio';
-import { gate } from './transactionGate';
 
 export class AudioCoordinator {
   private actor: ActorRefFrom<typeof audioMachine>;
   private services: AudioServices;
   private appStateSubscription: any;
   private instanceId: string;
-  private transactionGateEnabled = false; // Feature flag for gradual rollout
   
-  // Phase 1A: Coordinator scaffolding flags
-  private previewMode = false;
-  private structuralOpInFlight = false;
   
   constructor() {
     this.instanceId = Math.random().toString(36).substring(2, 9);
@@ -28,16 +23,6 @@ export class AudioCoordinator {
       this.actor.send({ type: 'TRACK_ADVANCED', trackIndex });
     };
 
-    // Phase 1A: Wire event suppression function
-    this.services.getAudioSystem().shouldSuppressEvents = () => {
-      return this.previewMode || this.structuralOpInFlight;
-    };
-
-    // Phase 1B: Wire refined suppression for QueueEnded events
-    this.services.getAudioSystem().shouldSuppressQueueEnded = () => {
-      // Only suppress QueueEnded during structural operations, not during preview
-      return this.structuralOpInFlight;
-    };
 
     const machineServices = this.services.getMachineServices();
     
@@ -46,8 +31,6 @@ export class AudioCoordinator {
         bootstrapPlaylist: fromPromise(({ input }) => machineServices.bootstrapPlaylist(input)),
         voiceSwitchTransaction: fromPromise(({ input }) => machineServices.voiceSwitchTransaction(input)),
         pauseAndSnapshot: fromPromise(() => machineServices.pauseAndSnapshot()),
-        playPreviewService: fromPromise(({ input }) => machineServices.playPreviewService(input)),
-        cancelPreviewAndRestore: fromPromise(() => machineServices.cancelPreviewAndRestore()),
         createDelay: fromPromise(({ input }: { input: { delayMs: number } }) => {
           console.log('⏱️ [DELAY-TIMER] Starting delay timer for', input.delayMs, 'ms');
           const startTime = Date.now();
@@ -78,7 +61,6 @@ export class AudioCoordinator {
     this.actor = createActor(provided);
     this.setupStoreSync();
     this.setupAppStateHandling();
-    this.setupGateEventHandling();
     this.actor.start();
   }
 
@@ -105,9 +87,6 @@ export class AudioCoordinator {
       store.setCurrentTrackIndex(snapshot.context.currentTrackIndex || 0);
       store.setGlobalDelay(snapshot.context.globalDelayMs ?? 3000);
       
-      // Phase 1A: Derive coordinator flags from actual machine state
-      this.setPreviewMode(snapshot.matches('voiceSelecting.previewing'));
-      this.setStructuralOpInFlight(snapshot.matches('voiceSwitching'));
     });
   }
 
@@ -126,18 +105,6 @@ export class AudioCoordinator {
     }
   }
 
-  private setupGateEventHandling() {
-    // Handle preview preemption events
-    gate.on('preview-preempted', (event) => {
-      console.log(`🚫 Preview preempted by ${event.key}, clearing preview mode`);
-      this.setPreviewMode(false);
-      
-      // Phase 1B: Stop RNTP preview on gate preemption
-      this.services.getAudioSystem().stopRNTPPreview().catch((error) => {
-        console.error('❌ Failed to stop RNTP preview on preemption:', error);
-      });
-    });
-  }
 
   // Public API
   async selectPlaylist(playlist: Playlist) {
@@ -156,11 +123,6 @@ export class AudioCoordinator {
     this.actor.send({ type: 'CANCEL_VOICE_MODAL' });
   }
 
-  previewVoice(voiceId: VoiceId) {
-    // Phase 1A: Let machine state drive flags, don't manually manage them
-    console.log('🎤 [MODAL] Previewing voice:', voiceId, '- sending PREVIEW_VOICE event');
-    this.actor.send({ type: 'PREVIEW_VOICE', voiceId });
-  }
 
   async confirmVoiceSelection(voiceId: VoiceId) {
     // Phase 1A: Let machine state drive flags, don't manually manage them
@@ -244,61 +206,13 @@ export class AudioCoordinator {
     return this.services.getAudioSystem();
   }
 
-  // Phase 1A: Coordinator flag management
-  setPreviewMode(active: boolean) {
-    this.previewMode = active;
-    console.log(`🎭 AudioCoordinator[${this.instanceId}]: Preview mode ${active ? 'activated' : 'deactivated'}`);
-  }
-
-  setStructuralOpInFlight(active: boolean) {
-    this.structuralOpInFlight = active;
-    console.log(`🔧 AudioCoordinator[${this.instanceId}]: Structural operation ${active ? 'started' : 'completed'}`);
-  }
-
-  isPreviewMode(): boolean {
-    return this.previewMode;
-  }
-
-  isStructuralOpInFlight(): boolean {
-    return this.structuralOpInFlight;
-  }
-
-  clearCoordinatorFlags() {
-    this.previewMode = false;
-    this.structuralOpInFlight = false;
-    console.log(`🧹 AudioCoordinator[${this.instanceId}]: All coordinator flags cleared`);
-  }
 
 
-  // Enable/disable transaction gate (for testing and gradual rollout)
-  enableTransactionGate(enabled: boolean = true) {
-    this.transactionGateEnabled = enabled;
-    this.services.enableTransactionGate(enabled);
-    console.log(`🔧 Transaction gate ${enabled ? 'enabled' : 'disabled'} for coordinator ${this.instanceId}`);
-  }
-
-  // Get transaction gate stats for monitoring
-  getTransactionStats() {
-    return {
-      enabled: this.transactionGateEnabled,
-      stats: gate.getOperationStats(),
-      activeOperations: gate.getActiveOperations(),
-      previewActive: gate.isPreviewActive()
-    };
-  }
 
   async cleanup() {
     if (this.appStateSubscription) this.appStateSubscription.remove();
     this.actor.stop();
     await this.services.getAudioSystem().cleanup();
-    
-    // Clean up coordinator flags
-    this.clearCoordinatorFlags();
-    
-    // Clean up any pending transaction gate operations
-    if (this.transactionGateEnabled) {
-      gate.emergencyStop();
-    }
   }
 }
 

@@ -1,6 +1,5 @@
-import { TransactionGate, Priority } from '../services/transactionGate';
-
-describe('TransactionGate', () => {
+// DISABLED: Transaction gate removed in Phase 5
+describe.skip('TransactionGate (DISABLED)', () => {
   let gate: TransactionGate;
 
   beforeEach(() => {

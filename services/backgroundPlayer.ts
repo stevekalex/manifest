@@ -1,8 +1,7 @@
 import { Audio, AVPlaybackStatus } from 'expo-av';
 
-export class BackGroundAndPreviewPlayer {
+export class BackgroundPlayer {
   private background?: Audio.Sound;
-  private preview?: Audio.Sound;
   private backgroundVolume = 0.7;
   private isCleaningUp = false;
   private isDucked = false;
@@ -10,7 +9,7 @@ export class BackGroundAndPreviewPlayer {
   
   constructor() {
     this.instanceId = Math.random().toString(36).substring(2, 9);
-    console.log('🎵 BackgroundAndPreviewPlayer instance created with ID:', this.instanceId);
+    console.log('🎵 BackgroundPlayer instance created with ID:', this.instanceId);
     this.setupAudioMode();
   }
   
@@ -25,7 +24,7 @@ export class BackGroundAndPreviewPlayer {
   }
   
   async playBackground(localPath: string | number, volume: number = 0.7) {
-    console.log(`🎵 BackgroundAndPreviewPlayer[${this.instanceId}].playBackground called:`, {
+    console.log(`🎵 BackgroundPlayer[${this.instanceId}].playBackground called:`, {
       localPath,
       volume,
       pathType: typeof localPath
@@ -36,7 +35,7 @@ export class BackGroundAndPreviewPlayer {
       this.backgroundVolume = volume;
       const source: any = typeof localPath === 'string' ? { uri: localPath } : localPath;
       
-      console.log(`🔊 BackgroundAndPreviewPlayer[${this.instanceId}]: Creating Audio.Sound with source:`, source);
+      console.log(`🔊 BackgroundPlayer[${this.instanceId}]: Creating Audio.Sound with source:`, source);
       
       const { sound } = await Audio.Sound.createAsync(
         source,
@@ -49,18 +48,18 @@ export class BackGroundAndPreviewPlayer {
       );
       
       this.background = sound;
-      console.log(`✅ BackgroundAndPreviewPlayer[${this.instanceId}]: Background audio loaded successfully!`);
+      console.log(`✅ BackgroundPlayer[${this.instanceId}]: Background audio loaded successfully!`);
       
       // Verify it's playing
       const status = await sound.getStatusAsync();
-      console.log(`📊 BackgroundAndPreviewPlayer[${this.instanceId}]: Initial audio status:`, {
+      console.log(`📊 BackgroundPlayer[${this.instanceId}]: Initial audio status:`, {
         isLoaded: status.isLoaded,
         isPlaying: status.isLoaded ? status.isPlaying : 'N/A',
         volume: status.isLoaded ? status.volume : 'N/A'
       });
       
     } catch (error) {
-      console.error(`❌ BackgroundAndPreviewPlayer[${this.instanceId}]: Failed to play background:`, error);
+      console.error(`❌ BackgroundPlayer[${this.instanceId}]: Failed to play background:`, error);
       throw error;
     }
   }
@@ -79,7 +78,7 @@ export class BackGroundAndPreviewPlayer {
 
   async setBackgroundVolume(volume: number) {
     const clampedVolume = Math.max(0, Math.min(1, volume));
-    console.log(`🎵 BackgroundAndPreviewPlayer[${this.instanceId}].setBackgroundVolume called:`, {
+    console.log(`🎵 BackgroundPlayer[${this.instanceId}].setBackgroundVolume called:`, {
       originalVolume: volume,
       clampedVolume,
       hasBackground: !!this.background,
@@ -92,32 +91,32 @@ export class BackGroundAndPreviewPlayer {
     if (this.background) {
       // Apply the appropriate volume based on current ducking state
       const actualVolume = this.isDucked ? this.backgroundVolume * 0.3 : this.backgroundVolume;
-      console.log(`🔊 BackgroundAndPreviewPlayer[${this.instanceId}]: Setting actual volume to:`, actualVolume);
+      console.log(`🔊 BackgroundPlayer[${this.instanceId}]: Setting actual volume to:`, actualVolume);
       
       try {
         await this.background.setVolumeAsync(actualVolume);
-        console.log(`✅ BackgroundAndPreviewPlayer[${this.instanceId}]: Volume successfully set to:`, actualVolume);
+        console.log(`✅ BackgroundPlayer[${this.instanceId}]: Volume successfully set to:`, actualVolume);
         
         // Verify the volume was set correctly
         const status = await this.background.getStatusAsync();
         if (status.isLoaded) {
-          console.log(`📊 BackgroundAndPreviewPlayer[${this.instanceId}]: Current audio status:`, {
+          console.log(`📊 BackgroundPlayer[${this.instanceId}]: Current audio status:`, {
             volume: status.volume,
             isLoaded: status.isLoaded,
             isPlaying: status.isPlaying
           });
         }
       } catch (error) {
-        console.error(`❌ BackgroundAndPreviewPlayer[${this.instanceId}]: Error setting volume:`, error);
+        console.error(`❌ BackgroundPlayer[${this.instanceId}]: Error setting volume:`, error);
       }
     } else {
-      console.warn(`⚠️ BackgroundAndPreviewPlayer[${this.instanceId}]: No background audio loaded to set volume on`);
+      console.warn(`⚠️ BackgroundPlayer[${this.instanceId}]: No background audio loaded to set volume on`);
     }
   }
 
   async switchBackground(localPath: string | number, volume?: number) {
     const startTime = Date.now();
-    console.log(`🔄 BackgroundAndPreviewPlayer[${this.instanceId}].switchBackground called:`, {
+    console.log(`🔄 BackgroundPlayer[${this.instanceId}].switchBackground called:`, {
       localPath,
       volume: volume || this.backgroundVolume,
       pathType: typeof localPath,
@@ -133,7 +132,7 @@ export class BackGroundAndPreviewPlayer {
       const oldBackground = this.background;
       
       // FAST HANDOFF: Start creating new sound immediately (parallel with fade-out)
-      console.log(`🎵 BackgroundAndPreviewPlayer[${this.instanceId}]: Creating new background track in parallel`);
+      console.log(`🎵 BackgroundPlayer[${this.instanceId}]: Creating new background track in parallel`);
       
       const source: any = typeof localPath === 'string' ? { uri: localPath } : localPath;
       const newSoundPromise = Audio.Sound.createAsync(
@@ -148,7 +147,7 @@ export class BackGroundAndPreviewPlayer {
       
       // While new sound loads, quickly fade out old background (if exists)
       if (oldBackground) {
-        console.log(`🎵 BackgroundAndPreviewPlayer[${this.instanceId}]: Quick fade-out of old background`);
+        console.log(`🎵 BackgroundPlayer[${this.instanceId}]: Quick fade-out of old background`);
         try {
           // Fast volume fade (150ms) instead of abrupt stop
           const fadeSteps = 5;
@@ -182,10 +181,10 @@ export class BackGroundAndPreviewPlayer {
       }
       
       const endTime = Date.now();
-      console.log(`✅ BackgroundAndPreviewPlayer[${this.instanceId}]: Background switched with fast handoff in ${endTime - startTime}ms`);
+      console.log(`✅ BackgroundPlayer[${this.instanceId}]: Background switched with fast handoff in ${endTime - startTime}ms`);
       
     } catch (error) {
-      console.error(`❌ BackgroundAndPreviewPlayer[${this.instanceId}]: Failed to switch background:`, error);
+      console.error(`❌ BackgroundPlayer[${this.instanceId}]: Failed to switch background:`, error);
       throw error;
     }
   }
@@ -221,57 +220,6 @@ export class BackGroundAndPreviewPlayer {
     } catch (e) {}
   }
   
-  async playPreview(sampleUrl: string | number, onPreviewEnd?: () => Promise<void>): Promise<void> {
-    try {
-      await this.stopPreview();
-      
-      // Handle both require() modules (numbers) and URL strings
-      const source: any = typeof sampleUrl === 'number' ? sampleUrl : { uri: sampleUrl };
-      console.log('🎤 Creating preview sound with source type:', typeof sampleUrl);
-      
-      // PARALLEL EXECUTION: Start ducking and sound creation simultaneously (unless skipped)
-      const soundPromise = Audio.Sound.createAsync(
-        source,
-        { shouldPlay: true, volume: 1.0 }
-      );
-      
-      // Duck the background and create sound in parallel
-      const duckPromise = this.duckBackground(true);
-      const [, { sound }] = await Promise.all([duckPromise, soundPromise]);
-      this.preview = sound;
-      this.preview.setOnPlaybackStatusUpdate(async (status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          await this.stopPreview();
-          // Call the callback to resume main affirmations
-          if (onPreviewEnd) {
-            try {
-              await onPreviewEnd();
-            } catch (e) {
-              console.error('Error in preview end callback:', e);
-            }
-          }
-        }
-      });
-    } catch (error) {
-      // Restore background volume if preview failed
-      await this.duckBackground(false);
-      console.error('Preview failed:', error);
-      throw error;
-    }
-  }
-  
-  async stopPreview() {
-    if (this.preview) {
-      try {
-        this.preview.setOnPlaybackStatusUpdate(null);
-        await this.preview.stopAsync();
-        await this.preview.unloadAsync();
-      } catch (e) {}
-      this.preview = undefined;
-      // Restore background volume after preview ends
-      await this.duckBackground(false);
-    }
-  }
   
   private onBackgroundStatusUpdate(status: AVPlaybackStatus) {
     // Extend as needed
@@ -280,6 +228,5 @@ export class BackGroundAndPreviewPlayer {
   async cleanup() {
     this.isCleaningUp = true;
     await this.cleanupBackground();
-    await this.stopPreview();
   }
 }

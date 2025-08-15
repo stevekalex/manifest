@@ -9,7 +9,7 @@ import TrackPlayer, {
     AndroidAudioContentType
   } from 'react-native-track-player';
 
-  import { BackGroundAndPreviewPlayer } from './backgroundAndPreviewPlayer';
+  import { BackgroundPlayer } from './backgroundPlayer';
   import { PausedState, DELAY_STEPS, PlaybackSnapshot, AffirmationId } from '../types/audio';
   import { AppState, AppStateStatus } from 'react-native';
   import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,12 +34,11 @@ import TrackPlayer, {
   }
 
   export class AudioPlaybackService {
-    private backgroundPlayer: BackGroundAndPreviewPlayer;
+    private backgroundPlayer: BackgroundPlayer;
     private affirmationsReady = false;
     private appStateSubscription?: any;
     private debouncer = new EventDebouncer();
     private lastSnapshot?: PlaybackSnapshot;
-    private previewCancelled = false;
     public onTrackAdvanced?: (trackIndex: number) => void;
     
     // Phase 1A: Event suppression function
@@ -48,10 +47,6 @@ import TrackPlayer, {
     // Phase 1B: Refined suppression for QueueEnded events
     public shouldSuppressQueueEnded?: () => boolean;
     
-    // Getter for preview cancelled state
-    get isPreviewCancelled(): boolean {
-      return this.previewCancelled;
-    }
     
     // Check if there's a snapshot available for restoration
     hasSnapshotForRestore(): boolean {
@@ -59,7 +54,7 @@ import TrackPlayer, {
     }
     
     constructor() {
-      this.backgroundPlayer = new BackGroundAndPreviewPlayer();
+      this.backgroundPlayer = new BackgroundPlayer();
       this.setupAppStateHandling();
     }
     
@@ -110,7 +105,7 @@ import TrackPlayer, {
         });
         
         if (this.shouldSuppressEvents?.()) {
-          console.log('🚫 [EVENT] Suppressing RNTP PlaybackTrackChanged event - preview/structural op active');
+          console.log('🚫 [EVENT] Suppressing RNTP PlaybackTrackChanged event');
           return;
         }
         
@@ -137,7 +132,7 @@ import TrackPlayer, {
         });
         
         if (this.shouldSuppressEvents?.()) {
-          console.log('🚫 [EVENT] Suppressing RNTP PlaybackState event - preview/structural op active');
+          console.log('🚫 [EVENT] Suppressing RNTP PlaybackState event');
           return;
         }
         // Allow state changes through when not suppressed
@@ -305,97 +300,8 @@ import TrackPlayer, {
       // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
-    // Legacy expo-av preview (Phase 1B: Being replaced by RNTP)
-    async previewVoice(sampleUrl: string | number) {
-      // No auto-resume - loop should stay stopped until modal closes
-      await this.backgroundPlayer.playPreview(sampleUrl as any);
-    }
     
-    async stopPreview() {
-      await this.backgroundPlayer.stopPreview();
-    }
     
-    // Phase 1B: RNTP-based preview system
-    async previewVoiceRNTP(sampleUrl: string | number, timeoutMs: number = 5000): Promise<boolean> {
-      console.log('🎤 Starting RNTP preview for:', sampleUrl);
-      
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      let naturalEndListener: any;
-      
-      try {
-        // Duck background music
-        await this.backgroundPlayer.duckBackground(true);
-        
-        // Capture snapshot before resetting for preview
-        this.lastSnapshot = await this.captureSnapshot();
-        this.previewCancelled = false;
-        
-        // Reset RNTP and prepare for preview
-        await TrackPlayer.reset();
-        
-        // Create preview track
-        // TODO - Is this enough? Don't we need to pull in the .mp3 file? Where does this come from? 
-        const previewTrack: Track = {
-          id: 'preview-sample',
-          url: sampleUrl as any,
-          title: 'Voice Preview',
-          artist: 'Manifestation App'
-        };
-        
-        // Add and play preview
-        await TrackPlayer.add(previewTrack);
-        await TrackPlayer.play();
-        
-        // Set up natural end detection
-        return new Promise<boolean>((resolve, reject) => {
-          // Timeout handler
-          timeoutId = setTimeout(() => {
-            console.log('⏰ RNTP preview timed out after', timeoutMs, 'ms');
-            resolve(false);
-          }, timeoutMs);
-          
-          // Natural end listener
-          naturalEndListener = TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackQueueEnded, () => {
-            console.log('✅ RNTP preview ended naturally');
-            resolve(true);
-          });
-        });
-        
-      } catch (error) {
-        console.error('❌ RNTP preview failed:', error);
-        return false;
-        
-      } finally {
-        // Cleanup timeout and listener
-        if (timeoutId) clearTimeout(timeoutId);
-        if (naturalEndListener) naturalEndListener.remove();
-        
-        // Phase 1B: RNTP reset hygiene - ensure clean state even on errors
-        try {
-          await TrackPlayer.stop();
-          await TrackPlayer.reset();
-        } catch (resetError) {
-          console.warn('⚠️ RNTP reset failed during preview cleanup:', resetError);
-        }
-        
-        // Always unduck background music
-        await this.backgroundPlayer.duckBackground(false);
-        
-        console.log('🔄 RNTP preview cleanup completed');
-      }
-    }
-    
-    // Phase 1B: Stop RNTP preview (for user cancellation)
-    async stopRNTPPreview(): Promise<void> {
-      console.log('🛑 Stopping RNTP preview');
-      this.previewCancelled = true;
-      try {
-        await TrackPlayer.stop();
-        await TrackPlayer.reset();
-      } catch (error) {
-        console.error('❌ Error stopping RNTP preview:', error);
-      }
-    }
     
     async updateUpcomingTracks(tracks: Track[], fromIndex: number) {
       // Get current queue
@@ -688,30 +594,9 @@ import TrackPlayer, {
       return tracks;
     }
     
-    // Restore from the last captured snapshot (used when cancelling preview)
+    // Restore functionality disabled - will be removed in Phase 9
     async restoreLastSnapshot() {
-      console.log('🔄 [SNAPSHOT] restoreLastSnapshot called', {
-        hasSnapshot: !!this.lastSnapshot,
-        previewCancelled: this.previewCancelled
-      });
-      
-      if (this.lastSnapshot && this.previewCancelled) {
-        console.log('🔄 [SNAPSHOT] Conditions met, restoring from last snapshot');
-        console.log('🔄 [SNAPSHOT] Snapshot details:', {
-          currentIndex: this.lastSnapshot.currentIndex,
-          positionMs: this.lastSnapshot.positionMs,
-          wasPlaying: this.lastSnapshot.wasPlaying,
-          affirmationIds: this.lastSnapshot.affirmationIds.length
-        });
-        await this.restoreFromSnapshot(this.lastSnapshot);
-        this.previewCancelled = false;
-        console.log('✅ [SNAPSHOT] Last snapshot restoration completed');
-      } else {
-        console.log('❌ [SNAPSHOT] Cannot restore - conditions not met:', {
-          hasSnapshot: !!this.lastSnapshot,
-          previewCancelled: this.previewCancelled
-        });
-      }
+      console.log('🔄 [SNAPSHOT] restoreLastSnapshot disabled');
     }
     
     async cleanup() {

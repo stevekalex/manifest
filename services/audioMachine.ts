@@ -28,7 +28,6 @@ interface AudioContext {
   | { type: 'CANCEL_VOICE_MODAL' }
   | { type: 'CONFIRM_VOICE'; voiceId: VoiceId }
   | { type: 'SET_VOICE'; voiceId: VoiceId }
-  | { type: 'PREVIEW_VOICE'; voiceId: VoiceId; affirmationIndex?: number }
   | { type: 'UPDATE_DELAY'; delayMs: number }
   | { type: 'PAUSE_FOR_INTERRUPTION' }
   | { type: 'RESUME_FROM_INTERRUPTION' }
@@ -275,9 +274,8 @@ export const audioMachine = createMachine({
     voiceSelecting: {
       exit: ['resumeBackground', assign(() => ({ modalOpen: false })), 'resumeAffirmations'],
       on: {
-        PREVIEW_VOICE: 'voiceSelecting.previewing',
         CANCEL_VOICE_MODAL: {
-          target: 'voiceSelecting.restoring'
+          target: 'playing'
         },
         CONFIRM_VOICE: 'voiceSwitching',
         SET_VOICE: 'voiceSwitching',
@@ -299,40 +297,6 @@ export const audioMachine = createMachine({
       initial: 'idle',
       states: {
         idle: {},
-        previewing: {
-          entry: 'pauseAffirmations',
-          invoke: {
-            id: 'playPreview',
-            src: 'playPreviewService',
-            input: ({ context, event }) => ({
-              event,
-              playlist: context.playlist,
-              context: { currentTrackIndex: context.currentTrackIndex }
-            }),
-            onDone: 'idle',
-            onError: {
-              target: 'idle',
-              actions: 'logPreviewError',
-            },
-          },
-        },
-        restoring: {
-          invoke: {
-            id: 'cancelPreviewAndRestore',
-            src: 'cancelPreviewAndRestore',
-            onDone: {
-              target: '#audio.playing',
-              actions: assign(() => ({ modalOpen: false }))
-            },
-            onError: {
-              target: '#audio.playing',
-              actions: [
-                assign(() => ({ modalOpen: false })),
-                ({ event }) => console.error('❌ Failed to cancel and restore:', event)
-              ]
-            }
-          }
-        },
       },
     },
     
@@ -385,14 +349,12 @@ export function createProvidedAudioMachine(services: {
   bootstrapPlaylist: any;
   voiceSwitchTransaction: any;
   pauseAndSnapshot: any;
-  playPreviewService: any;
 }, actions: Record<string, any>) {
   return (audioMachine as any).provide({
     actors: {
       bootstrapPlaylist: services.bootstrapPlaylist,
       voiceSwitchTransaction: services.voiceSwitchTransaction,
       pauseAndSnapshot: services.pauseAndSnapshot,
-      playPreviewService: services.playPreviewService,
     },
     actions,
   });

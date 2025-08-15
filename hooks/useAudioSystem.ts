@@ -37,9 +37,7 @@ export const useAudioSystem = () => {
       coordinator.closeVoiceModal();
     },
     
-    previewVoice: (voiceId: VoiceId) => {
-      coordinator.previewVoice(voiceId);
-    },
+    // Removed previewVoice to avoid triggering any voice calls from the UI layer
     
     setVoice: async (voiceId: VoiceId) => {
       await coordinator.confirmVoiceSelection(voiceId);

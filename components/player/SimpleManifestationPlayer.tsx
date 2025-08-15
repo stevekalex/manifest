@@ -1,22 +1,22 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
-  withRepeat, 
-  withSequence,
-  Easing 
-} from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BackgroundMusicModal } from './BackgroundMusicModal';
-import { VoiceSettingsModal } from './VoiceSettingsModal';
-import { StarField } from './StarField';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming
+} from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRODUCTION_PLAYLIST } from '../../data/productionPlaylist';
 import { useAudioSystem } from '../../hooks/useAudioSystem';
+import { BackgroundMusicModal } from './BackgroundMusicModal';
+import { StarField } from './StarField';
+import { VoiceSettingsModal } from './VoiceSettingsModal';
 
 const SimpleManifestationPlayerComponent: React.FC = () => {
   const router = useRouter();
@@ -235,8 +235,7 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
         }}
         selectedVoice={audio.currentVoiceId}
         onVoiceSelect={(voiceId) => {
-          // Preview the selected voice using the machine; machine handles pausing/snapshot
-          audio.previewVoice(voiceId as any);
+          // No-op: preview and immediate voice switching are disabled
         }}
         affirmationDelay={audio.globalDelayMs}
         onDelayChange={(delayMs) => {

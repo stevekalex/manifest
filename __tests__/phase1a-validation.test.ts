@@ -1,7 +1,5 @@
-import { gate } from '../services/transactionGate';
-
-// Simple validation test for Phase 1A functionality
-describe('Phase 1A Validation', () => {
+// DISABLED: Transaction gate removed in Phase 5
+describe.skip('Phase 1A Validation (DISABLED)', () => {
   describe('Transaction Gate Core', () => {
     beforeEach(() => {
       gate.resetStats();

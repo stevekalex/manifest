@@ -1,40 +1,12 @@
 import { AudioPlaybackService } from './audioPlaybackService';
-import { Playlist, VoiceId, PausedState, OperationKey, PlaybackSnapshot } from '../types/audio';
+import { Playlist, VoiceId, PausedState, PlaybackSnapshot } from '../types/audio';
 import { Track } from 'react-native-track-player';
 import { useAudioStore } from '../store/audioStore';
-import { gate, Priority } from './transactionGate';
 
 export class AudioServices {
   private audioSystem: AudioPlaybackService;
-  private transactionGateEnabled = false; // Feature flag
-
   constructor() {
     this.audioSystem = new AudioPlaybackService();
-  }
-
-  // Enable transaction gate for this service
-  enableTransactionGate(enabled: boolean = true) {
-    this.transactionGateEnabled = enabled;
-    console.log(`🔧 AudioServices transaction gate ${enabled ? 'enabled' : 'disabled'}`);
-  }
-
-  // Helper to execute operations through gate when enabled
-  private async executeWithGate<T>(
-    operationKey: OperationKey,
-    priority: Priority,
-    operation: () => Promise<T>,
-    fallback?: () => Promise<T>
-  ): Promise<T> {
-    if (!this.transactionGateEnabled) {
-      return operation();
-    }
-
-    const result = await gate.exec(operationKey, priority, operation);
-    if (result === null && fallback) {
-      console.log(`⚠️ Operation ${operationKey} superseded, using fallback`);
-      return fallback();
-    }
-    return result || (undefined as any); // Type assertion for now
   }
 
   // Assumes playlist URLs are already local (file://, asset:/, or absolute path).
@@ -97,57 +69,34 @@ export class AudioServices {
       globalDelayMs: data.globalDelayMs
     });
     
-    return this.executeWithGate(
-      `accept:${data.newVoiceId}:${data.pausedState.trackIndex}`,
-      Priority.Accept,
-      async () => {
-        console.log('🔄 [VOICE-SWITCH] Executing main voice switch operation');
-        const { newVoiceId, pausedState, playlist, globalDelayMs } = data;
-        if (!playlist || !pausedState) throw new Error('Missing required data for voice switch');
+    console.log('🔄 [VOICE-SWITCH] Executing main voice switch operation');
+    const { newVoiceId, pausedState, playlist, globalDelayMs } = data;
+    if (!playlist || !pausedState) throw new Error('Missing required data for voice switch');
 
-        const fromIndex = pausedState.trackIndex;
-        console.log('🔄 [VOICE-SWITCH] Building tracks from index:', fromIndex);
-        
-        const remainingAffirmations = playlist.affirmations.slice(fromIndex);
-        console.log('🔄 [VOICE-SWITCH] Remaining affirmations:', remainingAffirmations.length);
-        
-        const paths = remainingAffirmations
-          .map(a => playlist.cdnUrls[newVoiceId][a.id])
-          .filter(Boolean) as string[];
-        console.log('🔄 [VOICE-SWITCH] Found paths for voice:', paths.length);
+    const fromIndex = pausedState.trackIndex;
+    console.log('🔄 [VOICE-SWITCH] Building tracks from index:', fromIndex);
+    
+    const remainingAffirmations = playlist.affirmations.slice(fromIndex);
+    console.log('🔄 [VOICE-SWITCH] Remaining affirmations:', remainingAffirmations.length);
+    
+    const paths = remainingAffirmations
+      .map(a => playlist.cdnUrls[newVoiceId][a.id])
+      .filter(Boolean) as string[];
+    console.log('🔄 [VOICE-SWITCH] Found paths for voice:', paths.length);
 
-        const tracks = this.buildTracksWithDelays(remainingAffirmations, paths, globalDelayMs);
-        console.log('🔄 [VOICE-SWITCH] Built tracks with delays:', tracks.length);
+    const tracks = this.buildTracksWithDelays(remainingAffirmations, paths, globalDelayMs);
+    console.log('🔄 [VOICE-SWITCH] Built tracks with delays:', tracks.length);
 
-        // TODO - consider the perofrmance of this code - would this be too blocking for what we need? Could we update a quick few tracks and then
-        // create a queue of tracks to play?
-        console.log('🔄 [VOICE-SWITCH] Updating upcoming tracks...');
-        await this.audioSystem.updateUpcomingTracks(tracks, fromIndex);
-        
-        console.log('🔄 [VOICE-SWITCH] Resuming affirmations with paused state...');
-        await this.audioSystem.resumeAffirmations(pausedState);
+    // TODO - consider the perofrmance of this code - would this be too blocking for what we need? Could we update a quick few tracks and then
+    // create a queue of tracks to play?
+    console.log('🔄 [VOICE-SWITCH] Updating upcoming tracks...');
+    await this.audioSystem.updateUpcomingTracks(tracks, fromIndex);
+    
+    console.log('🔄 [VOICE-SWITCH] Resuming affirmations with paused state...');
+    await this.audioSystem.resumeAffirmations(pausedState);
 
-        console.log('✅ [VOICE-SWITCH] Voice switch completed successfully to:', newVoiceId);
-        return { voiceId: newVoiceId };
-      },
-      // Fallback: try the operation anyway if gate is superseded
-      async () => {
-        const { newVoiceId, pausedState, playlist, globalDelayMs } = data;
-        console.log(`⚠️ Voice switch superseded; fallback for accept:${newVoiceId}:${pausedState.trackIndex}`);
-        
-        const fromIndex = pausedState.trackIndex;
-        const remainingAffirmations = playlist.affirmations.slice(fromIndex);
-        const paths = remainingAffirmations
-          .map(a => playlist.cdnUrls[newVoiceId][a.id])
-          .filter(Boolean) as string[];
-
-        const tracks = this.buildTracksWithDelays(remainingAffirmations, paths, globalDelayMs);
-        await this.audioSystem.updateUpcomingTracks(tracks, fromIndex);
-        await this.audioSystem.resumeAffirmations(pausedState);
-
-        return { voiceId: newVoiceId };
-      }
-    );
+    console.log('✅ [VOICE-SWITCH] Voice switch completed successfully to:', newVoiceId);
+    return { voiceId: newVoiceId };
   };
 
   private buildTracksWithDelays(affirmations: { id: string; text?: string }[], localPaths: any[], globalDelayMs: number): Track[] {
@@ -188,43 +137,6 @@ export class AudioServices {
       resumeAllPlayers: async () => { await this.audioSystem.resumeAll(); },
       pauseBackground: async () => { await this.audioSystem.pauseBackground(); },
       resumeBackground: async () => { await this.audioSystem.resumeBackground(); },
-      previewVoice: async (args: any) => {
-        console.log('🎤 [VOICE] Preview voice action called');
-        const { context, event } = args || {};
-        console.log('🎤 [VOICE] Preview event details:', { 
-          eventType: event?.type, 
-          voiceId: event?.voiceId,
-          hasPlaylist: !!context?.playlist 
-        });
-        
-        if (event?.type !== 'PREVIEW_VOICE') return;
-        const voice = context?.playlist?.voices?.find((v: any) => v.id === event.voiceId);
-        
-        if (voice) {
-          console.log('🎤 [VOICE] Found voice for preview:', voice.id, 'sampleUrl:', voice.sampleUrl);
-          
-          // Phase 1B: RNTP preview with transaction gate
-          await this.executeWithGate(
-            `preview:${event.voiceId}`,
-            Priority.Preview,
-            async () => {
-              console.log('🎤 [VOICE] Starting RNTP preview via transaction gate');
-              // Use RNTP preview (Phase 1B) instead of Expo AV
-              const success = await this.audioSystem.previewVoiceRNTP(voice.sampleUrl, 5000);
-              console.log('🎤 [VOICE] RNTP preview completed, success:', success);
-              return { success };
-            },
-            async () => {
-              console.log('🎤 [VOICE] Using fallback Expo AV preview');
-              // Fallback: Use legacy Expo AV preview
-              await this.audioSystem.previewVoice(voice.sampleUrl);
-              return { success: true };
-            }
-          );
-        } else {
-          console.warn('⚠️ [VOICE] No voice found for preview:', event.voiceId);
-        }
-      },
       updateGlobalDelay: (args: any) => {
         console.log('⏰ [DELAY] updateGlobalDelay action called');
         const { context, event } = args || {};
@@ -250,7 +162,6 @@ export class AudioServices {
       logVoiceSwitchSuccess: () => console.log('Voice switch successful'),
       logVoiceSwitchError: (args: any) => console.error('Voice switch failed:', args?.event?.data),
       resumeWithOldVoice: async () => { await this.audioSystem.resumeAffirmations(); },
-      logPreviewError: (args: any) => console.error('Voice preview failed:', args?.event?.data),
     };
   }
 
@@ -276,97 +187,16 @@ export class AudioServices {
     return await this.audioSystem.restoreFromSnapshot(snapshot, newTracks);
   };
 
-  // Phase 1B: Play a preview voice sample via RNTP with snapshot/restore and gate  
-  playPreviewService = async (context: { event: { voiceId: VoiceId; affirmationIndex?: number }; playlist?: Playlist; context: { currentTrackIndex: number } }) => {
-    const { event, playlist } = context;
-    if (!playlist) throw new Error('No playlist for voice preview');
-    
-    console.log('🎤 Starting voice preview for:', event.voiceId);
-    
-    // For simplicity, always preview the first affirmation (affirmation-0) 
-    const previewAffirmation = playlist.affirmations[0];
-    if (!previewAffirmation) throw new Error('No first affirmation available for preview');
-    
-    // Get the URL for the first affirmation in the selected voice
-    let affirmationUrl = playlist.cdnUrls[event.voiceId]?.[previewAffirmation.id]
-      ?? playlist.cdnUrls['serenity']?.[previewAffirmation.id];
-    
-    if (!affirmationUrl) throw new Error('No audio available for preview');
-    
-    // Handle both require() modules (numbers) and string URLs
-    if (typeof affirmationUrl === 'string' && affirmationUrl.startsWith('tts://')) {
-      console.log(`🎤 Skipping preview for TTS placeholder: ${event.voiceId}`);
-      return { success: true };
-    }
-    
-    const previewUrl: any = affirmationUrl; // require() number or http(s) string is fine
-    
-    // 1) Snapshot current RNTP state
-    const snapshot = await this.audioSystem.captureSnapshot();
-    
-    try {
-      // 2) Gate + RNTP preview (5s timeout inside)
-      const opKey = `preview:${event.voiceId}` as const;
-      await this.executeWithGate(
-        opKey,
-        Priority.Preview,
-        async () => { 
-          await this.audioSystem.previewVoiceRNTP(previewUrl, 5000);
-          return { success: true };
-        },
-        async () => { 
-          await this.audioSystem.previewVoiceRNTP(previewUrl, 5000);
-          return { success: true };
-        }
-      );
-    } finally {
-      // 3) Only restore if preview wasn't cancelled (cancel path handles its own restore)
-      if (!this.audioSystem.isPreviewCancelled) {
-        console.log('🔄 Restoring snapshot after preview');
-        await this.audioSystem.restoreFromSnapshot(snapshot);
-      } else {
-        console.log('🔄 Skipping restore - preview was cancelled');
-      }
-    }
-    
-    console.log('🎤 Voice preview completed for:', event.voiceId);
-    return { success: true };
-  };
 
-  // Cancel preview and restore the main queue
-  cancelPreviewAndRestore = async () => {
-    console.log('🔄 [RESTORE] cancelPreviewAndRestore service starting');
-    
-    // Check if there's actually a snapshot to restore (meaning preview was active)
-    const hasSnapshot = this.audioSystem.hasSnapshotForRestore();
-    console.log('🔄 [RESTORE] Has snapshot to restore:', hasSnapshot);
-    
-    if (hasSnapshot) {
-      console.log('🛑 [RESTORE] Step 1: Stopping RNTP preview...');
-      await this.audioSystem.stopRNTPPreview();
-      console.log('✅ [RESTORE] RNTP preview stopped');
-      
-      console.log('🔄 [RESTORE] Step 2: Restoring last snapshot...');
-      await this.audioSystem.restoreLastSnapshot();
-      console.log('✅ [RESTORE] Last snapshot restored');
-    } else {
-      console.log('ℹ️ [RESTORE] No preview was active, skipping restoration');
-    }
-    
-    console.log('🎉 [RESTORE] cancelPreviewAndRestore service completed successfully');
-    return { cancelled: true };
-  }
 
   getMachineServices() {
     return {
       bootstrapPlaylist: this.bootstrapPlaylist,
       voiceSwitchTransaction: this.voiceSwitchTransaction,
       pauseAndSnapshot: this.pauseAndSnapshot,
-      playPreviewService: this.playPreviewService,
       // Phase 1B: New snapshot-based services
       capturePlaybackSnapshot: this.capturePlaybackSnapshot,
       restoreFromSnapshot: this.restoreFromSnapshot,
-      cancelPreviewAndRestore: this.cancelPreviewAndRestore,
     };
   }
 
