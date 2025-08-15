@@ -9,6 +9,7 @@ import { getDelayTimerManager } from './delayTimerManager';
 import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId, PausedState, PlaybackSnapshot } from '../types/audio';
 import { Track } from 'react-native-track-player';
+import { CDNFactory } from './cdn/CDNFactory';
 
 // Constants
 const INITIAL_TRACK_COUNT = 3; // Phase 1B: Reduced from 5 to 3 for better performance
@@ -29,17 +30,25 @@ export class AudioCoordinator {
   private bundledAssets: BundledAssets;
   private appStateSubscription: any;
   private instanceId: string;
+  private cdnFactory?: CDNFactory;
   
-  constructor() {
+  constructor(cdnFactory?: CDNFactory) {
     this.instanceId = Math.random().toString(36).substring(2, 9);
     console.log('🎮 AudioCoordinator instance created with ID:', this.instanceId);
     
-    // Initialize dependencies directly
-    this.audioSystem = new AudioPlaybackService();
-    this.bundledAssets = new BundledAssets();
-    this.urlResolver = new URLResolver(this.bundledAssets);
+    this.cdnFactory = cdnFactory;
     
-    console.log('🔧 [AUDIO-COORDINATOR] Initialized with direct dependencies');
+    // Initialize dependencies with optional CDN support
+    this.bundledAssets = new BundledAssets();
+    this.urlResolver = this.createURLResolver();
+    this.audioSystem = new AudioPlaybackService(undefined, this.urlResolver);
+    
+    if (cdnFactory) {
+      console.log('🔧 [AUDIO-COORDINATOR] Initialized with CDN-enabled URLResolver');
+      this.logCDNStats();
+    } else {
+      console.log('🔧 [AUDIO-COORDINATOR] Initialized with direct dependencies');
+    }
 
     // Wire track advancement events
     this.audioSystem.onTrackAdvanced = (trackIndex: number) => {
@@ -545,14 +554,65 @@ export class AudioCoordinator {
       restoreFromSnapshot: this.restoreFromSnapshot,
     };
   }
+
+  /**
+   * Create URLResolver with optional CDN client
+   */
+  private createURLResolver(): URLResolver {
+    if (!this.cdnFactory) {
+      return new URLResolver(this.bundledAssets);
+    }
+
+    try {
+      // Validate CDN factory
+      if (typeof this.cdnFactory.getDefaultClient !== 'function') {
+        console.warn('⚠️ [AUDIO-COORDINATOR] Invalid CDN factory provided, falling back to standard URLResolver');
+        return new URLResolver(this.bundledAssets);
+      }
+
+      const cdnClient = this.cdnFactory.getDefaultClient();
+      console.log('📦 [AUDIO-COORDINATOR] CDN-enabled URLResolver created');
+      return new URLResolver(this.bundledAssets, cdnClient);
+    } catch (error) {
+      console.warn('⚠️ [AUDIO-COORDINATOR] Failed to initialize CDN client, falling back to standard URLResolver:', error);
+      return new URLResolver(this.bundledAssets);
+    }
+  }
+
+  /**
+   * Log CDN client statistics for debugging
+   */
+  private logCDNStats(): void {
+    if (!this.cdnFactory) return;
+
+    try {
+      const cdnClient = this.cdnFactory.getDefaultClient();
+      const stats = cdnClient.getStats();
+      console.log('📊 [AUDIO-COORDINATOR] CDN client stats:', {
+        manifestLoaded: stats.manifestLoaded,
+        totalRequests: stats.totalRequests,
+        successfulRequests: stats.successfulRequests,
+        failedRequests: stats.failedRequests
+      });
+    } catch (error) {
+      console.warn('⚠️ [AUDIO-COORDINATOR] Failed to get CDN stats:', error);
+    }
+  }
 }
 
 // Singleton instance
 let coordinatorInstance: AudioCoordinator | null = null;
 
-export function getAudioCoordinator(): AudioCoordinator {
+export function getAudioCoordinator(cdnFactory?: CDNFactory): AudioCoordinator {
   if (!coordinatorInstance) {
-    coordinatorInstance = new AudioCoordinator();
+    coordinatorInstance = new AudioCoordinator(cdnFactory);
   }
   return coordinatorInstance;
+}
+
+/**
+ * Reset the singleton instance (primarily for testing)
+ */
+export function resetAudioCoordinator(): void {
+  coordinatorInstance = null;
 }

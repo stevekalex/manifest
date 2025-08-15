@@ -1,11 +1,12 @@
 import { getAudioCoordinator } from '../services/audioCoordinator';
+import { CDNFactory } from '../services/cdn/CDNFactory';
 import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId } from '../types/audio';
 
 export const useAudioSystem = () => {
   const storeState = useAudioStore();
   
-  const coordinator = getAudioCoordinator();
+  const coordinator = getAudioCoordinator(new CDNFactory());
   
   return {
     // All store state

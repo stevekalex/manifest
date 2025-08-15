@@ -47,5 +47,28 @@
     "run_tests_after_changes": true,
     "use_conventional_commits": true,
     "follow_claude_md_guidelines": true
+  },
+  "cdn": {
+    "clientType": "local",
+    "enableCache": true,
+    "requestTimeout": 5000,
+    "retryAttempts": 3,
+    "manifestPath": "../assets/voices/manifest.json",
+    "cacheMaxSize": 100
+  },
+  "features": {
+    "cdnEnabled": true,
+    "debugLogging": false,
+    "prefetchEnabled": true
+  },
+  "environment": {
+    "development": {
+      "debugLogging": true,
+      "requestTimeout": 10000
+    },
+    "production": {
+      "debugLogging": false,
+      "requestTimeout": 3000
+    }
   }
 }

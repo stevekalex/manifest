@@ -1,0 +1,90 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2025-01-15T12:00:00Z",
+  "voices": [
+    {
+      "id": "serenity",
+      "name": "Serenity",
+      "tracks": [
+        {
+          "id": "serenity:affirmation-0",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/0-hq.mp3"
+        },
+        {
+          "id": "serenity:affirmation-1", 
+          "file": "1-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/1-hq.mp3"
+        },
+        {
+          "id": "serenity:affirmation-2",
+          "file": "2-hq.mp3", 
+          "bundledPath": "../assets/voices/serenity/2-hq.mp3"
+        },
+        {
+          "id": "serenity:affirmation-3",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
+          "note": "Fallback to affirmation-0"
+        },
+        {
+          "id": "serenity:affirmation-4",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
+          "note": "Fallback to affirmation-0"
+        },
+        {
+          "id": "serenity:affirmation-5",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
+          "note": "Fallback to affirmation-0"
+        },
+        {
+          "id": "serenity:affirmation-6",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
+          "note": "Fallback to affirmation-0"
+        },
+        {
+          "id": "serenity:affirmation-7",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
+          "note": "Fallback to affirmation-0"
+        },
+        {
+          "id": "serenity:affirmation-8",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
+          "note": "Fallback to affirmation-0"
+        },
+        {
+          "id": "serenity:affirmation-9",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/serenity/0-hq.mp3",
+          "note": "Fallback to affirmation-0"
+        }
+      ]
+    },
+    {
+      "id": "titan",
+      "name": "Titan", 
+      "tracks": [
+        {
+          "id": "titan:affirmation-0",
+          "file": "0-hq.mp3",
+          "bundledPath": "../assets/voices/titan/0-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-1",
+          "file": "1-hq.mp3", 
+          "bundledPath": "../assets/voices/titan/1-hq.mp3"
+        },
+        {
+          "id": "titan:affirmation-2",
+          "file": "2-hq.mp3",
+          "bundledPath": "../assets/voices/titan/2-hq.mp3"
+        }
+      ]
+    }
+  ]
+}

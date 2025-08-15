@@ -1,4 +1,5 @@
 import type { AffirmationId, Playlist, VoiceId } from '../types/audio';
+import type { ICDNClient, CanonicalTrackId } from './cdn/types';
 
 /**
  * URL Resolver Service
@@ -61,9 +62,11 @@ try {
 
 export class URLResolver {
   private bundledAssets: BundledAssets;
+  private cdnClient: ICDNClient | null;
   
-  constructor(bundledAssets: BundledAssets) {
+  constructor(bundledAssets: BundledAssets, cdnClient?: ICDNClient) {
     this.bundledAssets = bundledAssets;
+    this.cdnClient = cdnClient || null;
   }
   
   /**
@@ -71,13 +74,13 @@ export class URLResolver {
    * @param playlist The playlist containing URL mappings
    * @param affirmationId The affirmation to resolve
    * @param voiceId The voice to use
-   * @returns Playable URL (never tts://)
+   * @returns Playable URL (never tts://) - Promise when CDN client is available, string otherwise
    */
   resolve(
     playlist: Playlist,
     affirmationId: AffirmationId,
     voiceId: VoiceId
-  ): string {
+  ): string | Promise<string> {
     console.log(`🔍 [URL-RESOLVER] Resolving: ${affirmationId} for voice: ${voiceId}`);
     
     // Get URL from playlist
@@ -101,8 +104,14 @@ export class URLResolver {
     
     if (typeof rawUrl === 'string') {
       if (rawUrl.startsWith('tts://')) {
-        // TTS placeholder - resolve to bundled asset
-        return this.resolveTTSPlaceholder(rawUrl, affirmationId, voiceId);
+        // TTS placeholder - check if we need async resolution
+        if (this.cdnClient) {
+          // Return promise for CDN resolution
+          return this.resolveTTSPlaceholder(rawUrl, affirmationId, voiceId);
+        } else {
+          // Synchronous bundled asset resolution for backward compatibility
+          return this.resolveTTSPlaceholderSync(rawUrl, affirmationId, voiceId);
+        }
       } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         // CDN URL - return as-is for now
         console.log(`🌐 [URL-RESOLVER] Using CDN URL: ${rawUrl}`);
@@ -131,25 +140,70 @@ export class URLResolver {
    * @param playlist The playlist containing URL mappings
    * @param affirmationIds Array of affirmation IDs to resolve
    * @param voiceId The voice to use
-   * @returns Array of resolved URLs
+   * @returns Array of resolved URLs - Promise if CDN client available, array otherwise
    */
   resolveMultiple(
     playlist: Playlist,
     affirmationIds: AffirmationId[],
     voiceId: VoiceId
-  ): string[] {
+  ): string[] | Promise<string[]> {
     console.log(`🔍 [URL-RESOLVER] Resolving ${affirmationIds.length} URLs for voice: ${voiceId}`);
     
+    // Check if any URLs require async resolution (TTS with CDN client)
+    const needsAsync = this.cdnClient && affirmationIds.some(affirmationId => {
+      const rawUrl = playlist.cdnUrls?.[voiceId]?.[affirmationId];
+      return typeof rawUrl === 'string' && rawUrl.startsWith('tts://');
+    });
+
+    if (needsAsync) {
+      return this.resolveMultipleAsync(playlist, affirmationIds, voiceId);
+    } else {
+      return this.resolveMultipleSync(playlist, affirmationIds, voiceId);
+    }
+  }
+
+  /**
+   * Synchronous version of resolveMultiple for backward compatibility
+   */
+  private resolveMultipleSync(
+    playlist: Playlist,
+    affirmationIds: AffirmationId[],
+    voiceId: VoiceId
+  ): string[] {
     const resolvedUrls: string[] = [];
     
     for (const affirmationId of affirmationIds) {
       try {
-        const url = this.resolve(playlist, affirmationId, voiceId);
+        const url = this.resolve(playlist, affirmationId, voiceId) as string;
         resolvedUrls.push(url);
       } catch (error) {
         console.error(`❌ [URL-RESOLVER] Failed to resolve ${affirmationId}:`, error);
         // For now, skip failed resolutions
-        // TODO: Add fallback strategy
+      }
+    }
+    
+    console.log(`✅ [URL-RESOLVER] Resolved ${resolvedUrls.length}/${affirmationIds.length} URLs`);
+    return resolvedUrls;
+  }
+
+  /**
+   * Asynchronous version of resolveMultiple for CDN integration
+   */
+  private async resolveMultipleAsync(
+    playlist: Playlist,
+    affirmationIds: AffirmationId[],
+    voiceId: VoiceId
+  ): Promise<string[]> {
+    const resolvedUrls: string[] = [];
+    
+    for (const affirmationId of affirmationIds) {
+      try {
+        const urlOrPromise = this.resolve(playlist, affirmationId, voiceId);
+        const url = await Promise.resolve(urlOrPromise);
+        resolvedUrls.push(url);
+      } catch (error) {
+        console.error(`❌ [URL-RESOLVER] Failed to resolve ${affirmationId}:`, error);
+        // For now, skip failed resolutions
       }
     }
     
@@ -165,17 +219,17 @@ export class URLResolver {
   }
   
   /**
-   * Resolve TTS placeholder to bundled asset
+   * Resolve TTS placeholder using CDN-first strategy, then bundled asset fallback
    * @param ttsUrl The tts:// URL to resolve
    * @param affirmationId The affirmation ID for context
    * @param voiceId The voice ID for context
-   * @returns Resolved bundled asset path
+   * @returns Resolved asset path
    */
-  private resolveTTSPlaceholder(
+  private async resolveTTSPlaceholder(
     ttsUrl: string,
     affirmationId: string,
     voiceId: string
-  ): string {
+  ): Promise<string> {
     console.log(`🎤 [URL-RESOLVER] Resolving TTS placeholder: ${ttsUrl}`);
     
     // Validate TTS URL format
@@ -188,7 +242,72 @@ export class URLResolver {
       );
     }
     
-    // Try to get bundled asset
+    // Try CDN client first if available
+    if (this.cdnClient) {
+      try {
+        const canonicalTrackId: CanonicalTrackId = `${voiceId}:${affirmationId}`;
+        
+        if (this.cdnClient.isAvailable(canonicalTrackId)) {
+          const cdnUrl = await this.cdnClient.getPlayableUrl(canonicalTrackId);
+          console.log(`✅ [URL-RESOLVER] Resolved TTS via CDN: ${cdnUrl}`);
+          return cdnUrl as string;
+        } else {
+          console.log(`ℹ️ [URL-RESOLVER] Track ${canonicalTrackId} not available in CDN, trying bundled assets`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ [URL-RESOLVER] CDN resolution failed for ${ttsUrl}, falling back to bundled assets:`, error);
+      }
+    }
+    
+    // Fallback to bundled assets
+    const bundledAsset = this.bundledAssets.getAsset(affirmationId, voiceId);
+    
+    if (!bundledAsset) {
+      // Check if we have a fallback voice
+      const fallbackAsset = this.bundledAssets.getAsset(affirmationId, 'serenity');
+      
+      if (fallbackAsset) {
+        console.warn(`⚠️ [URL-RESOLVER] Using fallback voice 'serenity' for ${affirmationId}`);
+        return fallbackAsset;
+      }
+      
+      throw new URLResolverException(
+        URLResolverError.ASSET_NOT_FOUND,
+        `No asset found for TTS placeholder: ${ttsUrl} (tried CDN: ${!!this.cdnClient}, bundled assets: true)`,
+        affirmationId,
+        voiceId
+      );
+    }
+    
+    console.log(`✅ [URL-RESOLVER] Resolved TTS to bundled asset: ${bundledAsset}`);
+    return bundledAsset;
+  }
+
+  /**
+   * Resolve TTS placeholder synchronously using only bundled assets (for backward compatibility)
+   * @param ttsUrl The tts:// URL to resolve
+   * @param affirmationId The affirmation ID for context
+   * @param voiceId The voice ID for context
+   * @returns Resolved bundled asset path
+   */
+  private resolveTTSPlaceholderSync(
+    ttsUrl: string,
+    affirmationId: string,
+    voiceId: string
+  ): string {
+    console.log(`🎤 [URL-RESOLVER] Resolving TTS placeholder (sync): ${ttsUrl}`);
+    
+    // Validate TTS URL format
+    if (!ttsUrl.startsWith('tts://')) {
+      throw new URLResolverException(
+        URLResolverError.INVALID_TTS_URL,
+        `Invalid TTS URL format: ${ttsUrl}`,
+        affirmationId,
+        voiceId
+      );
+    }
+    
+    // Get bundled asset
     const bundledAsset = this.bundledAssets.getAsset(affirmationId, voiceId);
     
     if (!bundledAsset) {
@@ -208,7 +327,7 @@ export class URLResolver {
       );
     }
     
-    console.log(`✅ [URL-RESOLVER] Resolved TTS to bundled asset: ${bundledAsset}`);
+    console.log(`✅ [URL-RESOLVER] Resolved TTS to bundled asset (sync): ${bundledAsset}`);
     return bundledAsset;
   }
   

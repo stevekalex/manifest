@@ -14,6 +14,7 @@ import TrackPlayer, {
   import { AppState, AppStateStatus } from 'react-native';
   import AsyncStorage from '@react-native-async-storage/async-storage';
   import { useAudioStore } from '../store/audioStore';
+  import { URLResolver } from './urlResolver';
   
   // Phase 4: Enhanced queue management configuration
   interface QueueConfig {
@@ -67,6 +68,7 @@ import TrackPlayer, {
     private appStateSubscription?: any;
     private debouncer = new EventDebouncer();
     private lastSnapshot?: PlaybackSnapshot;
+    private urlResolver?: URLResolver;
     public onTrackAdvanced?: (trackIndex: number) => void;
     
     // Phase 1A: Event suppression function
@@ -86,12 +88,16 @@ import TrackPlayer, {
       return !!this.lastSnapshot;
     }
     
-    constructor(queueConfig?: Partial<QueueConfig>) {
+    constructor(queueConfig?: Partial<QueueConfig>, urlResolver?: URLResolver) {
       this.backgroundPlayer = new BackgroundPlayer();
       this.queueConfig = { ...DEFAULT_QUEUE_CONFIG, ...queueConfig };
+      this.urlResolver = urlResolver;
       this.setupAppStateHandling();
       
       console.log('🎵 [QUEUE-CONFIG] AudioPlaybackService initialized with config:', this.queueConfig);
+      if (urlResolver) {
+        console.log('📦 [PLAYBACK-SERVICE] URLResolver with CDN support injected');
+      }
     }
     
     async initialize() {
@@ -744,18 +750,34 @@ import TrackPlayer, {
         const affirmation = playlist.affirmations.find(a => a.id === affirmationId);
         if (!affirmation) continue;
         
-        // Get URL for current voice
-        const url = playlist.cdnUrls[store.currentVoiceId]?.[affirmationId];
-        if (!url) continue;
-        
-        tracks.push({
-          id: affirmationId,
-          url: url as any,
-          title: affirmation.text || `Affirmation ${tracks.length + 1}`,
-          artist: 'Manifestation App'
-        });
+        try {
+          let url: any;
+          
+          if (this.urlResolver) {
+            // Use URLResolver for CDN-first resolution
+            console.log(`📦 [PLAYBACK-SERVICE] Resolving ${affirmationId} via URLResolver`);
+            const urlOrPromise = this.urlResolver.resolve(playlist, affirmationId, store.currentVoiceId);
+            url = await Promise.resolve(urlOrPromise);
+          } else {
+            // Fallback to direct cdnUrls access for backward compatibility
+            url = playlist.cdnUrls[store.currentVoiceId]?.[affirmationId];
+            if (!url) continue;
+          }
+          
+          tracks.push({
+            id: affirmationId,
+            url: url,
+            title: affirmation.text || `Affirmation ${tracks.length + 1}`,
+            artist: 'Manifestation App'
+          });
+          
+        } catch (error) {
+          console.error(`❌ [PLAYBACK-SERVICE] Failed to resolve URL for ${affirmationId}:`, error);
+          // Continue processing other tracks
+        }
       }
       
+      console.log(`📦 [PLAYBACK-SERVICE] Reconstructed ${tracks.length}/${snapshot.affirmationIds.length} tracks`);
       return tracks;
     }
     
