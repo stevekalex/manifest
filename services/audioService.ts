@@ -2,11 +2,31 @@ import { AudioPlaybackService } from './audioPlaybackService';
 import { Playlist, VoiceId, PausedState, PlaybackSnapshot } from '../types/audio';
 import { Track } from 'react-native-track-player';
 import { useAudioStore } from '../store/audioStore';
+import { URLResolver } from './urlResolver';
+import { BundledAssets } from './bundledAssets';
+
+// Constants
+const INITIAL_TRACK_COUNT = 3; // Phase 1B: Reduced from 5 to 3 for better performance
+
+// Background track mappings
+type BackgroundTrackMap = Record<string, any>;
+const BACKGROUND_TRACKS: BackgroundTrackMap = {
+  'ethereal': require('../ethereal-ambient-music-55115.mp3'),
+  'atmospheric': require('../lst-atmospheric-ambient-310691.mp3'),
+};
 
 export class AudioServices {
   private audioSystem: AudioPlaybackService;
+  private urlResolver: URLResolver;
+  
   constructor() {
     this.audioSystem = new AudioPlaybackService();
+    
+    // Initialize URL resolver with bundled assets
+    const bundledAssets = new BundledAssets();
+    this.urlResolver = new URLResolver(bundledAssets);
+    
+    console.log('🔧 [AUDIO-SERVICES] Initialized with URL resolver');
   }
 
   // Assumes playlist URLs are already local (file://, asset:/, or absolute path).
@@ -23,18 +43,18 @@ export class AudioServices {
     await this.audioSystem.playBackground(playlist.backgroundTrackUrl as any, store.backgroundVolume);
     console.log('✅ [BOOTSTRAP] Background playback initiated');
 
-    // 2) Build initial queue from local paths (no downloads)
+    // 2) Build initial queue with URL resolution
     console.log('🎵 [BOOTSTRAP] Step 2: Building initial affirmation queue');
-    // Phase 1B: Reduced from 5 to 3 for better performance with snapshot/restore system
-    const INITIAL_COUNT = 3;
-    const affirmations = playlist.affirmations.slice(0, INITIAL_COUNT);
+    const affirmations = playlist.affirmations.slice(0, INITIAL_TRACK_COUNT);
     console.log('🎵 [BOOTSTRAP] Initial affirmations count:', affirmations.length);
     
-    const paths = affirmations.map(a => playlist.cdnUrls[currentVoiceId][a.id]).filter(Boolean) as any[];
-    console.log('🎵 [BOOTSTRAP] Resolved paths for voice', currentVoiceId, ':', paths.length, 'out of', affirmations.length);
+    // Use URL resolver to handle TTS placeholders and mixed URL types
+    const resolvedUrls = this.resolveAffirmationUrls(affirmations, playlist, currentVoiceId, 'BOOTSTRAP');
+    
+    console.log('🎵 [BOOTSTRAP] Resolved URLs for voice', currentVoiceId, ':', resolvedUrls.length, 'out of', affirmations.length);
 
-    const tracks = this.buildTracksWithDelays(affirmations, paths, globalDelayMs);
-    console.log('🎵 [BOOTSTRAP] Built tracks with delays:', tracks.length, 'globalDelayMs:', globalDelayMs);
+    const tracks = this.buildTracksWithResolvedUrls(affirmations, resolvedUrls, globalDelayMs);
+    console.log('🎵 [BOOTSTRAP] Built tracks with resolved URLs:', tracks.length, 'globalDelayMs:', globalDelayMs);
 
     if (!tracks.length) {
       console.warn('⚠️ [BOOTSTRAP] No tracks resolved for initial queue. Ensure playlist.cdnUrls uses require() or http(s) urls.');
@@ -79,13 +99,13 @@ export class AudioServices {
     const remainingAffirmations = playlist.affirmations.slice(fromIndex);
     console.log('🔄 [VOICE-SWITCH] Remaining affirmations:', remainingAffirmations.length);
     
-    const paths = remainingAffirmations
-      .map(a => playlist.cdnUrls[newVoiceId][a.id])
-      .filter(Boolean) as string[];
-    console.log('🔄 [VOICE-SWITCH] Found paths for voice:', paths.length);
+    // Use URL resolver for voice switching
+    const resolvedUrls = this.resolveAffirmationUrls(remainingAffirmations, playlist, newVoiceId, 'VOICE-SWITCH');
+    
+    console.log('🔄 [VOICE-SWITCH] Resolved URLs for voice:', resolvedUrls.length);
 
-    const tracks = this.buildTracksWithDelays(remainingAffirmations, paths, globalDelayMs);
-    console.log('🔄 [VOICE-SWITCH] Built tracks with delays:', tracks.length);
+    const tracks = this.buildTracksWithResolvedUrls(remainingAffirmations, resolvedUrls, globalDelayMs);
+    console.log('🔄 [VOICE-SWITCH] Built tracks with resolved URLs:', tracks.length);
 
     // TODO - consider the perofrmance of this code - would this be too blocking for what we need? Could we update a quick few tracks and then
     // create a queue of tracks to play?
@@ -99,25 +119,68 @@ export class AudioServices {
     return { voiceId: newVoiceId };
   };
 
-  private buildTracksWithDelays(affirmations: { id: string; text?: string }[], localPaths: any[], globalDelayMs: number): Track[] {
+  /**
+   * Resolve URLs for multiple affirmations with error handling
+   * @param affirmations Array of affirmations to resolve
+   * @param playlist The playlist containing URL mappings
+   * @param voiceId The voice to use
+   * @param context Context for logging (e.g., 'BOOTSTRAP', 'VOICE-SWITCH')
+   * @returns Array of resolved URLs (failed resolutions are filtered out)
+   */
+  private resolveAffirmationUrls(
+    affirmations: { id: string }[],
+    playlist: Playlist,
+    voiceId: VoiceId,
+    context: string
+  ): string[] {
+    return affirmations.map(affirmation => {
+      try {
+        return this.urlResolver.resolve(playlist, affirmation.id, voiceId);
+      } catch (error) {
+        console.error(`❌ [${context}] Failed to resolve URL for ${affirmation.id}:`, error);
+        return null;
+      }
+    }).filter(Boolean) as string[];
+  }
+
+  /**
+   * Build tracks with pre-resolved URLs
+   * @param affirmations Array of affirmations
+   * @param resolvedUrls Array of resolved URLs (same length as affirmations)
+   * @param globalDelayMs Global delay between tracks
+   * @returns Array of Track objects ready for RNTP
+   */
+  private buildTracksWithResolvedUrls(
+    affirmations: { id: string; text?: string }[], 
+    resolvedUrls: string[], 
+    globalDelayMs: number
+  ): Track[] {
     const tracks: Track[] = [];
 
-    const isPlayable = (p: any) => typeof p === 'number' || (typeof p === 'string' && /^https?:\/\//.test(p));
-
-    affirmations.forEach((affirmation, index) => {
-      const path = localPaths[index];
-      if (!isPlayable(path)) return;
+    // Ensure we have matching arrays
+    const minLength = Math.min(affirmations.length, resolvedUrls.length);
+    
+    for (let index = 0; index < minLength; index++) {
+      const affirmation = affirmations[index];
+      const url = resolvedUrls[index];
+      
+      // URLs should already be validated by resolver, but double-check
+      if (!this.urlResolver.isPlayable(url)) {
+        console.error(`❌ [TRACK-BUILD] URL not playable: ${url} for ${affirmation.id}`);
+        continue;
+      }
 
       tracks.push({
         id: affirmation.id,
-        url: path as any,
+        url: url as any,
         title: affirmation.text || `Affirmation ${index + 1}`,
         artist: 'Manifestation App',
       });
 
       // Delay insertion disabled until silence assets are bundled or a timer-based gap is implemented
-    });
+    }
 
+    console.log(`🎵 [TRACK-BUILD] Built ${tracks.length} tracks from ${affirmations.length} affirmations`);
     return tracks;
   }
 
@@ -213,16 +276,8 @@ export class AudioServices {
   async switchBackgroundTrack(soundId: string, playlist: Playlist) {
     console.log('🔄 AudioServices.switchBackgroundTrack called:', { soundId, playlistName: playlist.name });
     
-    // Map sound IDs to actual background music files
-    const backgroundTracks: Record<string, any> = {
-      'ethereal': require('../ethereal-ambient-music-55115.mp3'),
-      'atmospheric': require('../lst-atmospheric-ambient-310691.mp3'),
-      // Fallback to current track for locked options
-      'amazonian': playlist.backgroundTrackUrl,
-      'blue-beings': playlist.backgroundTrackUrl,
-    };
-    
-    const trackUrl = backgroundTracks[soundId];
+    // Get track URL from available tracks or fallback to current playlist track
+    const trackUrl = BACKGROUND_TRACKS[soundId] || playlist.backgroundTrackUrl;
     
     if (!trackUrl) {
       console.warn('⚠️ AudioServices: No background track found for sound ID:', soundId);
