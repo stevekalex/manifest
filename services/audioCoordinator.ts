@@ -10,10 +10,18 @@ import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId, PausedState, PlaybackSnapshot } from '../types/audio';
 import { Track } from 'react-native-track-player';
 import { CDNFactory } from './cdn/CDNFactory';
+import type { CanonicalTrackId } from './cdn/types';
 
 // Constants
 const INITIAL_TRACK_COUNT = 3; // Phase 1B: Reduced from 5 to 3 for better performance
 const DEFAULT_ARTIST_NAME = 'Manifestation App';
+
+// Phase 3: CDN Prefetching Configuration - TESTING VALUES
+const PREFETCH_TRACK_COUNT = 3; // Reduced for testing (was 12)
+const PREFETCH_START_INDEX = INITIAL_TRACK_COUNT; // Start prefetching after initial tracks
+
+// Phase 3.2: Queue Expansion Prefetching Configuration - TESTING VALUES  
+const EXPANSION_PREFETCH_COUNT = 3; // Reduced for testing (was 8)
 
 // Phase 4: Critical states where event suppression is required
 const CRITICAL_STATES = [
@@ -34,7 +42,6 @@ export class AudioCoordinator {
   
   constructor(cdnFactory?: CDNFactory) {
     this.instanceId = Math.random().toString(36).substring(2, 9);
-    console.log('🎮 AudioCoordinator instance created with ID:', this.instanceId);
     
     this.cdnFactory = cdnFactory;
     
@@ -42,13 +49,6 @@ export class AudioCoordinator {
     this.bundledAssets = new BundledAssets();
     this.urlResolver = this.createURLResolver();
     this.audioSystem = new AudioPlaybackService(undefined, this.urlResolver);
-    
-    if (cdnFactory) {
-      console.log('🔧 [AUDIO-COORDINATOR] Initialized with CDN-enabled URLResolver');
-      this.logCDNStats();
-    } else {
-      console.log('🔧 [AUDIO-COORDINATOR] Initialized with direct dependencies');
-    }
 
     // Wire track advancement events
     this.audioSystem.onTrackAdvanced = (trackIndex: number) => {
@@ -306,12 +306,26 @@ export class AudioCoordinator {
 
   /**
    * Handle queue expansion during safe states with proper error handling
+   * Phase 3.2: Added CDN prefetching during queue expansion
    */
   private async handleQueueExpansion(): Promise<void> {
     try {
       const expanded = await this.audioSystem.checkAndExpandQueue();
       if (expanded) {
         console.log(`🎵 AudioCoordinator[${this.instanceId}] Queue expanded during safe state`);
+        
+        // Phase 3.2: Trigger prefetch for upcoming tracks after queue expansion
+        const store = useAudioStore.getState();
+        if (store.playlist) {
+          this.prefetchExpansionTracks(store.playlist, store.currentVoiceId).catch(error => {
+            console.warn('⚠️ [EXPANSION-PREFETCH] CDN prefetch failed (non-blocking):', error);
+          });
+          
+          // Phase 3.3: Also add the expansion prefetched tracks to queue after a delay
+          this.addExpansionTracksToQueue(store.playlist, store.currentVoiceId).catch(error => {
+            console.warn('⚠️ [EXPANSION-ADD] Adding expansion tracks failed (non-blocking):', error);
+          });
+        }
       }
     } catch (error) {
       console.error(`❌ AudioCoordinator[${this.instanceId}] Queue expansion failed:`, error);
@@ -324,48 +338,255 @@ export class AudioCoordinator {
   // Assumes playlist URLs are already local (file://, asset:/, or absolute path).
   private bootstrapPlaylist = async (context: { playlist: Playlist; currentVoiceId: VoiceId; globalDelayMs: number }) => {
     const { playlist, currentVoiceId, globalDelayMs } = context;
-    console.log('🚀 [BOOTSTRAP] Starting playlist bootstrap for:', playlist.name, 'voice:', currentVoiceId);
     
     if (!playlist) throw new Error('No playlist selected');
 
     // 1) Play background directly (accept require module or uri string)
     const store = useAudioStore.getState();
-    console.log('🎵 [BOOTSTRAP] Step 1: Starting background music');
-    console.log('🎵 [BOOTSTRAP] Background URL:', playlist.backgroundTrackUrl, 'volume:', store.backgroundVolume);
     await this.audioSystem.playBackground(playlist.backgroundTrackUrl as any, store.backgroundVolume);
-    console.log('✅ [BOOTSTRAP] Background playback initiated');
 
-    // 2) Build initial queue with URL resolution
-    console.log('🎵 [BOOTSTRAP] Step 2: Building initial affirmation queue');
+    // 2) Build initial queue with URL resolution + CDN prefetching
+    // Phase 3.1: CDN Prefetching - fetch additional tracks in background
+    this.prefetchPlaylistTracks(playlist, currentVoiceId).catch(error => {
+      console.warn('⚠️ CDN prefetch failed (non-blocking):', error);
+    });
+
     const affirmations = playlist.affirmations.slice(0, INITIAL_TRACK_COUNT);
-    console.log('🎵 [BOOTSTRAP] Initial affirmations count:', affirmations.length);
     
     // Use URL resolver to handle TTS placeholders and mixed URL types
     const resolvedUrls = this.resolveAffirmationUrls(affirmations, playlist, currentVoiceId, 'BOOTSTRAP');
-    
-    console.log('🎵 [BOOTSTRAP] Resolved URLs for voice', currentVoiceId, ':', resolvedUrls.length, 'out of', affirmations.length);
-
     const tracks = this.buildTracksWithResolvedUrls(affirmations, resolvedUrls);
-    console.log('🎵 [BOOTSTRAP] Built tracks with resolved URLs:', tracks.length, 'globalDelayMs:', globalDelayMs);
 
     if (!tracks.length) {
-      console.warn('⚠️ [BOOTSTRAP] No tracks resolved for initial queue. Ensure playlist.cdnUrls uses require() or http(s) urls.');
+      console.warn('⚠️ No tracks resolved for initial queue. Ensure playlist.cdnUrls uses require() or http(s) urls.');
     }
     
-    console.log('🎵 [BOOTSTRAP] Step 3: Setting up affirmations queue');
     await this.audioSystem.setupAffirmationsQueueWindowed(tracks);
     
-    console.log('🎵 [BOOTSTRAP] Step 4: Starting affirmations playback');
-    await this.audioSystem.playAffirmations();
+    // Phase 3.3: Wait for CDN prefetch to complete, then add prefetched tracks to queue
+    this.addPrefetchedTracksToQueue(playlist, currentVoiceId).catch(error => {
+      console.error('❌ Adding prefetched tracks failed (non-blocking):', error);
+    });
     
-    // Set initial affirmation volume from store
-    console.log('🎵 [BOOTSTRAP] Step 5: Setting initial volumes');
-    console.log('🎵 [BOOTSTRAP] Affirmation volume:', store.affirmationVolume);
+    await this.audioSystem.playAffirmations();
     await this.audioSystem.setAffirmationVolume(store.affirmationVolume);
-
-    console.log('🎉 [BOOTSTRAP] Playlist bootstrap completed successfully');
+    
     return { success: true };
   };
+
+  /**
+   * Phase 3.3: Add prefetched tracks to the active queue
+   * Waits a bit for prefetch to complete, then adds CDN-resolved tracks to queue
+   */
+  private async addPrefetchedTracksToQueue(playlist: Playlist, voiceId: VoiceId): Promise<void> {
+    if (!this.cdnFactory) {
+      return;
+    }
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const prefetchStartIndex = PREFETCH_START_INDEX;
+      const prefetchEndIndex = Math.min(
+        prefetchStartIndex + PREFETCH_TRACK_COUNT,
+        playlist.affirmations.length
+      );
+      
+      const prefetchedAffirmations = playlist.affirmations.slice(prefetchStartIndex, prefetchEndIndex);
+      
+      if (prefetchedAffirmations.length === 0) {
+        return;
+      }
+      
+      const resolvedUrls = this.resolveAffirmationUrls(prefetchedAffirmations, playlist, voiceId, 'QUEUE-ADD');
+      const tracks = this.buildTracksWithResolvedUrls(prefetchedAffirmations, resolvedUrls);
+      
+      if (tracks.length > 0) {
+        await this.audioSystem.addTracksToQueue(tracks);
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to add prefetched tracks to queue (non-blocking):', error);
+      // Don't throw - this should not block playback
+    }
+  }
+
+  /**
+   * Phase 3.1: Prefetch tracks for CDN caching
+   * Fire-and-forget operation that fetches tracks in the background
+   */
+  private async prefetchPlaylistTracks(playlist: Playlist, voiceId: VoiceId): Promise<void> {
+    if (!this.cdnFactory) {
+      return;
+    }
+
+    try {
+      const cdnClient = this.cdnFactory.getDefaultClient();
+      const trackIdsToPrefetch = this.generatePrefetchTrackIds(playlist, voiceId);
+      
+      if (trackIdsToPrefetch.length === 0) {
+        return;
+      }
+
+      await cdnClient.prefetch(trackIdsToPrefetch);
+    } catch (error) {
+      console.error('❌ CDN prefetch error (non-blocking):', error);
+      // Don't throw - prefetch failures should not block playback
+    }
+  }
+
+  /**
+   * Generate canonical track IDs for prefetching
+   * Creates IDs in format: voiceId:affirmationId
+   */
+  private generatePrefetchTrackIds(playlist: Playlist, voiceId: VoiceId): CanonicalTrackId[] {
+    const trackIds: CanonicalTrackId[] = [];
+    
+    // Calculate which tracks to prefetch (after initial tracks)
+    const endIndex = Math.min(
+      PREFETCH_START_INDEX + PREFETCH_TRACK_COUNT,
+      playlist.affirmations.length
+    );
+    
+    for (let i = PREFETCH_START_INDEX; i < endIndex; i++) {
+      const affirmation = playlist.affirmations[i];
+      if (affirmation) {
+        const trackId: CanonicalTrackId = `${voiceId}:${affirmation.id}`;
+        trackIds.push(trackId);
+      }
+    }
+    
+    return trackIds;
+  }
+
+  /**
+   * Phase 3.3: Add expansion prefetched tracks to the active queue
+   * Waits for expansion prefetch to complete, then adds CDN-resolved tracks to queue
+   */
+  private async addExpansionTracksToQueue(playlist: Playlist, voiceId: VoiceId): Promise<void> {
+    if (!this.cdnFactory) {
+      return;
+    }
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const queueStatus = await this.getCurrentQueueStatus();
+      if (!queueStatus) {
+        return;
+      }
+      
+      const expansionStartIndex = queueStatus.estimatedNextTrackIndex;
+      const expansionEndIndex = Math.min(
+        expansionStartIndex + EXPANSION_PREFETCH_COUNT,
+        playlist.affirmations.length
+      );
+      
+      const expansionAffirmations = playlist.affirmations.slice(expansionStartIndex, expansionEndIndex);
+      
+      if (expansionAffirmations.length === 0) {
+        return;
+      }
+      
+      const resolvedUrls = this.resolveAffirmationUrls(expansionAffirmations, playlist, voiceId, 'EXPANSION-ADD');
+      const tracks = this.buildTracksWithResolvedUrls(expansionAffirmations, resolvedUrls);
+      
+      if (tracks.length > 0) {
+        await this.audioSystem.addTracksToQueue(tracks);
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Failed to add expansion tracks to queue (non-blocking):', error);
+      // Don't throw - this should not block playback
+    }
+  }
+
+  /**
+   * Phase 3.2: Prefetch tracks for queue expansion
+   * Fire-and-forget operation that fetches tracks beyond current queue window
+   */
+  private async prefetchExpansionTracks(playlist: Playlist, voiceId: VoiceId): Promise<void> {
+    if (!this.cdnFactory) {
+      return;
+    }
+
+    try {
+      const cdnClient = this.cdnFactory.getDefaultClient();
+      
+      const queueStatus = await this.getCurrentQueueStatus();
+      if (!queueStatus) {
+        return;
+      }
+
+      const trackIdsToPrefetch = this.generateExpansionPrefetchTrackIds(
+        playlist, 
+        voiceId, 
+        queueStatus.estimatedNextTrackIndex
+      );
+      
+      if (trackIdsToPrefetch.length === 0) {
+        return;
+      }
+
+      await cdnClient.prefetch(trackIdsToPrefetch);
+    } catch (error) {
+      console.warn('⚠️ CDN expansion prefetch error (non-blocking):', error);
+      // Don't throw - prefetch failures should not block queue expansion
+    }
+  }
+
+  /**
+   * Generate canonical track IDs for expansion prefetching
+   * Creates IDs for tracks beyond the current queue window
+   */
+  private generateExpansionPrefetchTrackIds(
+    playlist: Playlist, 
+    voiceId: VoiceId, 
+    startIndex: number
+  ): CanonicalTrackId[] {
+    const trackIds: CanonicalTrackId[] = [];
+    
+    // Calculate prefetch range starting from the estimated next queue position
+    const endIndex = Math.min(
+      startIndex + EXPANSION_PREFETCH_COUNT,
+      playlist.affirmations.length
+    );
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      const affirmation = playlist.affirmations[i];
+      if (affirmation) {
+        const trackId: CanonicalTrackId = `${voiceId}:${affirmation.id}`;
+        trackIds.push(trackId);
+      }
+    }
+    
+    return trackIds;
+  }
+
+  /**
+   * Get current queue status to determine prefetch range
+   */
+  private async getCurrentQueueStatus(): Promise<{ estimatedNextTrackIndex: number } | null> {
+    try {
+      const audioSystem = this.audioSystem;
+      const queueConfig = (audioSystem as any).queueConfig;
+      const allTracks = (audioSystem as any).allTracks;
+      const currentWindowStart = (audioSystem as any).currentWindowStart;
+      
+      if (!allTracks || allTracks.length === 0) {
+        return null;
+      }
+
+      // Estimate where the next queue expansion would add tracks
+      const currentQueue = await this.audioSystem.getAudioSystem?.().getQueue?.() || [];
+      const estimatedNextTrackIndex = currentWindowStart + currentQueue.length;
+      
+      return { estimatedNextTrackIndex };
+    } catch (error) {
+      console.warn('⚠️ [EXPANSION-PREFETCH] Failed to get queue status:', error);
+      return null;
+    }
+  }
 
   // Switch to a new voice without downloads; assumes local files exist
   private voiceSwitchTransaction = async (data: {

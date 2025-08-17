@@ -94,11 +94,7 @@ import TrackPlayer, {
       this.urlResolver = urlResolver;
       this.setupAppStateHandling();
       
-      console.log('🎵 [QUEUE-CONFIG] AudioPlaybackService initialized with config:', this.queueConfig);
-      if (urlResolver) {
-        console.log('📦 [PLAYBACK-SERVICE] URLResolver with CDN support injected');
       }
-    }
     
     async initialize() {
       if (this.affirmationsReady) return;
@@ -498,6 +494,15 @@ import TrackPlayer, {
       await TrackPlayer.add(tracks);
     }
     
+    // Phase 3.3: Add tracks to existing queue
+    async addTracksToQueue(tracks: Track[]): Promise<void> {
+      await TrackPlayer.add(tracks);
+      
+      // Verify addition
+      const queueAfter = await TrackPlayer.getQueue();
+      console.log(`✅ Added ${tracks.length} tracks to queue, total: ${queueAfter.length}`);
+    }
+    
     async getAffirmationsState(): Promise<{
       state: State;
       position: number;
@@ -743,6 +748,11 @@ import TrackPlayer, {
         return [];
       }
       
+      if (!this.urlResolver) {
+        console.error('❌ [PLAYBACK-SERVICE] URLResolver not available for reconstruction');
+        return [];
+      }
+      
       // Map affirmation IDs back to tracks
       const tracks: Track[] = [];
       
@@ -751,18 +761,9 @@ import TrackPlayer, {
         if (!affirmation) continue;
         
         try {
-          let url: any;
-          
-          if (this.urlResolver) {
-            // Use URLResolver for CDN-first resolution
-            console.log(`📦 [PLAYBACK-SERVICE] Resolving ${affirmationId} via URLResolver`);
-            const urlOrPromise = this.urlResolver.resolve(playlist, affirmationId, store.currentVoiceId);
-            url = await Promise.resolve(urlOrPromise);
-          } else {
-            // Fallback to direct cdnUrls access for backward compatibility
-            url = playlist.cdnUrls[store.currentVoiceId]?.[affirmationId];
-            if (!url) continue;
-          }
+          // Always use URLResolver for URL resolution
+          const urlOrPromise = this.urlResolver.resolve(playlist, affirmationId, store.currentVoiceId);
+          const url = await Promise.resolve(urlOrPromise);
           
           tracks.push({
             id: affirmationId,
@@ -772,12 +773,11 @@ import TrackPlayer, {
           });
           
         } catch (error) {
-          console.error(`❌ [PLAYBACK-SERVICE] Failed to resolve URL for ${affirmationId}:`, error);
+          console.error(`❌ Failed to resolve URL for ${affirmationId}:`, error);
           // Continue processing other tracks
         }
       }
       
-      console.log(`📦 [PLAYBACK-SERVICE] Reconstructed ${tracks.length}/${snapshot.affirmationIds.length} tracks`);
       return tracks;
     }
     

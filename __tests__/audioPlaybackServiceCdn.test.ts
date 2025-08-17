@@ -213,19 +213,37 @@ describe('AudioPlaybackService CDN Integration', () => {
       expect(tracks[1].url).toBe('https://cdn.example.com/serenity-1.mp3');
     });
 
-    test('should fallback to direct cdnUrls access when no URLResolver', async () => {
+    test('should return empty array when no URLResolver is available', async () => {
       const service = new AudioPlaybackService();
       
       const tracks = await (service as any).reconstructTracksFromSnapshot(mockSnapshot);
       
+      // Should return empty array since URLResolver is required
+      expect(tracks).toHaveLength(0);
+    });
+
+    test('should always use URLResolver.resolve for URL resolution', async () => {
+      const mockResolve = jest.fn()
+        .mockResolvedValueOnce('resolved-url-1')
+        .mockResolvedValueOnce('resolved-url-2');
+      
+      const mockUrlResolver = {
+        resolve: mockResolve
+      };
+      
+      const service = new AudioPlaybackService(undefined, mockUrlResolver as any);
+      
+      const tracks = await (service as any).reconstructTracksFromSnapshot(mockSnapshot);
+      
+      // Verify URLResolver.resolve was called for each affirmation
+      expect(mockResolve).toHaveBeenCalledTimes(2);
+      expect(mockResolve).toHaveBeenCalledWith(mockPlaylist, 'affirmation-0', 'serenity');
+      expect(mockResolve).toHaveBeenCalledWith(mockPlaylist, 'affirmation-1', 'serenity');
+      
+      // Verify resolved URLs are used in tracks
       expect(tracks).toHaveLength(2);
-      
-      // Should use raw URLs from playlist.cdnUrls
-      expect(tracks[0].id).toBe('affirmation-0');
-      expect(tracks[0].url).toBe('tts://serenity/affirmation-0');
-      
-      expect(tracks[1].id).toBe('affirmation-1');
-      expect(tracks[1].url).toBe('https://cdn.example.com/serenity-1.mp3');
+      expect(tracks[0].url).toBe('resolved-url-1');
+      expect(tracks[1].url).toBe('resolved-url-2');
     });
 
     test('should handle missing affirmations gracefully', async () => {

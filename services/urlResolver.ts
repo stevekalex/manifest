@@ -81,8 +81,6 @@ export class URLResolver {
     affirmationId: AffirmationId,
     voiceId: VoiceId
   ): string | Promise<string> {
-    console.log(`🔍 [URL-RESOLVER] Resolving: ${affirmationId} for voice: ${voiceId}`);
-    
     // Get URL from playlist
     const rawUrl = playlist.cdnUrls?.[voiceId]?.[affirmationId];
     
@@ -98,7 +96,6 @@ export class URLResolver {
     // Handle different URL types
     if (typeof rawUrl === 'number') {
       // Bundled asset via require()
-      console.log(`✅ [URL-RESOLVER] Using bundled require() asset: ${rawUrl}`);
       return rawUrl as any;
     }
     
@@ -114,7 +111,6 @@ export class URLResolver {
         }
       } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         // CDN URL - return as-is for now
-        console.log(`🌐 [URL-RESOLVER] Using CDN URL: ${rawUrl}`);
         return rawUrl;
       } else {
         // Unknown string format
@@ -147,8 +143,6 @@ export class URLResolver {
     affirmationIds: AffirmationId[],
     voiceId: VoiceId
   ): string[] | Promise<string[]> {
-    console.log(`🔍 [URL-RESOLVER] Resolving ${affirmationIds.length} URLs for voice: ${voiceId}`);
-    
     // Check if any URLs require async resolution (TTS with CDN client)
     const needsAsync = this.cdnClient && affirmationIds.some(affirmationId => {
       const rawUrl = playlist.cdnUrls?.[voiceId]?.[affirmationId];
@@ -177,12 +171,11 @@ export class URLResolver {
         const url = this.resolve(playlist, affirmationId, voiceId) as string;
         resolvedUrls.push(url);
       } catch (error) {
-        console.error(`❌ [URL-RESOLVER] Failed to resolve ${affirmationId}:`, error);
+        console.error(`❌ Failed to resolve ${affirmationId}:`, error);
         // For now, skip failed resolutions
       }
     }
     
-    console.log(`✅ [URL-RESOLVER] Resolved ${resolvedUrls.length}/${affirmationIds.length} URLs`);
     return resolvedUrls;
   }
 
@@ -202,12 +195,11 @@ export class URLResolver {
         const url = await Promise.resolve(urlOrPromise);
         resolvedUrls.push(url);
       } catch (error) {
-        console.error(`❌ [URL-RESOLVER] Failed to resolve ${affirmationId}:`, error);
+        console.error(`❌ Failed to resolve ${affirmationId}:`, error);
         // For now, skip failed resolutions
       }
     }
     
-    console.log(`✅ [URL-RESOLVER] Resolved ${resolvedUrls.length}/${affirmationIds.length} URLs`);
     return resolvedUrls;
   }
   
@@ -230,8 +222,6 @@ export class URLResolver {
     affirmationId: string,
     voiceId: string
   ): Promise<string> {
-    console.log(`🎤 [URL-RESOLVER] Resolving TTS placeholder: ${ttsUrl}`);
-    
     // Validate TTS URL format
     if (!ttsUrl.startsWith('tts://')) {
       throw new URLResolverException(
@@ -246,16 +236,14 @@ export class URLResolver {
     if (this.cdnClient) {
       try {
         const canonicalTrackId: CanonicalTrackId = `${voiceId}:${affirmationId}`;
+        const isAvailable = this.cdnClient.isAvailable(canonicalTrackId);
         
-        if (this.cdnClient.isAvailable(canonicalTrackId)) {
+        if (isAvailable) {
           const cdnUrl = await this.cdnClient.getPlayableUrl(canonicalTrackId);
-          console.log(`✅ [URL-RESOLVER] Resolved TTS via CDN: ${cdnUrl}`);
           return cdnUrl as string;
-        } else {
-          console.log(`ℹ️ [URL-RESOLVER] Track ${canonicalTrackId} not available in CDN, trying bundled assets`);
         }
       } catch (error) {
-        console.warn(`⚠️ [URL-RESOLVER] CDN resolution failed for ${ttsUrl}, falling back to bundled assets:`, error);
+        console.warn(`⚠️ CDN resolution failed for ${ttsUrl}, falling back to bundled assets:`, error);
       }
     }
     
@@ -267,7 +255,7 @@ export class URLResolver {
       const fallbackAsset = this.bundledAssets.getAsset(affirmationId, 'serenity');
       
       if (fallbackAsset) {
-        console.warn(`⚠️ [URL-RESOLVER] Using fallback voice 'serenity' for ${affirmationId}`);
+        console.warn(`⚠️ Using fallback voice 'serenity' for ${affirmationId}`);
         return fallbackAsset;
       }
       
@@ -279,7 +267,6 @@ export class URLResolver {
       );
     }
     
-    console.log(`✅ [URL-RESOLVER] Resolved TTS to bundled asset: ${bundledAsset}`);
     return bundledAsset;
   }
 
@@ -295,8 +282,6 @@ export class URLResolver {
     affirmationId: string,
     voiceId: string
   ): string {
-    console.log(`🎤 [URL-RESOLVER] Resolving TTS placeholder (sync): ${ttsUrl}`);
-    
     // Validate TTS URL format
     if (!ttsUrl.startsWith('tts://')) {
       throw new URLResolverException(
@@ -315,7 +300,7 @@ export class URLResolver {
       const fallbackAsset = this.bundledAssets.getAsset(affirmationId, 'serenity');
       
       if (fallbackAsset) {
-        console.warn(`⚠️ [URL-RESOLVER] Using fallback voice 'serenity' for ${affirmationId}`);
+        console.warn(`⚠️ Using fallback voice 'serenity' for ${affirmationId}`);
         return fallbackAsset;
       }
       
@@ -327,7 +312,6 @@ export class URLResolver {
       );
     }
     
-    console.log(`✅ [URL-RESOLVER] Resolved TTS to bundled asset (sync): ${bundledAsset}`);
     return bundledAsset;
   }
   
@@ -338,25 +322,19 @@ export class URLResolver {
    * @returns Playable URL for the background track
    */
   resolveBackgroundTrack(soundId: string, playlist?: Playlist): string {
-    console.log(`🎵 [URL-RESOLVER] Resolving background track: ${soundId}`);
-    
     // 1. Check if playlist defines custom background tracks
     if (playlist?.backgroundTracks?.[soundId]) {
-      const customTrack = playlist.backgroundTracks[soundId];
-      console.log(`✅ [URL-RESOLVER] Using custom background track: ${customTrack}`);
-      return customTrack;
+      return playlist.backgroundTracks[soundId];
     }
     
     // 2. Fall back to bundled background tracks
     if (BUNDLED_BACKGROUND_TRACKS[soundId]) {
-      const bundledTrack = BUNDLED_BACKGROUND_TRACKS[soundId];
-      console.log(`✅ [URL-RESOLVER] Using bundled background track: ${bundledTrack}`);
-      return bundledTrack;
+      return BUNDLED_BACKGROUND_TRACKS[soundId];
     }
     
     // 3. Final fallback to playlist's default background track
     if (playlist?.backgroundTrackUrl) {
-      console.warn(`⚠️ [URL-RESOLVER] Using playlist default background track for unknown soundId: ${soundId}`);
+      console.warn(`⚠️ Using playlist default background track for unknown soundId: ${soundId}`);
       return playlist.backgroundTrackUrl;
     }
     

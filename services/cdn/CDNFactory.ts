@@ -1,5 +1,6 @@
 import type { ICDNClient, CDNClientConfig } from './types';
 import { LocalLibraryClient } from './LocalLibraryClient';
+import { RemoteCDNClient } from './RemoteCDNClient';
 
 /**
  * CDN Client Factory
@@ -17,6 +18,12 @@ interface CDNFactoryConfig {
   retryAttempts: number;
   manifestPath: string;
   cacheMaxSize: number;
+  // Remote CDN configuration
+  cloudflare?: {
+    baseUrl: string;
+    key: string;
+    concurrency?: number;
+  };
   features: {
     cdnEnabled: boolean;
     debugLogging: boolean;
@@ -70,9 +77,7 @@ export class CDNFactory {
         return new LocalLibraryClient(finalConfig);
       
       case 'remote':
-        // Future implementation - for now fallback to local
-        console.warn('🔄 [CDN-FACTORY] Remote client not implemented, falling back to local');
-        return new LocalLibraryClient(finalConfig);
+        return this.createRemoteClient(finalConfig);
       
       case 'mock':
         // Future implementation for testing
@@ -175,6 +180,11 @@ export class CDNFactory {
         retryAttempts: settings.cdn?.retryAttempts || 3,
         manifestPath: settings.cdn?.manifestPath || '../assets/voices/manifest.json',
         cacheMaxSize: settings.cdn?.cacheMaxSize || 100,
+        cloudflare: settings.cdn?.cloudflare ? {
+          baseUrl: settings.cdn.cloudflare.baseUrl || 'https://gentle-poetry-33dd.stevekalex.workers.dev',
+          key: settings.cdn.cloudflare.key || '',
+          concurrency: settings.cdn.cloudflare.concurrency || 4,
+        } : undefined,
         features: {
           cdnEnabled: settings.features?.cdnEnabled ?? true,
           debugLogging: envConfig.debugLogging ?? settings.features?.debugLogging ?? false,
@@ -215,6 +225,7 @@ export class CDNFactory {
       retryAttempts: 3,
       manifestPath: '../assets/voices/manifest.json',
       cacheMaxSize: 100,
+      cloudflare: undefined,
       features: {
         cdnEnabled: true,
         debugLogging: isDev,
@@ -238,6 +249,34 @@ export class CDNFactory {
    */
   private detectEnvironment(): 'development' | 'production' {
     return process.env.NODE_ENV === 'production' ? 'production' : 'development';
+  }
+
+  /**
+   * Create remote CDN client with Cloudflare configuration
+   */
+  private createRemoteClient(baseConfig: CDNClientConfig): ICDNClient {
+    const cloudflareConfig = this.config.cloudflare;
+    
+    if (!cloudflareConfig || !cloudflareConfig.baseUrl) {
+      throw new Error('Remote client requires Cloudflare configuration');
+    }
+    
+    // Get Cloudflare key from environment variable or config
+    const cloudflareKey = process.env.CLOUDFLARE_KEY || cloudflareConfig.key;
+    
+    if (!cloudflareKey) {
+      throw new Error('CLOUDFLARE_KEY environment variable or config.cloudflare.key is required for remote client');
+    }
+    
+    const remoteConfig = {
+      ...baseConfig,
+      baseUrl: cloudflareConfig.baseUrl,
+      cloudflareKey,
+      concurrency: cloudflareConfig.concurrency || 4,
+    };
+    
+    console.log('📡 [CDN-FACTORY] Creating remote client with baseUrl:', cloudflareConfig.baseUrl);
+    return new RemoteCDNClient(remoteConfig);
   }
 
   /**

@@ -12,7 +12,12 @@ jest.mock('../settings.json', () => ({
     enableCache: true,
     requestTimeout: 5000,
     retryAttempts: 3,
-    manifestPath: '../assets/voices/manifest.json'
+    manifestPath: '../assets/voices/manifest.json',
+    cloudflare: {
+      baseUrl: 'https://test-workers.example.com',
+      key: 'test-config-key',
+      concurrency: 3
+    }
   },
   features: {
     cdnEnabled: true,
@@ -39,6 +44,43 @@ jest.mock('../services/cdn/LocalLibraryClient', () => ({
     reset: jest.fn(),
     config
   }))
+}));
+
+// Mock RemoteCDNClient
+jest.mock('../services/cdn/RemoteCDNClient', () => ({
+  RemoteCDNClient: jest.fn().mockImplementation((config) => ({
+    loadManifest: jest.fn().mockResolvedValue({
+      version: '1.0.0',
+      voices: []
+    }),
+    getPlayableUrl: jest.fn().mockResolvedValue('remote-cached-path'),
+    isAvailable: jest.fn().mockReturnValue(true),
+    prefetch: jest.fn().mockResolvedValue(undefined),
+    getStats: jest.fn().mockReturnValue({
+      manifestLoaded: true,
+      totalRequests: 5,
+      successfulRequests: 4,
+      failedRequests: 1
+    }),
+    reset: jest.fn(),
+    config
+  }))
+}));
+
+// Mock Expo FileSystem for RemoteCDNClient
+jest.mock('expo-file-system', () => ({
+  documentDirectory: '/mock/documents/',
+  getInfoAsync: jest.fn(),
+  makeDirectoryAsync: jest.fn(),
+  downloadAsync: jest.fn(),
+}));
+
+// Mock cache utilities
+jest.mock('../services/cdn/cacheUtils', () => ({
+  isTrackCached: jest.fn(),
+  getCachedFilePath: jest.fn(),
+  downloadToCache: jest.fn(),
+  ensureCacheDirectoryExists: jest.fn(),
 }));
 
 describe('CDNFactory', () => {
@@ -133,6 +175,84 @@ describe('CDNFactory', () => {
       expect(() => {
         factory.createClient('unsupported');
       }).toThrow('Unsupported CDN client type: unsupported');
+    });
+  });
+
+  describe('remote client creation', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // Reset environment for each test
+      delete process.env.CLOUDFLARE_KEY;
+    });
+
+    test('should create RemoteCDNClient with environment variable', () => {
+      process.env.CLOUDFLARE_KEY = 'env-test-key';
+      
+      const client = factory.createClient('remote');
+      
+      expect(client).toBeDefined();
+      expect(client.getPlayableUrl).toBeDefined();
+      
+      // Check that RemoteCDNClient was instantiated
+      const { RemoteCDNClient } = require('../services/cdn/RemoteCDNClient');
+      expect(RemoteCDNClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://test-workers.example.com',
+          cloudflareKey: 'env-test-key',
+          concurrency: 3
+        })
+      );
+    });
+
+    test('should create RemoteCDNClient with config key fallback', () => {
+      // No environment variable, should use config key
+      const client = factory.createClient('remote');
+      
+      expect(client).toBeDefined();
+      
+      const { RemoteCDNClient } = require('../services/cdn/RemoteCDNClient');
+      expect(RemoteCDNClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://test-workers.example.com',
+          cloudflareKey: 'test-config-key',
+          concurrency: 3
+        })
+      );
+    });
+
+    test('should prefer environment variable over config', () => {
+      process.env.CLOUDFLARE_KEY = 'env-override-key';
+      
+      factory.createClient('remote');
+      
+      const { RemoteCDNClient } = require('../services/cdn/RemoteCDNClient');
+      expect(RemoteCDNClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cloudflareKey: 'env-override-key'
+        })
+      );
+    });
+
+    test('should include cloudflare configuration', () => {
+      const config = factory.getConfig();
+      
+      expect(config.cloudflare).toBeDefined();
+      expect(config.cloudflare?.baseUrl).toBe('https://test-workers.example.com');
+      expect(config.cloudflare?.key).toBe('test-config-key');
+      expect(config.cloudflare?.concurrency).toBe(3);
+    });
+
+    test('should validate remote client has required interface methods', () => {
+      process.env.CLOUDFLARE_KEY = 'test-key';
+      const client = factory.createClient('remote');
+      
+      expect(client).toBeDefined();
+      expect(typeof client.loadManifest).toBe('function');
+      expect(typeof client.getPlayableUrl).toBe('function');
+      expect(typeof client.isAvailable).toBe('function');
+      expect(typeof client.prefetch).toBe('function');
+      expect(typeof client.getStats).toBe('function');
+      expect(typeof client.reset).toBe('function');
     });
   });
 
@@ -233,7 +353,9 @@ describe('CDNFactory', () => {
       
       expect(Array.isArray(types)).toBe(true);
       expect(types).toContain('local');
-      expect(types.length).toBeGreaterThan(0);
+      expect(types).toContain('remote');
+      expect(types).toContain('mock');
+      expect(types.length).toBe(3);
     });
 
     test('should validate client configuration', () => {
