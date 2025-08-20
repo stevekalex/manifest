@@ -138,7 +138,7 @@ export function PlaylistCard({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 20,
+    marginHorizontal: 10,
     marginVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
@@ -149,10 +149,11 @@ const styles = StyleSheet.create({
     },
     shadowRadius: 12,
     elevation: 5,
+    width: screenWidth * 0.7, // Make cards 70% of screen width for horizontal scroll
   },
   imageContainer: {
     width: '100%',
-    height: 180,
+    height: 160,
     position: 'relative',
   },
   coverImage: {
