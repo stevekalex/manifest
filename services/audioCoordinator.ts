@@ -43,7 +43,10 @@ export class AudioCoordinator {
   constructor(cdnFactory?: CDNFactory) {
     this.instanceId = Math.random().toString(36).substring(2, 9);
     
-    this.cdnFactory = cdnFactory;
+    // 🚨 WALL-OFF: Force null CDN factory to prevent any remote calls
+    // TODO_RESTORE_CDN: Remove this line and uncomment the one below
+    this.cdnFactory = undefined; // Force no CDN
+    // this.cdnFactory = cdnFactory;
     
     // Initialize dependencies with optional CDN support
     this.bundledAssets = new BundledAssets();
@@ -154,6 +157,12 @@ export class AudioCoordinator {
     console.log(`🎮 AudioCoordinator[${this.instanceId}].selectPlaylist called for:`, playlist.name);
     this.actor.send({ type: 'SELECT_PLAYLIST', playlist });
     console.log(`✅ AudioCoordinator[${this.instanceId}].selectPlaylist completed`);
+  }
+
+  async startPlayback(playlist: Playlist, voiceId: VoiceId) {
+    console.log(`🎮 AudioCoordinator[${this.instanceId}].startPlayback called for:`, playlist.name, 'with voice:', voiceId);
+    this.actor.send({ type: 'START_PLAYBACK', playlist, voiceId });
+    console.log(`✅ AudioCoordinator[${this.instanceId}].startPlayback completed`);
   }
 
   openVoiceModal() {

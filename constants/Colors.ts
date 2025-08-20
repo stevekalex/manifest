@@ -14,6 +14,10 @@ export const Colors = {
     icon: '#687076',
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
+    // Glass morphism colors for playlist components
+    glassMorphic: 'rgba(255, 255, 255, 0.15)',
+    glassMorphicBorder: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
   },
   dark: {
     text: '#ECEDEE',
@@ -22,5 +26,9 @@ export const Colors = {
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
+    // Glass morphism colors for playlist components
+    glassMorphic: 'rgba(255, 255, 255, 0.1)',
+    glassMorphicBorder: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
   },
 };

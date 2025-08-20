@@ -84,7 +84,7 @@ export const audioMachine = createMachine({
           }),
         },
         START_PLAYBACK: {
-          target: 'playing',
+          target: 'preparing',
           actions: assign(({ event }) => {
             if (event?.type !== 'START_PLAYBACK') return {};
             return {

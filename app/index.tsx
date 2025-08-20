@@ -14,6 +14,10 @@ export default function HomeScreen() {
     router.push('/player');
   };
 
+  const handleOpenPlaylists = () => {
+    router.push('/playlists');
+  };
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -29,12 +33,22 @@ export default function HomeScreen() {
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Manifestation Player</ThemedText>
+        <ThemedText type="subtitle">Playlists</ThemedText>
         <ThemedText>
-          Access the manifestation player to listen to affirmations and positive messages.
+          Browse and play curated playlists of affirmations and manifestations.
         </ThemedText>
-        <Pressable onPress={handleOpenManifestationPlayer} style={styles.playerButton}>
-          <ThemedText style={styles.playerButtonText}>Open Manifestation Player</ThemedText>
+        <Pressable onPress={handleOpenPlaylists} style={styles.playerButton}>
+          <ThemedText style={styles.playerButtonText}>Browse Playlists</ThemedText>
+        </Pressable>
+      </ThemedView>
+
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Direct Player</ThemedText>
+        <ThemedText>
+          Access the manifestation player directly to listen to affirmations and positive messages.
+        </ThemedText>
+        <Pressable onPress={handleOpenManifestationPlayer} style={[styles.playerButton, styles.secondaryButton]}>
+          <ThemedText style={[styles.playerButtonText, styles.secondaryButtonText]}>Open Direct Player</ThemedText>
         </Pressable>
       </ThemedView>
 
@@ -84,5 +98,13 @@ const styles = StyleSheet.create({
   playerButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  secondaryButton: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
   },
 });

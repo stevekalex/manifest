@@ -14,6 +14,9 @@ import {
 } from './cacheUtils';
 
 /**
+ * 🚨 WALL-OFF: Remote CDN Client disabled to prevent Cloudflare charges
+ * TODO_RESTORE_CDN: Remove wall-off when ready to re-enable CDN
+ * 
  * Remote CDN Client for Cloudflare R2
  * 
  * Directly constructs URLs using the pattern:
@@ -32,6 +35,9 @@ export class RemoteCDNClient implements ICDNClient {
   private manifest: CDNManifest | null = null;
 
   constructor(config: RemoteCDNConfig) {
+    // 🚨 WALL-OFF: Block remote CDN to prevent charges
+    throw new Error('🚨 Remote CDN disabled to prevent Cloudflare charges. TODO_RESTORE_CDN: Remove this wall-off when ready.');
+    
     this.config = {
       concurrency: 4,
       ...config

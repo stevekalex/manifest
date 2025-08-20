@@ -1,12 +1,14 @@
 import { getAudioCoordinator } from '../services/audioCoordinator';
-import { CDNFactory } from '../services/cdn/CDNFactory';
+// import { CDNFactory } from '../services/cdn/CDNFactory'; // TODO_RESTORE_CDN: Uncomment when ready
 import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId } from '../types/audio';
 
 export const useAudioSystem = () => {
   const storeState = useAudioStore();
   
-  const coordinator = getAudioCoordinator(new CDNFactory());
+  // TODO_RESTORE_CDN: Re-enable CDN by uncommenting next line and commenting the one after
+  // const coordinator = getAudioCoordinator(new CDNFactory());
+  const coordinator = getAudioCoordinator(); // WALL-OFF: No CDN to prevent charges
   
   return {
     // All store state
@@ -14,7 +16,7 @@ export const useAudioSystem = () => {
     
     // Action methods that component expects
     playPlaylist: async (playlist: Playlist, voiceId: VoiceId) => {
-      await coordinator.selectPlaylist(playlist);
+      await coordinator.startPlayback(playlist, voiceId);
     },
     
     togglePlayback: () => {
@@ -29,6 +31,7 @@ export const useAudioSystem = () => {
       coordinator.stop();
     },
     
+    // Voice functionality for modals (background functionality, no UI controls in main player)
     openVoiceModal: () => {
       coordinator.openVoiceModal();
     },
@@ -36,8 +39,6 @@ export const useAudioSystem = () => {
     closeVoiceModal: () => {
       coordinator.closeVoiceModal();
     },
-    
-    // Removed previewVoice to avoid triggering any voice calls from the UI layer
     
     setVoice: async (voiceId: VoiceId) => {
       await coordinator.confirmVoiceSelection(voiceId);

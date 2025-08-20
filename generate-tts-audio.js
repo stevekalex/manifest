@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+// 🚨 WALL-OFF: TTS Generation disabled to prevent API charges
+// TODO_RESTORE_CDN: Remove this block when ready to re-enable TTS generation
+console.error('🚨 TTS generation disabled to prevent API charges');
+console.log('This script uses Google Cloud TTS and ELEVENLABS_API_KEY');
+console.log('To re-enable, remove the wall-off block in generate-tts-audio.js');
+process.exit(0);
+
 import dotenv from 'dotenv';
 import { promises as fs } from 'fs';
 import path from 'path';

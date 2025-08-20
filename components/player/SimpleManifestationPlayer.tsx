@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
@@ -13,17 +13,29 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRODUCTION_PLAYLIST } from '../../data/productionPlaylist';
+import { getPlaylistById } from '../../data/playlists';
 import { useAudioSystem } from '../../hooks/useAudioSystem';
 import { BackgroundMusicModal } from './BackgroundMusicModal';
-import { StarField } from './StarField';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
+import { StarField } from './StarField';
 
 const SimpleManifestationPlayerComponent: React.FC = () => {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    playlistId?: string;
+    trackId?: string; 
+    voiceId?: string;
+  }>();
+  
   const [showMusicModal, setShowMusicModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
   const [selectedSound, setSelectedSound] = useState('ethereal');
+
+  // Get playlist from route params or fall back to production playlist
+  const selectedPlaylist = params.playlistId 
+    ? getPlaylistById(params.playlistId) || PRODUCTION_PLAYLIST
+    : PRODUCTION_PLAYLIST;
 
   // New machine-backed audio system
   const audio = useAudioSystem();
@@ -34,8 +46,8 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
   const breatheScale = useSharedValue(1);
 
   // Text to display based on currentTrackIndex from machine/store
-  const currentAffirmationText = PRODUCTION_PLAYLIST.affirmations[audio.currentTrackIndex]?.text
-    || PRODUCTION_PLAYLIST.affirmations[0]?.text
+  const currentAffirmationText = selectedPlaylist.affirmations[audio.currentTrackIndex]?.text
+    || selectedPlaylist.affirmations[0]?.text
     || 'Loading affirmation...';
   const [displayedText, setDisplayedText] = useState(currentAffirmationText);
 
@@ -95,10 +107,11 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
   // Auto-start playlist once on mount via machine
   useEffect(() => {
     if (!hasStartedPlaying) {
-      audio.playPlaylist(PRODUCTION_PLAYLIST, PRODUCTION_PLAYLIST.defaultVoiceId);
+      const voiceId = params.voiceId || selectedPlaylist.defaultVoiceId;
+      audio.playPlaylist(selectedPlaylist, voiceId);
       setHasStartedPlaying(true);
     }
-  }, [hasStartedPlaying, audio]);
+  }, [hasStartedPlaying, audio, selectedPlaylist, params.voiceId]);
 
   // // If still idle shortly after mount, try again (defensive)
   // useEffect(() => {
@@ -129,7 +142,7 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color="#1A252F" />
           </TouchableOpacity>
-          <Text style={styles.title}>Believe In Yourself</Text>
+          <Text style={styles.title}>{selectedPlaylist.name}</Text>
           <TouchableOpacity style={styles.menuButton}>
             <Ionicons name="infinite-outline" size={24} color="#1A252F" />
           </TouchableOpacity>
@@ -244,17 +257,6 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
         }}
       />
 
-      {/* Debug Panel */}
-      <View style={{ position: 'absolute', top: 80, right: 10, backgroundColor: 'rgba(0,0,0,0.85)', padding: 10, borderRadius: 8 }}>
-        <Text style={{ color: '#0f0', fontWeight: 'bold', marginBottom: 6 }}>Debug (Machine)</Text>
-        {/* <Text style={{ color: '#0f0' }}>State: {audio.playerState}</Text> */}
-        <Text style={{ color: '#0f0' }}>Playing: {audio.isPlaying ? 'YES' : 'NO'}</Text>
-        <Text style={{ color: '#0f0' }}>Index: {audio.currentTrackIndex}</Text>
-        <Text style={{ color: '#0f0' }}>Voice: {audio.currentVoiceId}</Text>
-        <Text style={{ color: '#0f0' }}>Modal: {audio.modalOpen ? 'OPEN' : 'CLOSED'}</Text>
-        <Text style={{ color: '#0f0' }}>Delay(ms): {audio.globalDelayMs}</Text>
-        <Text style={{ color: '#0f0' }}>Displayed: &quot;{displayedText}&quot;</Text>
-      </View>
     </View>
   );
 };
