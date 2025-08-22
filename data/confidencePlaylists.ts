@@ -1,9 +1,15 @@
 import type { Playlist } from '../types/audio';
 
-export const SAMPLE_PLAYLIST: Playlist = {
-  id: 'believe-in-yourself',
-  name: 'Believe In Yourself',
-  description: 'A collection of empowering affirmations to boost self-belief and confidence',
+// Base template for confidence playlists - all use same audio files but different themes
+const createConfidencePlaylist = (
+  id: string,
+  name: string,
+  description: string,
+  listensCount: number
+): Playlist => ({
+  id,
+  name,
+  description,
   backgroundTrackUrl: require('../ethereal-ambient-music-55115.mp3'),
   defaultVoiceId: 'serenity',
   voices: [
@@ -110,4 +116,31 @@ export const SAMPLE_PLAYLIST: Playlist = {
       durationMs: 4500,
     },
   ],
-};
+});
+
+export const CONFIDENCE_PLAYLISTS: Playlist[] = [
+  createConfidencePlaylist(
+    'believe-in-yourself',
+    'Believe In Yourself', 
+    'Powerful affirmations to boost self-confidence and inner strength',
+    85000
+  ),
+  createConfidencePlaylist(
+    'unshakeable-confidence',
+    'Unshakeable Confidence',
+    'Build rock-solid confidence and self-assurance in any situation',
+    67000
+  ),
+  createConfidencePlaylist(
+    'fearless-courage',
+    'Fearless & Courageous',
+    'Overcome fear and develop the courage to take bold action',
+    54000
+  ),
+  createConfidencePlaylist(
+    'self-worth-mastery',
+    'Self-Worth Mastery',
+    'Transform limiting beliefs and embrace your inherent worth',
+    43000
+  ),
+];

@@ -1,21 +1,27 @@
-import { PRODUCTION_PLAYLIST } from './productionPlaylist';
-import { SAMPLE_PLAYLIST } from './samplePlaylist';
+import { CONFIDENCE_PLAYLISTS } from './confidencePlaylists';
+import { FINANCIAL_PLAYLISTS } from './financialPlaylists';
+import { POPULAR_PLAYLISTS } from './popularPlaylists';
 import type { Playlist } from '../types/audio';
 
 // Centralized playlist data with cover images and metadata
 export const playlists: Playlist[] = [
-  {
-    ...PRODUCTION_PLAYLIST,
+  // Popular/General Playlists
+  ...POPULAR_PLAYLISTS.map(playlist => ({
+    ...playlist,
     coverImage: require('../assets/images/react-logo.png'), // TODO: Add proper cover images
-    listensCount: 201000,
-    description: 'Powerful affirmations for manifestation and abundance',
-  },
-  {
-    ...SAMPLE_PLAYLIST,
-    coverImage: require('../assets/images/partial-react-logo.png'), // TODO: Add proper cover images  
-    listensCount: 85000,
-    description: 'A collection of empowering affirmations to boost self-belief and confidence',
-  },
+  })),
+  
+  // Confidence & Self-Development Playlists  
+  ...CONFIDENCE_PLAYLISTS.map(playlist => ({
+    ...playlist,
+    coverImage: require('../assets/images/partial-react-logo.png'), // TODO: Add proper cover images
+  })),
+  
+  // Financial Success & Abundance Playlists
+  ...FINANCIAL_PLAYLISTS.map(playlist => ({
+    ...playlist,
+    coverImage: require('../assets/images/react-logo.png'), // TODO: Add proper cover images
+  })),
 ];
 
 export function getPlaylistById(id: string): Playlist | undefined {

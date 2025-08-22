@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, ScrollView, RefreshControl, View, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { PlaylistCard } from '@/components/common/PlaylistCard';
 import { LoadingState } from '@/components/common/LoadingState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { JustForYouCarousel } from '@/components/home/JustForYouCarousel';
+import { PopularPlaylistsCarousel } from '@/components/home/PopularPlaylistsCarousel';
+import { BecomeConfidentCarousel } from '@/components/home/BecomeConfidentCarousel';
+import { FinancialSuccessCarousel } from '@/components/home/FinancialSuccessCarousel';
 import { getAllPlaylists } from '@/data/playlists';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Playlist } from '@/types/audio';
@@ -19,7 +19,6 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   
   const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
 
   const loadPlaylists = async () => {
     try {
@@ -46,9 +45,6 @@ export default function HomeScreen() {
     loadPlaylists();
   };
 
-  const handlePlaylistPress = (playlistId: string) => {
-    router.push(`/playlists/${playlistId}`);
-  };
 
   if (isLoading) {
     return (
@@ -70,9 +66,7 @@ export default function HomeScreen() {
     );
   }
 
-  // Split playlists for different sections
-  const popularPlaylists = playlists.slice(0, 2);
-  const otherPlaylists = playlists.slice(2);
+  // All playlists will be used by individual carousel components
 
   return (
     <ThemedView style={styles.container}>
@@ -97,63 +91,11 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Just for You Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
-                Just for You
-              </ThemedText>
-              <Text style={[styles.arrow, { color: textColor }]}>→</Text>
-            </View>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScroll}
-            >
-              {popularPlaylists.map((playlist, index) => (
-                <Animated.View
-                  key={playlist.id}
-                  entering={FadeInDown.delay(index * 100).springify()}
-                  style={styles.cardWrapper}
-                >
-                  <PlaylistCard
-                    playlist={playlist}
-                    onPress={() => handlePlaylistPress(playlist.id)}
-                  />
-                </Animated.View>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Popular Playlists Section */}
-          {otherPlaylists.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <ThemedText type="subtitle" style={styles.sectionTitle}>
-                  Popular Playlists
-                </ThemedText>
-                <Text style={[styles.arrow, { color: textColor }]}>→</Text>
-              </View>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-              >
-                {otherPlaylists.map((playlist, index) => (
-                  <Animated.View
-                    key={playlist.id}
-                    entering={FadeInDown.delay(index * 100).springify()}
-                    style={styles.cardWrapper}
-                  >
-                    <PlaylistCard
-                      playlist={playlist}
-                      onPress={() => handlePlaylistPress(playlist.id)}
-                    />
-                  </Animated.View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+          {/* Carousel Sections */}
+          <JustForYouCarousel playlists={playlists} />
+          <PopularPlaylistsCarousel playlists={playlists} />
+          <BecomeConfidentCarousel playlists={playlists} />
+          <FinancialSuccessCarousel playlists={playlists} />
         </ScrollView>
       </SafeAreaView>
     </ThemedView>

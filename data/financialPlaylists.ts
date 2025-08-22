@@ -1,9 +1,15 @@
 import type { Playlist } from '../types/audio';
 
-export const SAMPLE_PLAYLIST: Playlist = {
-  id: 'believe-in-yourself',
-  name: 'Believe In Yourself',
-  description: 'A collection of empowering affirmations to boost self-belief and confidence',
+// Base template for financial playlists - all use same audio files but different themes
+const createFinancialPlaylist = (
+  id: string,
+  name: string,
+  description: string,
+  listensCount: number
+): Playlist => ({
+  id,
+  name,
+  description,
   backgroundTrackUrl: require('../ethereal-ambient-music-55115.mp3'),
   defaultVoiceId: 'serenity',
   voices: [
@@ -110,4 +116,31 @@ export const SAMPLE_PLAYLIST: Playlist = {
       durationMs: 4500,
     },
   ],
-};
+});
+
+export const FINANCIAL_PLAYLISTS: Playlist[] = [
+  createFinancialPlaylist(
+    'abundance-mindset',
+    'Abundance Mindset',
+    'Reprogram your mind for unlimited wealth and prosperity',
+    142000
+  ),
+  createFinancialPlaylist(
+    'money-magnetism',
+    'Money Magnetism',
+    'Become a powerful magnet for financial opportunities and wealth',
+    98000
+  ),
+  createFinancialPlaylist(
+    'prosperity-flow',
+    'Prosperity Flow',
+    'Open yourself to receiving abundance from all sources',
+    76000
+  ),
+  createFinancialPlaylist(
+    'wealth-consciousness',
+    'Wealth Consciousness',
+    'Develop the mindset of financially successful people',
+    63000
+  ),
+];

@@ -1,9 +1,15 @@
 import type { Playlist } from '../types/audio';
 
-export const SAMPLE_PLAYLIST: Playlist = {
-  id: 'believe-in-yourself',
-  name: 'Believe In Yourself',
-  description: 'A collection of empowering affirmations to boost self-belief and confidence',
+// Base template for popular playlists - all use same audio files but different themes
+const createPopularPlaylist = (
+  id: string,
+  name: string,
+  description: string,
+  listensCount: number
+): Playlist => ({
+  id,
+  name,
+  description,
   backgroundTrackUrl: require('../ethereal-ambient-music-55115.mp3'),
   defaultVoiceId: 'serenity',
   voices: [
@@ -110,4 +116,37 @@ export const SAMPLE_PLAYLIST: Playlist = {
       durationMs: 4500,
     },
   ],
-};
+});
+
+export const POPULAR_PLAYLISTS: Playlist[] = [
+  createPopularPlaylist(
+    'production-affirmations',
+    'Daily Affirmations',
+    'Start your day with powerful affirmations for success and happiness',
+    201000
+  ),
+  createPopularPlaylist(
+    'inner-peace',
+    'Inner Peace & Calm',
+    'Find tranquility and peace within yourself through mindful affirmations',
+    187000
+  ),
+  createPopularPlaylist(
+    'morning-motivation',
+    'Morning Motivation',
+    'Energize your mornings with uplifting and motivational affirmations',
+    156000
+  ),
+  createPopularPlaylist(
+    'stress-relief',
+    'Stress Relief & Relaxation',
+    'Release tension and anxiety with soothing, calming affirmations',
+    134000
+  ),
+  createPopularPlaylist(
+    'positive-mindset',
+    'Positive Mindset',
+    'Transform negative thoughts into positive, empowering beliefs',
+    119000
+  ),
+];
