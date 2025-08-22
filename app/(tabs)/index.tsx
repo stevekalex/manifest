@@ -5,6 +5,7 @@ import { BecomeConfidentCarousel } from '@/components/home/BecomeConfidentCarous
 import { FinancialSuccessCarousel } from '@/components/home/FinancialSuccessCarousel';
 import { JustForYouCarousel } from '@/components/home/JustForYouCarousel';
 import { PopularPlaylistsCarousel } from '@/components/home/PopularPlaylistsCarousel';
+import { RecentlyPlayedCarousel } from '@/components/home/RecentlyPlayedCarousel';
 import { WelcomePage } from '@/components/welcome';
 import { getAllPlaylists } from '@/data/playlists';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -85,6 +86,9 @@ export default function HomeScreen() {
         >
           {/* Welcome Section */}
           <WelcomePage userName="Steve Alex" />
+
+          {/* Recently Played Section */}
+          <RecentlyPlayedCarousel playlists={playlists} />
 
           {/* Carousel Sections */}
           <JustForYouCarousel playlists={playlists} />

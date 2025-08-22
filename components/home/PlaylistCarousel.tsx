@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ThemedText } from '@/components/ThemedText';
@@ -11,13 +11,22 @@ interface PlaylistCarouselProps {
   title: string;
   playlists: Playlist[];
   showArrow?: boolean;
+  onViewAllPress?: () => void;
 }
 
-export function PlaylistCarousel({ title, playlists, showArrow = true }: PlaylistCarouselProps) {
-  const textColor = useThemeColor({}, 'text');
+export function PlaylistCarousel({ title, playlists, showArrow = true, onViewAllPress }: PlaylistCarouselProps) {
+  const tintColor = useThemeColor({}, 'tint');
 
   const handlePlaylistPress = (playlistId: string) => {
     router.push(`/playlists/${playlistId}`);
+  };
+
+  const handleViewAllPress = () => {
+    if (onViewAllPress) {
+      onViewAllPress();
+    } else {
+      router.push('/all-playlists');
+    }
   };
 
   if (playlists.length === 0) {
@@ -31,7 +40,13 @@ export function PlaylistCarousel({ title, playlists, showArrow = true }: Playlis
           {title}
         </ThemedText>
         {showArrow && (
-          <Text style={[styles.arrow, { color: textColor }]}>→</Text>
+          <TouchableOpacity
+            style={[styles.viewAllButton, { backgroundColor: `${tintColor}15` }]}
+            onPress={handleViewAllPress}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.viewAllText, { color: tintColor }]}>View all</Text>
+          </TouchableOpacity>
         )}
       </View>
       <ScrollView 
@@ -70,9 +85,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
+    flex: 1,
   },
-  arrow: {
-    fontSize: 24,
+  viewAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 16,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   horizontalScroll: {
     paddingLeft: 10,
