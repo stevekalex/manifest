@@ -1,37 +1,67 @@
 import { ThemedView } from '@/components/ThemedView';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingState } from '@/components/common/LoadingState';
-import { BecomeConfidentCarousel } from '@/components/home/BecomeConfidentCarousel';
-import { FinancialSuccessCarousel } from '@/components/home/FinancialSuccessCarousel';
-import { JustForYouCarousel } from '@/components/home/JustForYouCarousel';
-import { PopularPlaylistsCarousel } from '@/components/home/PopularPlaylistsCarousel';
 import { RecentlyPlayedCarousel } from '@/components/home/RecentlyPlayedCarousel';
+import { ThemeCarousel } from '@/components/home/ThemeCarousel';
 import { WelcomePage } from '@/components/welcome';
 import { getAllPlaylists } from '@/data/playlists';
+import { getAllThemes } from '@/data/themes';
+import { themesService } from '@/utils/themesService';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import type { Playlist } from '@/types/audio';
+import type { Playlist, Theme } from '@/types/audio';
 import React, { useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   
   const tintColor = useThemeColor({}, 'tint');
 
-  const loadPlaylists = async () => {
+  const loadData = async () => {
     try {
       setError(null);
-      // Simulate network delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const data = getAllPlaylists();
-      setPlaylists(data);
+      
+      // Load playlists (keeping existing logic)
+      const playlistData = getAllPlaylists();
+      setPlaylists(playlistData);
+      
+      // Load themes from API with fallback to hardcoded data
+      console.log('🏠 HomeScreen: Fetching themes from API...');
+      const themesResponse = await themesService.getAllThemes();
+      
+      if (themesResponse.error) {
+        console.warn('🏠 HomeScreen: API themes failed, falling back to hardcoded data:', themesResponse.error);
+        // Fallback to hardcoded themes
+        const fallbackThemes = getAllThemes();
+        console.log('🏠 HomeScreen: Using fallback themes:', fallbackThemes);
+        setThemes(fallbackThemes);
+      } else if (themesResponse.data) {
+        const sortedThemes = [...themesResponse.data].sort((a, b) => (a.order || 0) - (b.order || 0));
+        console.log('🏠 HomeScreen: Successfully loaded themes from API:', sortedThemes);
+        console.log('🏠 HomeScreen: Sample theme playlist:', sortedThemes[0]?.playlists[0]);
+        setThemes(sortedThemes);
+      } else {
+        // Unexpected response structure, use fallback
+        console.warn('🏠 HomeScreen: Unexpected API response structure, using fallback themes');
+        const fallbackThemes = getAllThemes();
+        console.log('🏠 HomeScreen: Using fallback themes after unexpected response:', fallbackThemes);
+        setThemes(fallbackThemes);
+      }
     } catch (err) {
-      setError('Failed to load playlists. Please try again.');
-      console.error('Error loading playlists:', err);
+      console.error('Error loading data:', err);
+      // Final fallback - try to load hardcoded themes
+      try {
+        const fallbackThemes = getAllThemes();
+        setThemes(fallbackThemes);
+      } catch (fallbackErr) {
+        setError('Failed to load content. Please try again.');
+        console.error('Fallback themes also failed:', fallbackErr);
+      }
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -39,12 +69,12 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    loadPlaylists();
+    loadData();
   }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadPlaylists();
+    loadData();
   };
 
 
@@ -62,13 +92,11 @@ export default function HomeScreen() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-          <ErrorState message={error} onRetry={loadPlaylists} />
+          <ErrorState message={error} onRetry={loadData} />
         </SafeAreaView>
       </ThemedView>
     );
   }
-
-  // All playlists will be used by individual carousel components
 
   return (
     <ThemedView style={styles.container}>
@@ -83,18 +111,28 @@ export default function HomeScreen() {
               tintColor={tintColor}
             />
           }
+          contentContainerStyle={styles.scrollContent}
         >
           {/* Welcome Section */}
           <WelcomePage userName="Steve Alex" />
 
-          {/* Recently Played Section */}
-          <RecentlyPlayedCarousel playlists={playlists} />
+          {/* Content Container with better spacing */}
+          <View style={styles.contentContainer}>
+            {/* Recently Played Section */}
+            <View style={styles.sectionWrapper}>
+              <RecentlyPlayedCarousel playlists={playlists} />
+            </View>
 
-          {/* Carousel Sections */}
-          <JustForYouCarousel playlists={playlists} />
-          <PopularPlaylistsCarousel playlists={playlists} />
-          <BecomeConfidentCarousel playlists={playlists} />
-          <FinancialSuccessCarousel playlists={playlists} />
+            {/* Theme-based Carousel Sections */}
+            {themes.map((theme, index) => (
+              <View key={theme.id} style={styles.sectionWrapper}>
+                <ThemeCarousel theme={theme} />
+              </View>
+            ))}
+
+            {/* Bottom spacing for better scroll experience */}
+            <View style={styles.bottomSpacing} />
+          </View>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -110,5 +148,17 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  contentContainer: {
+    paddingTop: 8,
+  },
+  sectionWrapper: {
+    marginBottom: 8,
+  },
+  bottomSpacing: {
+    height: 40,
   },
 });

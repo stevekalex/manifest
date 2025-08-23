@@ -29,6 +29,17 @@ jest.mock('react-native', () => ({
     addEventListener: jest.fn(),
     removeEventListener: jest.fn(),
   },
+  StyleSheet: {
+    create: jest.fn((styles) => styles),
+    compose: jest.fn(),
+    flatten: jest.fn(),
+  },
+  View: 'View',
+  Text: 'Text',
+  Image: 'Image',
+  ScrollView: 'ScrollView',
+  Pressable: 'Pressable',
+  RefreshControl: 'RefreshControl',
 }));
 
 // Mock Expo modules
@@ -107,6 +118,33 @@ jest.mock('react-native-track-player', () => ({
     PlaybackTrackChanged: 'playback-track-changed',
     PlaybackQueueEnded: 'playback-queue-ended',
     PlaybackError: 'playback-error',
+  },
+}));
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => {
+  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
+  return {
+    SafeAreaProvider: ({ children }) => children,
+    SafeAreaConsumer: ({ children }) => children(inset),
+    SafeAreaView: ({ children }) => children,
+    useSafeAreaInsets: () => inset,
+    useSafeAreaFrame: () => ({ x: 0, y: 0, width: 390, height: 844 }),
+  };
+});
+
+// Mock @testing-library/react-native
+jest.mock('@testing-library/react-native', () => ({
+  render: jest.fn(),
+  screen: {
+    getByText: jest.fn(),
+    queryByText: jest.fn(),
+    getByTestId: jest.fn(),
+    queryByTestId: jest.fn(),
+  },
+  fireEvent: {
+    press: jest.fn(),
+    changeText: jest.fn(),
   },
 }));
 

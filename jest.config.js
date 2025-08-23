@@ -24,5 +24,7 @@ export default {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '\\.(mp3|wav|m4a|aac|ogg)$': 'identity-obj-proxy',
+    '\\.(png|jpg|jpeg|gif|webp|svg)$': 'identity-obj-proxy',
   },
 };

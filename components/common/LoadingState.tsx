@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
@@ -10,7 +10,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useEffect } from 'react';
 
 const { width: screenWidth } = Dimensions.get('window');
 

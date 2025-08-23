@@ -61,6 +61,7 @@
     "eas-cli": "^16.17.4",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
+    "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",
     "jest-transform-stub": "^2.0.0",
