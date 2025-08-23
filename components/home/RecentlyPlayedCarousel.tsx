@@ -25,7 +25,8 @@ export function RecentlyPlayedCarousel({ playlists }: RecentlyPlayedCarouselProp
   };
 
   const handleViewAll = () => {
-    router.push('/playlists');
+    // Navigation disabled - no action taken
+    return;
   };
 
   if (recentlyPlayedPlaylists.length === 0) {
@@ -38,8 +39,12 @@ export function RecentlyPlayedCarousel({ playlists }: RecentlyPlayedCarouselProp
         <ThemedText type="subtitle" style={styles.sectionTitle}>
           Recently Played
         </ThemedText>
-        <TouchableOpacity onPress={handleViewAll} activeOpacity={0.7}>
-          <Text style={[styles.viewAllText, { color: tintColor }]}>View All</Text>
+        <TouchableOpacity 
+          onPress={handleViewAll} 
+          activeOpacity={1}
+          disabled={true}
+        >
+          <Text style={[styles.viewAllText, { color: tintColor, opacity: 0.4 }]}>View All</Text>
         </TouchableOpacity>
       </View>
       

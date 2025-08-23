@@ -104,3 +104,26 @@ export interface SnapshotValidation {
   canUseFastPath: boolean;
   reason?: string;
 }
+
+// Theme system for organizing playlists on home page
+export interface Theme {
+  id: string;
+  name: string;
+  description?: string;
+  image?: string; // Theme image URL
+  playlists: ThemePlaylist[];
+  order?: number; // Optional for API responses
+}
+
+export interface ThemePlaylist {
+  id: PlaylistId;
+  name: string;
+  description?: string;
+  image_url?: string; // URL or local image reference (matches backend format)
+  created_at?: string; // ISO timestamp from backend
+}
+
+// Backend API response types
+export interface ThemesApiResponse {
+  themes: Theme[];
+}
