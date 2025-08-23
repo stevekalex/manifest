@@ -1,14 +1,12 @@
 import { getAudioCoordinator } from '../services/audioCoordinator';
-// import { CDNFactory } from '../services/cdn/CDNFactory'; // TODO_RESTORE_CDN: Uncomment when ready
+import { CDNFactory } from '../services/cdn/CDNFactory';
 import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId } from '../types/audio';
 
 export const useAudioSystem = () => {
   const storeState = useAudioStore();
   
-  // TODO_RESTORE_CDN: Re-enable CDN by uncommenting next line and commenting the one after
-  // const coordinator = getAudioCoordinator(new CDNFactory());
-  const coordinator = getAudioCoordinator(); // WALL-OFF: No CDN to prevent charges
+  const coordinator = getAudioCoordinator(new CDNFactory());
   
   return {
     // All store state

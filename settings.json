@@ -57,7 +57,7 @@
     "cacheMaxSize": 100
   },
   "features": {
-    "cdnEnabled": false,
+    "cdnEnabled": true,
     "debugLogging": true,
     "prefetchEnabled": false
   },

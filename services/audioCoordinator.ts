@@ -43,10 +43,7 @@ export class AudioCoordinator {
   constructor(cdnFactory?: CDNFactory) {
     this.instanceId = Math.random().toString(36).substring(2, 9);
     
-    // 🚨 WALL-OFF: Force null CDN factory to prevent any remote calls
-    // TODO_RESTORE_CDN: Remove this line and uncomment the one below
-    this.cdnFactory = undefined; // Force no CDN
-    // this.cdnFactory = cdnFactory;
+    this.cdnFactory = cdnFactory;
     
     // Initialize dependencies with optional CDN support
     this.bundledAssets = new BundledAssets();
