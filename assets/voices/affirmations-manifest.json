@@ -1,0 +1,914 @@
+{
+  "generatedAt": "2025-08-23T19:41:20.919Z",
+  "voice": {
+    "id": "XB0fDUnXU5powFXDhCwa",
+    "settings": {
+      "stability": 0.75,
+      "similarity_boost": 0.7,
+      "style": 0.35,
+      "use_speaker_boost": false,
+      "speaking_rate": 0.82
+    },
+    "model_id": "eleven_multilingual_v2",
+    "output_format": "mp3_44100_64",
+    "apply_text_normalization": "auto"
+  },
+  "playlists": [
+    {
+      "id": "33a2f325-0556-4a50-9abd-1710abaa29e0",
+      "name": "Wealth Consciousness",
+      "description": "Shift your mindset to attract money effortlessly",
+      "affirmations": [
+        {
+          "index": 0,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-0-charlotte.mp3",
+          "text": "I embrace the power of Wealth Consciousness",
+          "fileSize": 48110,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-0-charlotte.mp3"
+        },
+        {
+          "index": 1,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-1-charlotte.mp3",
+          "text": "I am a magnet for abundance and prosperity",
+          "fileSize": 48110,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-1-charlotte.mp3"
+        },
+        {
+          "index": 2,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-2-charlotte.mp3",
+          "text": "Money flows to me easily and effortlessly",
+          "fileSize": 50618,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-2-charlotte.mp3"
+        },
+        {
+          "index": 3,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-3-charlotte.mp3",
+          "text": "I am worthy of unlimited financial success",
+          "fileSize": 53543,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-3-charlotte.mp3"
+        },
+        {
+          "index": 4,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-4-charlotte.mp3",
+          "text": "I attract wealth with every breath I take",
+          "fileSize": 51036,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-4-charlotte.mp3"
+        },
+        {
+          "index": 5,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-5-charlotte.mp3",
+          "text": "My income is constantly increasing",
+          "fileSize": 40169,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-5-charlotte.mp3"
+        },
+        {
+          "index": 6,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-6-charlotte.mp3",
+          "text": "I am financially free and secure",
+          "fileSize": 37243,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-6-charlotte.mp3"
+        },
+        {
+          "index": 7,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-7-charlotte.mp3",
+          "text": "Abundance is my natural state of being",
+          "fileSize": 46856,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-7-charlotte.mp3"
+        },
+        {
+          "index": 8,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-8-charlotte.mp3",
+          "text": "I deserve to be prosperous and wealthy",
+          "fileSize": 41422,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-8-charlotte.mp3"
+        },
+        {
+          "index": 9,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-9-charlotte.mp3",
+          "text": "Money comes to me from expected and unexpected sources",
+          "fileSize": 63992,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-9-charlotte.mp3"
+        },
+        {
+          "index": 10,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-10-charlotte.mp3",
+          "text": "I am grateful for the wealth that surrounds me",
+          "fileSize": 45184,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-10-charlotte.mp3"
+        },
+        {
+          "index": 11,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-11-charlotte.mp3",
+          "text": "I release all resistance to receiving abundance",
+          "fileSize": 52707,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-11-charlotte.mp3"
+        },
+        {
+          "index": 12,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-12-charlotte.mp3",
+          "text": "My bank account is overflowing with money",
+          "fileSize": 43094,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-12-charlotte.mp3"
+        },
+        {
+          "index": 13,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-13-charlotte.mp3",
+          "text": "I am aligned with the energy of wealth",
+          "fileSize": 40587,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-13-charlotte.mp3"
+        },
+        {
+          "index": 14,
+          "fileName": "33a2f325-0556-4a50-9abd-1710abaa29e0-14-charlotte.mp3",
+          "text": "Success and prosperity are drawn to me",
+          "fileSize": 53961,
+          "relativePath": "charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-14-charlotte.mp3"
+        }
+      ]
+    },
+    {
+      "id": "0ae09709-9532-4aa9-880e-039a5811728f",
+      "name": "Abundance Affirmations",
+      "description": "Powerful statements to magnetize prosperity",
+      "affirmations": [
+        {
+          "index": 0,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-0-charlotte.mp3",
+          "text": "I embrace the power of Abundance Affirmations",
+          "fileSize": 52707,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-0-charlotte.mp3"
+        },
+        {
+          "index": 1,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-1-charlotte.mp3",
+          "text": "I am a magnet for abundance and prosperity",
+          "fileSize": 48110,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-1-charlotte.mp3"
+        },
+        {
+          "index": 2,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-2-charlotte.mp3",
+          "text": "Money flows to me easily and effortlessly",
+          "fileSize": 47274,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-2-charlotte.mp3"
+        },
+        {
+          "index": 3,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-3-charlotte.mp3",
+          "text": "I am worthy of unlimited financial success",
+          "fileSize": 53543,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-3-charlotte.mp3"
+        },
+        {
+          "index": 4,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-4-charlotte.mp3",
+          "text": "I attract wealth with every breath I take",
+          "fileSize": 50618,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-4-charlotte.mp3"
+        },
+        {
+          "index": 5,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-5-charlotte.mp3",
+          "text": "My income is constantly increasing",
+          "fileSize": 39333,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-5-charlotte.mp3"
+        },
+        {
+          "index": 6,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-6-charlotte.mp3",
+          "text": "I am financially free and secure",
+          "fileSize": 40169,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-6-charlotte.mp3"
+        },
+        {
+          "index": 7,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-7-charlotte.mp3",
+          "text": "Abundance is my natural state of being",
+          "fileSize": 46856,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-7-charlotte.mp3"
+        },
+        {
+          "index": 8,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-8-charlotte.mp3",
+          "text": "I deserve to be prosperous and wealthy",
+          "fileSize": 41422,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-8-charlotte.mp3"
+        },
+        {
+          "index": 9,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-9-charlotte.mp3",
+          "text": "Money comes to me from expected and unexpected sources",
+          "fileSize": 62320,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-9-charlotte.mp3"
+        },
+        {
+          "index": 10,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-10-charlotte.mp3",
+          "text": "I am grateful for the wealth that surrounds me",
+          "fileSize": 43930,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-10-charlotte.mp3"
+        },
+        {
+          "index": 11,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-11-charlotte.mp3",
+          "text": "I release all resistance to receiving abundance",
+          "fileSize": 52707,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-11-charlotte.mp3"
+        },
+        {
+          "index": 12,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-12-charlotte.mp3",
+          "text": "My bank account is overflowing with money",
+          "fileSize": 42258,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-12-charlotte.mp3"
+        },
+        {
+          "index": 13,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-13-charlotte.mp3",
+          "text": "I am aligned with the energy of wealth",
+          "fileSize": 40587,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-13-charlotte.mp3"
+        },
+        {
+          "index": 14,
+          "fileName": "0ae09709-9532-4aa9-880e-039a5811728f-14-charlotte.mp3",
+          "text": "Success and prosperity are drawn to me",
+          "fileSize": 53961,
+          "relativePath": "charlotte/0ae09709-9532-4aa9-880e-039a5811728f-14-charlotte.mp3"
+        }
+      ]
+    },
+    {
+      "id": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1",
+      "name": "Self-Love Meditations",
+      "description": "Deep healing for confidence from within",
+      "affirmations": [
+        {
+          "index": 0,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-0-charlotte.mp3",
+          "text": "I embrace the power of Self-Love Meditations",
+          "fileSize": 53543,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-0-charlotte.mp3"
+        },
+        {
+          "index": 1,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-1-charlotte.mp3",
+          "text": "I am confident and capable in all that I do",
+          "fileSize": 54797,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-1-charlotte.mp3"
+        },
+        {
+          "index": 2,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-2-charlotte.mp3",
+          "text": "I love and accept myself completely",
+          "fileSize": 40169,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-2-charlotte.mp3"
+        },
+        {
+          "index": 3,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-3-charlotte.mp3",
+          "text": "My self-worth is inherent and unshakeable",
+          "fileSize": 51036,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-3-charlotte.mp3"
+        },
+        {
+          "index": 4,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-4-charlotte.mp3",
+          "text": "I trust myself to make the right decisions",
+          "fileSize": 41422,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-4-charlotte.mp3"
+        },
+        {
+          "index": 5,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-5-charlotte.mp3",
+          "text": "I am powerful beyond measure",
+          "fileSize": 32645,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-5-charlotte.mp3"
+        },
+        {
+          "index": 6,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-6-charlotte.mp3",
+          "text": "I radiate confidence and self-assurance",
+          "fileSize": 50618,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-6-charlotte.mp3"
+        },
+        {
+          "index": 7,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-7-charlotte.mp3",
+          "text": "I am worthy of love and respect",
+          "fileSize": 37661,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-7-charlotte.mp3"
+        },
+        {
+          "index": 8,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-8-charlotte.mp3",
+          "text": "My confidence grows stronger every day",
+          "fileSize": 42258,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-8-charlotte.mp3"
+        },
+        {
+          "index": 9,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-9-charlotte.mp3",
+          "text": "I believe in my abilities and talents",
+          "fileSize": 43930,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-9-charlotte.mp3"
+        },
+        {
+          "index": 10,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-10-charlotte.mp3",
+          "text": "I am enough exactly as I am",
+          "fileSize": 36407,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-10-charlotte.mp3"
+        },
+        {
+          "index": 11,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-11-charlotte.mp3",
+          "text": "I stand tall in my personal power",
+          "fileSize": 42258,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-11-charlotte.mp3"
+        },
+        {
+          "index": 12,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-12-charlotte.mp3",
+          "text": "I embrace my unique qualities with pride",
+          "fileSize": 48110,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-12-charlotte.mp3"
+        },
+        {
+          "index": 13,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-13-charlotte.mp3",
+          "text": "I am fearless in pursuit of my dreams",
+          "fileSize": 44348,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-13-charlotte.mp3"
+        },
+        {
+          "index": 14,
+          "fileName": "785b5d0d-127a-48a7-be2f-e5d006b2b8b1-14-charlotte.mp3",
+          "text": "My inner strength guides me forward",
+          "fileSize": 40169,
+          "relativePath": "charlotte/785b5d0d-127a-48a7-be2f-e5d006b2b8b1-14-charlotte.mp3"
+        }
+      ]
+    },
+    {
+      "id": "7583f55c-079e-4378-b6d8-0fae0136ace5",
+      "name": "I Am Powerful Affirmations",
+      "description": "Reprogram your mind for unstoppable confidence",
+      "affirmations": [
+        {
+          "index": 0,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-0-charlotte.mp3",
+          "text": "I embrace the power of I Am Powerful Affirmations",
+          "fileSize": 63992,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-0-charlotte.mp3"
+        },
+        {
+          "index": 1,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-1-charlotte.mp3",
+          "text": "I am confident and capable in all that I do",
+          "fileSize": 55633,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-1-charlotte.mp3"
+        },
+        {
+          "index": 2,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-2-charlotte.mp3",
+          "text": "I love and accept myself completely",
+          "fileSize": 41422,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-2-charlotte.mp3"
+        },
+        {
+          "index": 3,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-3-charlotte.mp3",
+          "text": "My self-worth is inherent and unshakeable",
+          "fileSize": 51871,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-3-charlotte.mp3"
+        },
+        {
+          "index": 4,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-4-charlotte.mp3",
+          "text": "I trust myself to make the right decisions",
+          "fileSize": 42258,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-4-charlotte.mp3"
+        },
+        {
+          "index": 5,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-5-charlotte.mp3",
+          "text": "I am powerful beyond measure",
+          "fileSize": 33481,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-5-charlotte.mp3"
+        },
+        {
+          "index": 6,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-6-charlotte.mp3",
+          "text": "I radiate confidence and self-assurance",
+          "fileSize": 50618,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-6-charlotte.mp3"
+        },
+        {
+          "index": 7,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-7-charlotte.mp3",
+          "text": "I am worthy of love and respect",
+          "fileSize": 38497,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-7-charlotte.mp3"
+        },
+        {
+          "index": 8,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-8-charlotte.mp3",
+          "text": "My confidence grows stronger every day",
+          "fileSize": 43930,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-8-charlotte.mp3"
+        },
+        {
+          "index": 9,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-9-charlotte.mp3",
+          "text": "I believe in my abilities and talents",
+          "fileSize": 43094,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-9-charlotte.mp3"
+        },
+        {
+          "index": 10,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-10-charlotte.mp3",
+          "text": "I am enough exactly as I am",
+          "fileSize": 37243,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-10-charlotte.mp3"
+        },
+        {
+          "index": 11,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-11-charlotte.mp3",
+          "text": "I stand tall in my personal power",
+          "fileSize": 42258,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-11-charlotte.mp3"
+        },
+        {
+          "index": 12,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-12-charlotte.mp3",
+          "text": "I embrace my unique qualities with pride",
+          "fileSize": 49782,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-12-charlotte.mp3"
+        },
+        {
+          "index": 13,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-13-charlotte.mp3",
+          "text": "I am fearless in pursuit of my dreams",
+          "fileSize": 43930,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-13-charlotte.mp3"
+        },
+        {
+          "index": 14,
+          "fileName": "7583f55c-079e-4378-b6d8-0fae0136ace5-14-charlotte.mp3",
+          "text": "My inner strength guides me forward",
+          "fileSize": 40587,
+          "relativePath": "charlotte/7583f55c-079e-4378-b6d8-0fae0136ace5-14-charlotte.mp3"
+        }
+      ]
+    },
+    {
+      "id": "a7c1f90a-3736-4af2-a676-fee00a7aeeda",
+      "name": "Trending Affirmations",
+      "description": "The most powerful affirmations trending now",
+      "affirmations": [
+        {
+          "index": 0,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-0-charlotte.mp3",
+          "text": "I embrace the power of Trending Affirmations",
+          "fileSize": 51871,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-0-charlotte.mp3"
+        },
+        {
+          "index": 1,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-1-charlotte.mp3",
+          "text": "I am confident and capable in all that I do",
+          "fileSize": 54797,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-1-charlotte.mp3"
+        },
+        {
+          "index": 2,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-2-charlotte.mp3",
+          "text": "I love and accept myself completely",
+          "fileSize": 41422,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-2-charlotte.mp3"
+        },
+        {
+          "index": 3,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-3-charlotte.mp3",
+          "text": "My self-worth is inherent and unshakeable",
+          "fileSize": 51871,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-3-charlotte.mp3"
+        },
+        {
+          "index": 4,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-4-charlotte.mp3",
+          "text": "I trust myself to make the right decisions",
+          "fileSize": 41422,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-4-charlotte.mp3"
+        },
+        {
+          "index": 5,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-5-charlotte.mp3",
+          "text": "I am powerful beyond measure",
+          "fileSize": 33481,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-5-charlotte.mp3"
+        },
+        {
+          "index": 6,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-6-charlotte.mp3",
+          "text": "I radiate confidence and self-assurance",
+          "fileSize": 48946,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-6-charlotte.mp3"
+        },
+        {
+          "index": 7,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-7-charlotte.mp3",
+          "text": "I am worthy of love and respect",
+          "fileSize": 40169,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-7-charlotte.mp3"
+        },
+        {
+          "index": 8,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-8-charlotte.mp3",
+          "text": "My confidence grows stronger every day",
+          "fileSize": 44348,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-8-charlotte.mp3"
+        },
+        {
+          "index": 9,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-9-charlotte.mp3",
+          "text": "I believe in my abilities and talents",
+          "fileSize": 43094,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-9-charlotte.mp3"
+        },
+        {
+          "index": 10,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-10-charlotte.mp3",
+          "text": "I am enough exactly as I am",
+          "fileSize": 40169,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-10-charlotte.mp3"
+        },
+        {
+          "index": 11,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-11-charlotte.mp3",
+          "text": "I stand tall in my personal power",
+          "fileSize": 43094,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-11-charlotte.mp3"
+        },
+        {
+          "index": 12,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-12-charlotte.mp3",
+          "text": "I embrace my unique qualities with pride",
+          "fileSize": 48110,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-12-charlotte.mp3"
+        },
+        {
+          "index": 13,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-13-charlotte.mp3",
+          "text": "I am fearless in pursuit of my dreams",
+          "fileSize": 44348,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-13-charlotte.mp3"
+        },
+        {
+          "index": 14,
+          "fileName": "a7c1f90a-3736-4af2-a676-fee00a7aeeda-14-charlotte.mp3",
+          "text": "My inner strength guides me forward",
+          "fileSize": 40587,
+          "relativePath": "charlotte/a7c1f90a-3736-4af2-a676-fee00a7aeeda-14-charlotte.mp3"
+        }
+      ]
+    },
+    {
+      "id": "9e98212b-ff5b-444a-a118-b91012029f71",
+      "name": "Viral Success Stories",
+      "description": "Real manifestation success stories that inspire",
+      "affirmations": [
+        {
+          "index": 0,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-0-charlotte.mp3",
+          "text": "I embrace the power of Viral Success Stories",
+          "fileSize": 53543,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-0-charlotte.mp3"
+        },
+        {
+          "index": 1,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-1-charlotte.mp3",
+          "text": "Success comes naturally to me",
+          "fileSize": 36407,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-1-charlotte.mp3"
+        },
+        {
+          "index": 2,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-2-charlotte.mp3",
+          "text": "I am destined for greatness",
+          "fileSize": 33481,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-2-charlotte.mp3"
+        },
+        {
+          "index": 3,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-3-charlotte.mp3",
+          "text": "Every day I move closer to my goals",
+          "fileSize": 40587,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-3-charlotte.mp3"
+        },
+        {
+          "index": 4,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-4-charlotte.mp3",
+          "text": "I manifest my dreams with ease",
+          "fileSize": 37243,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-4-charlotte.mp3"
+        },
+        {
+          "index": 5,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-5-charlotte.mp3",
+          "text": "Success is my birthright",
+          "fileSize": 33481,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-5-charlotte.mp3"
+        },
+        {
+          "index": 6,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-6-charlotte.mp3",
+          "text": "I achieve everything I set my mind to",
+          "fileSize": 45184,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-6-charlotte.mp3"
+        },
+        {
+          "index": 7,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-7-charlotte.mp3",
+          "text": "My potential for success is limitless",
+          "fileSize": 44348,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-7-charlotte.mp3"
+        },
+        {
+          "index": 8,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-8-charlotte.mp3",
+          "text": "I attract opportunities for growth and success",
+          "fileSize": 59395,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-8-charlotte.mp3"
+        },
+        {
+          "index": 9,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-9-charlotte.mp3",
+          "text": "I am focused on creating my ideal life",
+          "fileSize": 50618,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-9-charlotte.mp3"
+        },
+        {
+          "index": 10,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-10-charlotte.mp3",
+          "text": "Success flows through me effortlessly",
+          "fileSize": 43930,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-10-charlotte.mp3"
+        },
+        {
+          "index": 11,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-11-charlotte.mp3",
+          "text": "I am worthy of all my dreams coming true",
+          "fileSize": 46856,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-11-charlotte.mp3"
+        },
+        {
+          "index": 12,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-12-charlotte.mp3",
+          "text": "I take inspired action toward my goals",
+          "fileSize": 51871,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-12-charlotte.mp3"
+        },
+        {
+          "index": 13,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-13-charlotte.mp3",
+          "text": "The universe conspires to help me succeed",
+          "fileSize": 48110,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-13-charlotte.mp3"
+        },
+        {
+          "index": 14,
+          "fileName": "9e98212b-ff5b-444a-a118-b91012029f71-14-charlotte.mp3",
+          "text": "I am living my purpose with passion",
+          "fileSize": 39333,
+          "relativePath": "charlotte/9e98212b-ff5b-444a-a118-b91012029f71-14-charlotte.mp3"
+        }
+      ]
+    },
+    {
+      "id": "837359e1-8656-454b-941c-8e48ad0850e0",
+      "name": "Powerful Morning Affirmations",
+      "description": "Start your day with powerful personal affirmations",
+      "affirmations": [
+        {
+          "index": 0,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-0-charlotte.mp3",
+          "text": "I embrace the power of Powerful Morning Affirmations",
+          "fileSize": 59395,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-0-charlotte.mp3"
+        },
+        {
+          "index": 1,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-1-charlotte.mp3",
+          "text": "I am confident and capable in all that I do",
+          "fileSize": 54797,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-1-charlotte.mp3"
+        },
+        {
+          "index": 2,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-2-charlotte.mp3",
+          "text": "I love and accept myself completely",
+          "fileSize": 41422,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-2-charlotte.mp3"
+        },
+        {
+          "index": 3,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-3-charlotte.mp3",
+          "text": "My self-worth is inherent and unshakeable",
+          "fileSize": 51871,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-3-charlotte.mp3"
+        },
+        {
+          "index": 4,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-4-charlotte.mp3",
+          "text": "I trust myself to make the right decisions",
+          "fileSize": 42258,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-4-charlotte.mp3"
+        },
+        {
+          "index": 5,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-5-charlotte.mp3",
+          "text": "I am powerful beyond measure",
+          "fileSize": 33481,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-5-charlotte.mp3"
+        },
+        {
+          "index": 6,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-6-charlotte.mp3",
+          "text": "I radiate confidence and self-assurance",
+          "fileSize": 50618,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-6-charlotte.mp3"
+        },
+        {
+          "index": 7,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-7-charlotte.mp3",
+          "text": "I am worthy of love and respect",
+          "fileSize": 39333,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-7-charlotte.mp3"
+        },
+        {
+          "index": 8,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-8-charlotte.mp3",
+          "text": "My confidence grows stronger every day",
+          "fileSize": 43930,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-8-charlotte.mp3"
+        },
+        {
+          "index": 9,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-9-charlotte.mp3",
+          "text": "I believe in my abilities and talents",
+          "fileSize": 43930,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-9-charlotte.mp3"
+        },
+        {
+          "index": 10,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-10-charlotte.mp3",
+          "text": "I am enough exactly as I am",
+          "fileSize": 38497,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-10-charlotte.mp3"
+        },
+        {
+          "index": 11,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-11-charlotte.mp3",
+          "text": "I stand tall in my personal power",
+          "fileSize": 43094,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-11-charlotte.mp3"
+        },
+        {
+          "index": 12,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-12-charlotte.mp3",
+          "text": "I embrace my unique qualities with pride",
+          "fileSize": 48946,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-12-charlotte.mp3"
+        },
+        {
+          "index": 13,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-13-charlotte.mp3",
+          "text": "I am fearless in pursuit of my dreams",
+          "fileSize": 44348,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-13-charlotte.mp3"
+        },
+        {
+          "index": 14,
+          "fileName": "837359e1-8656-454b-941c-8e48ad0850e0-14-charlotte.mp3",
+          "text": "My inner strength guides me forward",
+          "fileSize": 40169,
+          "relativePath": "charlotte/837359e1-8656-454b-941c-8e48ad0850e0-14-charlotte.mp3"
+        }
+      ]
+    },
+    {
+      "id": "33d90fcb-0613-49b2-9935-23f20017f55d",
+      "name": "Custom Vision Board Meditations",
+      "description": "Guided visualizations for your specific desires",
+      "affirmations": [
+        {
+          "index": 0,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-0-charlotte.mp3",
+          "text": "I embrace the power of Custom Vision Board Meditations",
+          "fileSize": 60649,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-0-charlotte.mp3"
+        },
+        {
+          "index": 1,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-1-charlotte.mp3",
+          "text": "I manifest my desires with ease and grace",
+          "fileSize": 48946,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-1-charlotte.mp3"
+        },
+        {
+          "index": 2,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-2-charlotte.mp3",
+          "text": "My thoughts create my reality",
+          "fileSize": 37661,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-2-charlotte.mp3"
+        },
+        {
+          "index": 3,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-3-charlotte.mp3",
+          "text": "I am a powerful creator of my life",
+          "fileSize": 46020,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-3-charlotte.mp3"
+        },
+        {
+          "index": 4,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-4-charlotte.mp3",
+          "text": "What I visualize, I materialize",
+          "fileSize": 47274,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-4-charlotte.mp3"
+        },
+        {
+          "index": 5,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-5-charlotte.mp3",
+          "text": "I attract miracles into my life every day",
+          "fileSize": 46856,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-5-charlotte.mp3"
+        },
+        {
+          "index": 6,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-6-charlotte.mp3",
+          "text": "My manifestations come to me at the perfect time",
+          "fileSize": 51036,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-6-charlotte.mp3"
+        },
+        {
+          "index": 7,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-7-charlotte.mp3",
+          "text": "I am aligned with the frequency of my desires",
+          "fileSize": 50618,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-7-charlotte.mp3"
+        },
+        {
+          "index": 8,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-8-charlotte.mp3",
+          "text": "The universe conspires to manifest my dreams",
+          "fileSize": 53543,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-8-charlotte.mp3"
+        },
+        {
+          "index": 9,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-9-charlotte.mp3",
+          "text": "I trust the manifestation process completely",
+          "fileSize": 53961,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-9-charlotte.mp3"
+        },
+        {
+          "index": 10,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-10-charlotte.mp3",
+          "text": "My intentions are powerful and magnetic",
+          "fileSize": 45184,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-10-charlotte.mp3"
+        },
+        {
+          "index": 11,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-11-charlotte.mp3",
+          "text": "I manifest from a place of love and gratitude",
+          "fileSize": 53543,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-11-charlotte.mp3"
+        },
+        {
+          "index": 12,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-12-charlotte.mp3",
+          "text": "Everything I desire is already mine",
+          "fileSize": 43930,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-12-charlotte.mp3"
+        },
+        {
+          "index": 13,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-13-charlotte.mp3",
+          "text": "I am worthy of all my manifestations",
+          "fileSize": 42258,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-13-charlotte.mp3"
+        },
+        {
+          "index": 14,
+          "fileName": "33d90fcb-0613-49b2-9935-23f20017f55d-14-charlotte.mp3",
+          "text": "My vibration attracts my perfect reality",
+          "fileSize": 48110,
+          "relativePath": "charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-14-charlotte.mp3"
+        }
+      ]
+    }
+  ]
+}
