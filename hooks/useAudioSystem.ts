@@ -29,6 +29,10 @@ export const useAudioSystem = () => {
       coordinator.stop();
     },
     
+    stopAll: async () => {
+      await coordinator.stop();
+    },
+    
     // Voice functionality for modals (background functionality, no UI controls in main player)
     openVoiceModal: () => {
       coordinator.openVoiceModal();

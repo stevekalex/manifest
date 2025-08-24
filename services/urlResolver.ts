@@ -48,8 +48,8 @@ let BUNDLED_BACKGROUND_TRACKS: BackgroundTrackMap = {};
 
 try {
   BUNDLED_BACKGROUND_TRACKS = {
-    'ethereal': require('../ethereal-ambient-music-55115.mp3'),
-    'atmospheric': require('../lst-atmospheric-ambient-310691.mp3'),
+    'ethereal': require('../assets/audio/background/ethereal.mp3'),
+    'atmospheric': require('../assets/audio/background/ethereal.mp3'), // Using same file for now
   };
 } catch (error) {
   // In test environment, use mock values
@@ -110,7 +110,8 @@ export class URLResolver {
           return this.resolveTTSPlaceholderSync(rawUrl, affirmationId, voiceId);
         }
       } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-        // CDN URL - return as-is for now
+        // CDN URL - return as-is for RNTP to fetch
+        console.log('🎵 [URL-RESOLVER] Using CDN URL:', rawUrl);
         return rawUrl;
       } else {
         // Unknown string format

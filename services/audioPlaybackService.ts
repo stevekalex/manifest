@@ -26,11 +26,11 @@ import TrackPlayer, {
   }
   
   const DEFAULT_QUEUE_CONFIG: QueueConfig = {
-    initialWindowSize: 3,      // current + 2 ahead (backward compatible)
+    initialWindowSize: 3,      // Load first 3 tracks initially
     preloadThreshold: 1,       // Expand when 1 track remaining
-    expansionSize: 2,          // Add 2 more tracks when expanding
-    maxWindowSize: 8,          // Maximum 8 tracks in memory
-    enableDynamicLoading: false, // Start disabled for safety
+    expansionSize: 7,          // Add 7 more tracks when expanding
+    maxWindowSize: 50,         // Allow large playlists
+    enableDynamicLoading: true, // Enable dynamic loading
   };
   
   // Legacy constant for backward compatibility

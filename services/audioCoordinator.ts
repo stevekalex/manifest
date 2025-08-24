@@ -23,6 +23,11 @@ const PREFETCH_START_INDEX = INITIAL_TRACK_COUNT; // Start prefetching after ini
 // Phase 3.2: Queue Expansion Prefetching Configuration - TESTING VALUES  
 const EXPANSION_PREFETCH_COUNT = 3; // Reduced for testing (was 8)
 
+// Timing constants
+const PREFETCH_DELAY_MS = 2000;
+const EXPANSION_DELAY_MS = 1500;
+const INSTANCE_ID_LENGTH = 7;
+
 // Phase 4: Critical states where event suppression is required
 const CRITICAL_STATES = [
   'preparing',
@@ -41,7 +46,7 @@ export class AudioCoordinator {
   private cdnFactory?: CDNFactory;
   
   constructor(cdnFactory?: CDNFactory) {
-    this.instanceId = Math.random().toString(36).substring(2, 9);
+    this.instanceId = Math.random().toString(36).substring(2, 2 + INSTANCE_ID_LENGTH);
     
     this.cdnFactory = cdnFactory;
     
@@ -349,7 +354,20 @@ export class AudioCoordinator {
 
     // 1) Play background directly (accept require module or uri string)
     const store = useAudioStore.getState();
-    await this.audioSystem.playBackground(playlist.backgroundTrackUrl as any, store.backgroundVolume);
+    let backgroundUrl = playlist.backgroundTrackUrl;
+    
+    console.log('🎵 [BOOTSTRAP] Original background URL:', backgroundUrl);
+    
+    // Handle special bundled:// scheme for API playlists
+    if (typeof backgroundUrl === 'string' && backgroundUrl.startsWith('bundled://')) {
+      const soundId = backgroundUrl.replace('bundled://', '');
+      console.log('🎵 [BOOTSTRAP] Resolving bundled background track:', soundId);
+      backgroundUrl = this.urlResolver.resolveBackgroundTrack(soundId, playlist);
+      console.log('🎵 [BOOTSTRAP] Resolved background URL:', backgroundUrl);
+    }
+    
+    console.log('🎵 [BOOTSTRAP] Final background URL for playback:', backgroundUrl);
+    await this.audioSystem.playBackground(backgroundUrl as any, store.backgroundVolume);
 
     // 2) Build initial queue with URL resolution + CDN prefetching
     // Phase 3.1: CDN Prefetching - fetch additional tracks in background
@@ -390,7 +408,7 @@ export class AudioCoordinator {
     }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, PREFETCH_DELAY_MS));
       
       const prefetchStartIndex = PREFETCH_START_INDEX;
       const prefetchEndIndex = Math.min(
@@ -475,7 +493,7 @@ export class AudioCoordinator {
     }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, EXPANSION_DELAY_MS));
       
       const queueStatus = await this.getCurrentQueueStatus();
       if (!queueStatus) {
@@ -652,22 +670,33 @@ export class AudioCoordinator {
     voiceId: VoiceId,
     context: string
   ): string[] {
-    return affirmations.map(affirmation => {
+    console.log(`🔍 [${context}] Resolving URLs for ${affirmations.length} affirmations with voice: ${voiceId}`);
+    console.log(`🔍 [${context}] Playlist CDN URLs available for voice ${voiceId}:`, Object.keys(playlist.cdnUrls?.[voiceId] || {}));
+    
+    const results = affirmations.map((affirmation, index) => {
       try {
+        console.log(`🔍 [${context}] [${index}] Resolving affirmation ID: ${affirmation.id}`);
         const resolvedUrl = this.urlResolver.resolve(playlist, affirmation.id, voiceId);
+        console.log(`✅ [${context}] [${index}] Resolved to: ${typeof resolvedUrl} ${typeof resolvedUrl === 'number' ? `(require module ${resolvedUrl})` : `(${resolvedUrl})`}`);
         
         // Validate that resolved URL is playable
         if (!this.urlResolver.isPlayable(resolvedUrl)) {
-          console.warn(`⚠️ [${context}] Resolved URL not playable for ${affirmation.id}: ${resolvedUrl}`);
+          console.warn(`⚠️ [${context}] [${index}] Resolved URL not playable for ${affirmation.id}: ${resolvedUrl}`);
           return null;
         }
         
+        console.log(`🎵 [${context}] [${index}] URL validation passed for ${affirmation.id}`);
         return resolvedUrl;
       } catch (error) {
-        console.error(`❌ [${context}] Failed to resolve URL for ${affirmation.id}:`, error);
+        console.error(`❌ [${context}] [${index}] Failed to resolve URL for ${affirmation.id}:`, error);
         return null;
       }
-    }).filter(Boolean) as string[];
+    });
+    
+    const filteredResults = results.filter(Boolean) as string[];
+    console.log(`📊 [${context}] URL Resolution Summary: ${filteredResults.length}/${affirmations.length} URLs resolved successfully`);
+    
+    return filteredResults;
   }
 
   /**
@@ -680,28 +709,40 @@ export class AudioCoordinator {
     affirmations: { id: string; text?: string }[], 
     resolvedUrls: string[]
   ): Track[] {
+    console.log(`🔧 [TRACK-BUILD] Building tracks from ${affirmations.length} affirmations and ${resolvedUrls.length} resolved URLs`);
     const tracks: Track[] = [];
 
     // Ensure we have matching arrays
     const minLength = Math.min(affirmations.length, resolvedUrls.length);
+    console.log(`🔧 [TRACK-BUILD] Processing ${minLength} tracks (minimum of affirmations and URLs)`);
     
     for (let index = 0; index < minLength; index++) {
       const affirmation = affirmations[index];
       const url = resolvedUrls[index];
       
+      console.log(`🔧 [TRACK-BUILD] [${index}] Building track:`, {
+        id: affirmation.id,
+        title: affirmation.text?.substring(0, 30) + '...',
+        urlType: typeof url,
+        urlValue: typeof url === 'number' ? `require(${url})` : url?.toString().substring(0, 50)
+      });
+      
       // URLs are already validated in resolveAffirmationUrls
-
-      tracks.push({
+      const track = {
         id: affirmation.id,
         url: url as any,
         title: affirmation.text || `Affirmation ${index + 1}`,
         artist: DEFAULT_ARTIST_NAME,
-      });
+      };
+
+      tracks.push(track);
+      console.log(`✅ [TRACK-BUILD] [${index}] Track added to queue: ${track.id}`);
 
       // Delay insertion disabled until silence assets are bundled or a timer-based gap is implemented
     }
 
     console.log(`🎵 [TRACK-BUILD] Built ${tracks.length} tracks from ${affirmations.length} affirmations`);
+    console.log(`🎵 [TRACK-BUILD] Final tracks summary:`, tracks.map(t => ({ id: t.id, title: t.title.substring(0, 20) + '...' })));
     return tracks;
   }
 
