@@ -10,7 +10,7 @@ const createConfidencePlaylist = (
   id,
   name,
   description,
-  backgroundTrackUrl: require('../ethereal-ambient-music-55115.mp3'),
+  backgroundTrackUrl: require('../assets/audio/background/ethereal.mp3'),
   defaultVoiceId: 'serenity',
   voices: [
     {

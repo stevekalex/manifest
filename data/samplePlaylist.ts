@@ -4,7 +4,7 @@ export const SAMPLE_PLAYLIST: Playlist = {
   id: 'believe-in-yourself',
   name: 'Believe In Yourself',
   description: 'A collection of empowering affirmations to boost self-belief and confidence',
-  backgroundTrackUrl: require('../ethereal-ambient-music-55115.mp3'),
+  backgroundTrackUrl: require('../assets/audio/background/ethereal.mp3'),
   defaultVoiceId: 'serenity',
   voices: [
     {

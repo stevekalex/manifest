@@ -10,7 +10,7 @@ export const PRODUCTION_PLAYLIST: Playlist = {
   description: 'Powerful affirmations for manifestation and abundance',
   
   // Use the current background music file
-  backgroundTrackUrl: require('../ethereal-ambient-music-55115.mp3'),
+  backgroundTrackUrl: require('../assets/audio/background/ethereal.mp3'),
   
   // Default voice matches current system
   defaultVoiceId: 'serenity',
