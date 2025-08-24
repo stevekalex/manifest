@@ -23,6 +23,7 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{
     playlistId?: string;
+    playlistData?: string;
     trackId?: string; 
     voiceId?: string;
   }>();
@@ -32,10 +33,57 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
   const [selectedSound, setSelectedSound] = useState('ethereal');
 
-  // Get playlist from route params or fall back to production playlist
-  const selectedPlaylist = params.playlistId 
-    ? getPlaylistById(params.playlistId) || PRODUCTION_PLAYLIST
-    : PRODUCTION_PLAYLIST;
+  // Get playlist from route params (prioritize API data, then ID lookup, then fallback)
+  const selectedPlaylist = (() => {
+    // First priority: Use API data if available
+    if (params.playlistData) {
+      try {
+        console.log('🎵 [PLAYER] Using API playlist data');
+        const parsed = JSON.parse(params.playlistData);
+        console.log('🔍 [PLAYER] Parsed playlist structure:', {
+          id: parsed.id,
+          name: parsed.name,
+          affirmationsCount: parsed.affirmations?.length || 0,
+          backgroundUrl: parsed.backgroundTrackUrl,
+          cdnUrlsKeys: Object.keys(parsed.cdnUrls || {}),
+        });
+        
+        // Log first few affirmations and their URLs
+        if (parsed.affirmations) {
+          console.log('🔍 [PLAYER] First 3 affirmations from API:');
+          parsed.affirmations.slice(0, 3).forEach((aff, index) => {
+            console.log(`  [${index}] ID: ${aff.id}, Text: ${aff.text?.substring(0, 40)}...`);
+          });
+        }
+        
+        // Log CDN URLs structure  
+        if (parsed.cdnUrls) {
+          Object.keys(parsed.cdnUrls).forEach(voiceId => {
+            const urls = parsed.cdnUrls[voiceId];
+            console.log(`🔍 [PLAYER] Voice ${voiceId} CDN URLs (${Object.keys(urls).length} total):`);
+            Object.keys(urls).slice(0, 3).forEach(key => {
+              const url = urls[key];
+              console.log(`    ${key} -> ${typeof url} ${typeof url === 'number' ? `(${url})` : `(${typeof url})`}`);
+            });
+          });
+        }
+        
+        return parsed;
+      } catch (error) {
+        console.error('❌ [PLAYER] Failed to parse playlist data:', error);
+      }
+    }
+    
+    // Second priority: Lookup by ID in hardcoded data
+    if (params.playlistId) {
+      console.log('🎵 [PLAYER] Falling back to hardcoded playlist lookup for ID:', params.playlistId);
+      return getPlaylistById(params.playlistId) || PRODUCTION_PLAYLIST;
+    }
+    
+    // Final fallback
+    console.log('🎵 [PLAYER] Using production playlist fallback');
+    return PRODUCTION_PLAYLIST;
+  })();
 
   // New machine-backed audio system
   const audio = useAudioSystem();
@@ -113,12 +161,6 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
     }
   }, [hasStartedPlaying, audio, selectedPlaylist, params.voiceId]);
 
-  // // If still idle shortly after mount, try again (defensive)
-  // useEffect(() => {
-  //   if (hasStartedPlaying && audio.playerState === 'idle') {
-  //     audio.playPlaylist(PRODUCTION_PLAYLIST, PRODUCTION_PLAYLIST.defaultVoiceId);
-  //   }
-  // }, [hasStartedPlaying, audio.playerState]);
 
   const handlePlayPause = () => {
     audio.togglePlayback();

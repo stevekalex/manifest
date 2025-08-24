@@ -231,11 +231,6 @@ function PlaylistThemeCard({
               {playlist.description}
             </ThemedText>
           )}
-          <View style={styles.metadata}>
-            <ThemedText type="caption" style={styles.metadataText}>
-              Ready to play
-            </ThemedText>
-          </View>
         </View>
       </AnimatedTouchableOpacity>
     </Animated.View>

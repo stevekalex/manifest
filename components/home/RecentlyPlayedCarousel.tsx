@@ -29,9 +29,7 @@ export function RecentlyPlayedCarousel({ playlists }: RecentlyPlayedCarouselProp
     return;
   };
 
-  if (recentlyPlayedPlaylists.length === 0) {
-    return null;
-  }
+  // Always show the section, even if empty for better UX consistency
 
   return (
     <View style={styles.section}>
@@ -53,54 +51,62 @@ export function RecentlyPlayedCarousel({ playlists }: RecentlyPlayedCarouselProp
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalScroll}
       >
-        {recentlyPlayedPlaylists.map((playlist, index) => (
-          <Animated.View
-            key={playlist.id}
-            entering={FadeInDown.delay(index * 50).springify()}
-            style={styles.cardWrapper}
-          >
-            <TouchableOpacity
-              style={[styles.playlistCard, { backgroundColor: cardBackground }]}
-              onPress={() => handlePlaylistPress(playlist.id)}
-              activeOpacity={0.8}
+        {recentlyPlayedPlaylists.length > 0 ? (
+          recentlyPlayedPlaylists.map((playlist, index) => (
+            <Animated.View
+              key={playlist.id}
+              entering={FadeInDown.delay(index * 50).springify()}
+              style={styles.cardWrapper}
             >
-              {/* Playlist Cover/Icon */}
-              <View style={[styles.coverContainer, { backgroundColor: `${tintColor}20` }]}>
-                <Ionicons name="musical-notes" size={24} color={tintColor} />
-              </View>
-
-              {/* Playlist Info */}
-              <View style={styles.playlistInfo}>
-                <Text 
-                  style={[styles.playlistTitle, { color: textColor }]}
-                  numberOfLines={2}
-                >
-                  {playlist.name}
-                </Text>
-                <Text 
-                  style={[styles.playlistDescription, { color: `${textColor}80` }]}
-                  numberOfLines={1}
-                >
-                  {playlist.description || `${playlist.affirmations?.length || 0} affirmations`}
-                </Text>
-                <Text 
-                  style={[styles.listenCount, { color: `${textColor}60` }]}
-                >
-                  {playlist.listensCount || 0} listens
-                </Text>
-              </View>
-
-              {/* Play Button */}
-              <TouchableOpacity 
-                style={[styles.playButton, { backgroundColor: tintColor }]}
+              <TouchableOpacity
+                style={[styles.playlistCard, { backgroundColor: cardBackground }]}
                 onPress={() => handlePlaylistPress(playlist.id)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="play" size={16} color={backgroundColor} />
+                {/* Playlist Cover/Icon */}
+                <View style={[styles.coverContainer, { backgroundColor: `${tintColor}20` }]}>
+                  <Ionicons name="musical-notes" size={24} color={tintColor} />
+                </View>
+
+                {/* Playlist Info */}
+                <View style={styles.playlistInfo}>
+                  <Text 
+                    style={[styles.playlistTitle, { color: textColor }]}
+                    numberOfLines={2}
+                  >
+                    {playlist.name}
+                  </Text>
+                  <Text 
+                    style={[styles.playlistDescription, { color: `${textColor}80` }]}
+                    numberOfLines={1}
+                  >
+                    {playlist.description || `${playlist.affirmations?.length || 0} affirmations`}
+                  </Text>
+                  <Text 
+                    style={[styles.listenCount, { color: `${textColor}60` }]}
+                  >
+                    {playlist.listensCount || 0} listens
+                  </Text>
+                </View>
+
+                {/* Play Button */}
+                <TouchableOpacity 
+                  style={[styles.playButton, { backgroundColor: tintColor }]}
+                  onPress={() => handlePlaylistPress(playlist.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="play" size={16} color={backgroundColor} />
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
-          </Animated.View>
-        ))}
+            </Animated.View>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <ThemedText style={[styles.emptyText, { color: `${textColor}60` }]}>
+              No recently played items yet. Start listening to build your history!
+            </ThemedText>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -191,5 +197,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 40,
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

@@ -8,10 +8,12 @@ import { getAllPlaylists } from '@/data/playlists';
 import { getAllThemes } from '@/data/themes';
 import { themesService } from '@/utils/themesService';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAudioSystem } from '@/hooks/useAudioSystem';
 import type { Playlist, Theme } from '@/types/audio';
 import React, { useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View, TouchableOpacity, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -21,6 +23,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   
   const tintColor = useThemeColor({}, 'tint');
+  const audio = useAudioSystem();
 
   const loadData = async () => {
     try {
@@ -75,6 +78,29 @@ export default function HomeScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     loadData();
+  };
+
+  const handleReset = () => {
+    Alert.alert(
+      'Reset Audio System',
+      'This will stop playback and clear the audio queue. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Reset', 
+          style: 'destructive',
+          onPress: async () => {
+            console.log('🔄 User initiated complete audio system reset');
+            try {
+              await audio.stopAll();
+              console.log('✅ Complete audio system reset completed');
+            } catch (error) {
+              console.error('❌ Error during audio system reset:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
 
@@ -157,6 +183,33 @@ const styles = StyleSheet.create({
   },
   sectionWrapper: {
     marginBottom: 8,
+  },
+  resetButtonContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   bottomSpacing: {
     height: 40,
