@@ -14,6 +14,8 @@ import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View, TouchableOpacity, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function HomeScreen() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -23,7 +25,11 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   
   const tintColor = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'text');
+  const glassMorphic = useThemeColor({}, 'glassMorphic');
+  const glassMorphicBorder = useThemeColor({}, 'glassMorphicBorder');
   const audio = useAudioSystem();
+  const { signOut } = useAuth();
 
   const loadData = async () => {
     try {
@@ -80,22 +86,34 @@ export default function HomeScreen() {
     loadData();
   };
 
-  const handleReset = () => {
+  const handleLogout = () => {
     Alert.alert(
-      'Reset Audio System',
-      'This will stop playback and clear the audio queue. Continue?',
+      'Sign Out',
+      'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Reset', 
+          text: 'Sign Out', 
           style: 'destructive',
           onPress: async () => {
-            console.log('🔄 User initiated complete audio system reset');
             try {
+              // Stop any playing audio first
               await audio.stopAll();
-              console.log('✅ Complete audio system reset completed');
+              
+              // Sign out from backend
+              const result = await signOut();
+              
+              if (result.success) {
+                // Navigate back to welcome screen
+                router.replace('/');
+              } else {
+                Alert.alert('Error', 'Failed to sign out completely, but you have been logged out locally.');
+                router.replace('/');
+              }
             } catch (error) {
-              console.error('❌ Error during audio system reset:', error);
+              console.error('Logout error:', error);
+              // Still navigate away even if there was an error
+              router.replace('/');
             }
           }
         }
@@ -156,6 +174,26 @@ export default function HomeScreen() {
               </View>
             ))}
 
+            {/* Logout Button */}
+            <View style={styles.logoutContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.logoutButton,
+                  {
+                    backgroundColor: glassMorphic,
+                    borderColor: glassMorphicBorder,
+                  }
+                ]}
+                onPress={handleLogout}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="log-out-outline" size={20} color={textColor} />
+                <Text style={[styles.logoutButtonText, { color: textColor }]}>
+                  Sign Out
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
             {/* Bottom spacing for better scroll experience */}
             <View style={styles.bottomSpacing} />
           </View>
@@ -184,31 +222,32 @@ const styles = StyleSheet.create({
   sectionWrapper: {
     marginBottom: 8,
   },
-  resetButtonContainer: {
+  logoutContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 32,
     alignItems: 'center',
   },
-  resetButton: {
+  logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     elevation: 4,
+    minWidth: 140,
   },
-  resetButtonText: {
-    color: '#fff',
+  logoutButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     marginLeft: 8,
   },
   bottomSpacing: {
