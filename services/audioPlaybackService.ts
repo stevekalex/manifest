@@ -229,6 +229,18 @@ import TrackPlayer, {
       console.log('🎵 [QUEUE] Track details:', tracks.map(t => ({ id: t.id, title: t.title })));
       
       await this.initialize();
+      
+      // CRITICAL: Stop playback before reset to ensure queue is properly cleared
+      try {
+        const state = await TrackPlayer.getPlaybackState();
+        if (state.state === State.Playing || state.state === State.Paused) {
+          console.log('🛑 [QUEUE] Stopping playback before reset');
+          await TrackPlayer.stop();
+        }
+      } catch (error) {
+        console.warn('⚠️ [QUEUE] Error checking playback state:', error);
+      }
+      
       await TrackPlayer.reset();
       console.log('🎵 [QUEUE] RNTP reset completed');
       
@@ -263,6 +275,18 @@ import TrackPlayer, {
       console.log('🎵 [QUEUE-WINDOWED] Loading initial window:', initialWindow.length, 'tracks');
       
       await this.initialize();
+      
+      // CRITICAL: Stop playback before reset to ensure queue is properly cleared
+      try {
+        const state = await TrackPlayer.getPlaybackState();
+        if (state.state === State.Playing || state.state === State.Paused) {
+          console.log('🛑 [QUEUE-WINDOWED] Stopping playback before reset');
+          await TrackPlayer.stop();
+        }
+      } catch (error) {
+        console.warn('⚠️ [QUEUE-WINDOWED] Error checking playback state:', error);
+      }
+      
       await TrackPlayer.reset();
       console.log('🎵 [QUEUE-WINDOWED] RNTP reset completed');
       
@@ -365,6 +389,11 @@ import TrackPlayer, {
     
     async pauseAffirmations(): Promise<PausedState> {
       console.log('⏸️ [PAUSE] Pausing affirmations');
+      // If RNTP hasn't been initialized yet, skip pausing safely to avoid startup race
+      if (!this.affirmationsReady) {
+        console.log('⏸️ [PAUSE] Skipping pause - RNTP not initialized yet');
+        return { trackIndex: 0, positionMs: 0, timestamp: Date.now() };
+      }
       try {
         const [progressRes, indexRes] = await Promise.allSettled([
           TrackPlayer.getProgress(), // { position, duration, buffered }
@@ -402,6 +431,10 @@ import TrackPlayer, {
         return pausedState;
       } catch (error) {
         console.error('❌ [PAUSE] Error pausing affirmations:', error);
+        // If not initialized, avoid calling RNTP APIs and return safe default
+        if (!this.affirmationsReady) {
+          return { trackIndex: 0, positionMs: 0, timestamp: Date.now() };
+        }
         // Fallback to safe defaults
         await TrackPlayer.pause().catch(() => {});
         // Note: Don't set store.isPlaying here - let state machine handle it
@@ -415,6 +448,10 @@ import TrackPlayer, {
       console.log('▶️ [RESUME] Resuming affirmations', pausedState ? 'with paused state' : 'without paused state');
       
       try {
+        // If not initialized yet, initialize now to avoid resume errors
+        if (!this.affirmationsReady) {
+          await this.initialize();
+        }
         if (pausedState) {
           const currentProgress = await TrackPlayer.getProgress();
           const currentTrack = await TrackPlayer.getCurrentTrack();

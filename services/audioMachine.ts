@@ -119,6 +119,17 @@ export const audioMachine = createMachine({
         },
       },
       on: {
+        STOP_PLAYBACK: {
+          target: 'idle',
+          actions: [
+            'stopAllAudio',
+            assign(() => ({
+              playlist: undefined,
+              currentTrackIndex: 0,
+              pausedState: undefined,
+            }))
+          ]
+        },
         UPDATE_DELAY: {
           actions: assign(({ event }) => {
             if (event?.type !== 'UPDATE_DELAY') return {};
@@ -235,7 +246,17 @@ export const audioMachine = createMachine({
             'updateUpcomingTracks'
           ],
         },
-        STOP_PLAYBACK: 'idle',
+        STOP_PLAYBACK: {
+          target: 'idle',
+          actions: [
+            'stopAllAudio',
+            assign(() => ({
+              playlist: undefined,
+              currentTrackIndex: 0,
+              pausedState: undefined,
+            }))
+          ]
+        },
         RESUME_PLAYBACK: undefined,
       },
     },
@@ -245,7 +266,17 @@ export const audioMachine = createMachine({
           target: 'playing',
           actions: 'resumeAllPlayers',
         },
-        STOP_PLAYBACK: 'idle',
+        STOP_PLAYBACK: {
+          target: 'idle',
+          actions: [
+            'stopAllAudio',
+            assign(() => ({
+              playlist: undefined,
+              currentTrackIndex: 0,
+              pausedState: undefined,
+            }))
+          ]
+        },
         CLOSE_VOICE_MODAL: {
           actions: assign(() => ({ modalOpen: false }))
         },

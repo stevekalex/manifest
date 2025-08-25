@@ -152,10 +152,24 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
     router.back();
   };
 
-  // Auto-start playlist once on mount via machine
+  // Auto-start playlist or handle playlist switching
   useEffect(() => {
-    if (!hasStartedPlaying) {
-      const voiceId = params.voiceId || selectedPlaylist.defaultVoiceId;
+    const voiceId = params.voiceId || selectedPlaylist.defaultVoiceId;
+    
+    // Check if we need to switch to a different playlist
+    const currentPlaylistId = audio.playlist?.id;
+    const newPlaylistId = selectedPlaylist?.id;
+    
+    if (currentPlaylistId && newPlaylistId && currentPlaylistId !== newPlaylistId) {
+      // Playlist switch detected
+      console.log('🔄 [PLAYER] Playlist switch detected:', currentPlaylistId, '→', newPlaylistId);
+      audio.switchPlaylist(selectedPlaylist, voiceId);
+      return;
+    }
+    
+    // Initial playlist start (no current playlist)
+    if (!hasStartedPlaying && selectedPlaylist) {
+      console.log('🎵 [PLAYER] Starting initial playlist:', selectedPlaylist.id);
       audio.playPlaylist(selectedPlaylist, voiceId);
       setHasStartedPlaying(true);
     }

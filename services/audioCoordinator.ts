@@ -8,7 +8,7 @@ import { BundledAssets } from './bundledAssets';
 import { getDelayTimerManager } from './delayTimerManager';
 import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId, PausedState, PlaybackSnapshot } from '../types/audio';
-import { Track } from 'react-native-track-player';
+import TrackPlayer, { Track, State } from 'react-native-track-player';
 import { CDNFactory } from './cdn/CDNFactory';
 import type { CanonicalTrackId } from './cdn/types';
 
@@ -44,6 +44,8 @@ export class AudioCoordinator {
   private appStateSubscription: any;
   private instanceId: string;
   private cdnFactory?: CDNFactory;
+  // Session token to cancel/guard async tasks started for a specific playlist
+  private activeSessionId: string | null = null;
   
   constructor(cdnFactory?: CDNFactory) {
     this.instanceId = Math.random().toString(36).substring(2, 2 + INSTANCE_ID_LENGTH);
@@ -135,6 +137,10 @@ export class AudioCoordinator {
       store.setCurrentTrackIndex(snapshot.context.currentTrackIndex || 0);
       store.setGlobalDelay(snapshot.context.globalDelayMs ?? 3000);
       
+      // Keep the store's playlist in sync with the state machine context
+      // Use setState directly to allow clearing the playlist (undefined) on STOP_PLAYBACK
+      useAudioStore.setState({ playlist: snapshot.context.playlist });
+      
     });
   }
 
@@ -219,6 +225,31 @@ export class AudioCoordinator {
     console.log(`⏹️ AudioCoordinator[${this.instanceId}].stop called`);
     this.actor.send({ type: 'STOP_PLAYBACK' });
     console.log(`✅ AudioCoordinator[${this.instanceId}].stop completed`);
+  }
+
+  async switchPlaylist(newPlaylist: Playlist, voiceId: VoiceId): Promise<void> {
+    console.log(`🔄 AudioCoordinator[${this.instanceId}].switchPlaylist called: ${newPlaylist.name} (${voiceId})`);
+    
+    return new Promise<void>((resolve) => {
+      const subscription = this.actor.subscribe((state) => {
+        // Wait for idle state after STOP_PLAYBACK
+        if (state.value === 'idle' && state.context.playlist === undefined) {
+          subscription.unsubscribe();
+          
+          console.log(`🔄 AudioCoordinator[${this.instanceId}].switchPlaylist: Reached idle state, starting new playlist`);
+          
+          // Start new playlist
+          this.actor.send({ type: 'START_PLAYBACK', playlist: newPlaylist, voiceId });
+          resolve();
+        }
+      });
+      
+      // Trigger the switch by stopping current playback
+      console.log(`🔄 AudioCoordinator[${this.instanceId}].switchPlaylist: Stopping current playlist`);
+      // Invalidate async tasks immediately so any queued work from the old session is dropped
+      this.activeSessionId = null;
+      this.actor.send({ type: 'STOP_PLAYBACK' });
+    });
   }
 
   handlePhoneCallInterruption() {
@@ -328,12 +359,13 @@ export class AudioCoordinator {
         // Phase 3.2: Trigger prefetch for upcoming tracks after queue expansion
         const store = useAudioStore.getState();
         if (store.playlist) {
-          this.prefetchExpansionTracks(store.playlist, store.currentVoiceId).catch(error => {
+          const sessionId = this.activeSessionId;
+          this.prefetchExpansionTracks(store.playlist, store.currentVoiceId, sessionId as any).catch(error => {
             console.warn('⚠️ [EXPANSION-PREFETCH] CDN prefetch failed (non-blocking):', error);
           });
           
           // Phase 3.3: Also add the expansion prefetched tracks to queue after a delay
-          this.addExpansionTracksToQueue(store.playlist, store.currentVoiceId).catch(error => {
+          this.addExpansionTracksToQueue(store.playlist, store.currentVoiceId, sessionId as any).catch(error => {
             console.warn('⚠️ [EXPANSION-ADD] Adding expansion tracks failed (non-blocking):', error);
           });
         }
@@ -348,9 +380,23 @@ export class AudioCoordinator {
 
   // Assumes playlist URLs are already local (file://, asset:/, or absolute path).
   private bootstrapPlaylist = async (context: { playlist: Playlist; currentVoiceId: VoiceId; globalDelayMs: number }) => {
-    const { playlist, currentVoiceId, globalDelayMs } = context;
+    const { playlist, currentVoiceId } = context;
     
     if (!playlist) throw new Error('No playlist selected');
+    
+    // Start a new playback session; invalidate any previously scheduled async tasks
+    const sessionId = Math.random().toString(36).slice(2);
+    this.activeSessionId = sessionId;
+    
+    // CRITICAL: Ensure complete audio cleanup before starting new playlist
+    console.log('🧹 [BOOTSTRAP] Ensuring complete audio cleanup before new playlist');
+    try {
+      // Pause all audio first  
+      await this.audioSystem.pauseAll();
+      // The queue reset will happen in setupAffirmationsQueueWindowed which calls TrackPlayer.reset()
+    } catch (error) {
+      console.warn('⚠️ [BOOTSTRAP] Cleanup warning (non-fatal):', error);
+    }
 
     // 1) Play background directly (accept require module or uri string)
     const store = useAudioStore.getState();
@@ -371,7 +417,7 @@ export class AudioCoordinator {
 
     // 2) Build initial queue with URL resolution + CDN prefetching
     // Phase 3.1: CDN Prefetching - fetch additional tracks in background
-    this.prefetchPlaylistTracks(playlist, currentVoiceId).catch(error => {
+    this.prefetchPlaylistTracks(playlist, currentVoiceId, sessionId).catch(error => {
       console.warn('⚠️ CDN prefetch failed (non-blocking):', error);
     });
 
@@ -388,11 +434,17 @@ export class AudioCoordinator {
     await this.audioSystem.setupAffirmationsQueueWindowed(tracks);
     
     // Phase 3.3: Wait for CDN prefetch to complete, then add prefetched tracks to queue
-    this.addPrefetchedTracksToQueue(playlist, currentVoiceId).catch(error => {
+    this.addPrefetchedTracksToQueue(playlist, currentVoiceId, sessionId).catch(error => {
       console.error('❌ Adding prefetched tracks failed (non-blocking):', error);
     });
     
-    await this.audioSystem.playAffirmations();
+    // Ensure session is still valid before starting playback
+    if (sessionId === this.activeSessionId) {
+      await this.audioSystem.playAffirmations();
+    } else {
+      console.log('⏭️ [BOOTSTRAP] Session changed before starting playback; aborting start');
+      return { success: false } as any;
+    }
     await this.audioSystem.setAffirmationVolume(store.affirmationVolume);
     
     return { success: true };
@@ -402,13 +454,15 @@ export class AudioCoordinator {
    * Phase 3.3: Add prefetched tracks to the active queue
    * Waits a bit for prefetch to complete, then adds CDN-resolved tracks to queue
    */
-  private async addPrefetchedTracksToQueue(playlist: Playlist, voiceId: VoiceId): Promise<void> {
+  private async addPrefetchedTracksToQueue(playlist: Playlist, voiceId: VoiceId, sessionId: string): Promise<void> {
     if (!this.cdnFactory) {
       return;
     }
 
     try {
       await new Promise(resolve => setTimeout(resolve, PREFETCH_DELAY_MS));
+      // Abort if session changed (playlist switched)
+      if (sessionId !== this.activeSessionId) return;
       
       const prefetchStartIndex = PREFETCH_START_INDEX;
       const prefetchEndIndex = Math.min(
@@ -426,6 +480,8 @@ export class AudioCoordinator {
       const tracks = this.buildTracksWithResolvedUrls(prefetchedAffirmations, resolvedUrls);
       
       if (tracks.length > 0) {
+        // Guard again before mutating queue
+        if (sessionId !== this.activeSessionId) return;
         await this.audioSystem.addTracksToQueue(tracks);
       }
       
@@ -439,12 +495,14 @@ export class AudioCoordinator {
    * Phase 3.1: Prefetch tracks for CDN caching
    * Fire-and-forget operation that fetches tracks in the background
    */
-  private async prefetchPlaylistTracks(playlist: Playlist, voiceId: VoiceId): Promise<void> {
+  private async prefetchPlaylistTracks(playlist: Playlist, voiceId: VoiceId, sessionId: string): Promise<void> {
     if (!this.cdnFactory) {
       return;
     }
 
     try {
+      // Abort early if session already changed
+      if (sessionId !== this.activeSessionId) return;
       const cdnClient = this.cdnFactory.getDefaultClient();
       const trackIdsToPrefetch = this.generatePrefetchTrackIds(playlist, voiceId);
       
@@ -452,6 +510,8 @@ export class AudioCoordinator {
         return;
       }
 
+      // Guard again before network work (best-effort)
+      if (sessionId !== this.activeSessionId) return;
       await cdnClient.prefetch(trackIdsToPrefetch);
     } catch (error) {
       console.error('❌ CDN prefetch error (non-blocking):', error);
@@ -487,13 +547,14 @@ export class AudioCoordinator {
    * Phase 3.3: Add expansion prefetched tracks to the active queue
    * Waits for expansion prefetch to complete, then adds CDN-resolved tracks to queue
    */
-  private async addExpansionTracksToQueue(playlist: Playlist, voiceId: VoiceId): Promise<void> {
+  private async addExpansionTracksToQueue(playlist: Playlist, voiceId: VoiceId, sessionId: string): Promise<void> {
     if (!this.cdnFactory) {
       return;
     }
 
     try {
       await new Promise(resolve => setTimeout(resolve, EXPANSION_DELAY_MS));
+      if (sessionId !== this.activeSessionId) return;
       
       const queueStatus = await this.getCurrentQueueStatus();
       if (!queueStatus) {
@@ -516,6 +577,7 @@ export class AudioCoordinator {
       const tracks = this.buildTracksWithResolvedUrls(expansionAffirmations, resolvedUrls);
       
       if (tracks.length > 0) {
+        if (sessionId !== this.activeSessionId) return;
         await this.audioSystem.addTracksToQueue(tracks);
       }
       
@@ -529,12 +591,13 @@ export class AudioCoordinator {
    * Phase 3.2: Prefetch tracks for queue expansion
    * Fire-and-forget operation that fetches tracks beyond current queue window
    */
-  private async prefetchExpansionTracks(playlist: Playlist, voiceId: VoiceId): Promise<void> {
+  private async prefetchExpansionTracks(playlist: Playlist, voiceId: VoiceId, sessionId: string): Promise<void> {
     if (!this.cdnFactory) {
       return;
     }
 
     try {
+      if (sessionId !== this.activeSessionId) return;
       const cdnClient = this.cdnFactory.getDefaultClient();
       
       const queueStatus = await this.getCurrentQueueStatus();
@@ -552,6 +615,8 @@ export class AudioCoordinator {
         return;
       }
 
+      // Guard again before network work
+      if (sessionId !== this.activeSessionId) return;
       await cdnClient.prefetch(trackIdsToPrefetch);
     } catch (error) {
       console.warn('⚠️ CDN expansion prefetch error (non-blocking):', error);
@@ -592,17 +657,16 @@ export class AudioCoordinator {
    */
   private async getCurrentQueueStatus(): Promise<{ estimatedNextTrackIndex: number } | null> {
     try {
-      const audioSystem = this.audioSystem;
-      const queueConfig = (audioSystem as any).queueConfig;
-      const allTracks = (audioSystem as any).allTracks;
-      const currentWindowStart = (audioSystem as any).currentWindowStart;
+      const audioSystem = this.audioSystem as any;
+      const allTracks = audioSystem.allTracks;
+      const currentWindowStart = audioSystem.currentWindowStart;
       
       if (!allTracks || allTracks.length === 0) {
         return null;
       }
 
       // Estimate where the next queue expansion would add tracks
-      const currentQueue = await this.audioSystem.getAudioSystem?.().getQueue?.() || [];
+      const currentQueue = await TrackPlayer.getQueue();
       const estimatedNextTrackIndex = currentWindowStart + currentQueue.length;
       
       return { estimatedNextTrackIndex };
@@ -742,7 +806,7 @@ export class AudioCoordinator {
     }
 
     console.log(`🎵 [TRACK-BUILD] Built ${tracks.length} tracks from ${affirmations.length} affirmations`);
-    console.log(`🎵 [TRACK-BUILD] Final tracks summary:`, tracks.map(t => ({ id: t.id, title: t.title.substring(0, 20) + '...' })));
+    console.log(`🎵 [TRACK-BUILD] Final tracks summary:`, tracks.map(t => ({ id: t.id, title: (t.title || '').substring(0, 20) + '...' })));
     return tracks;
   }
 
@@ -762,6 +826,20 @@ export class AudioCoordinator {
       resumeAllPlayers: async () => { await this.audioSystem.resumeAll(); },
       pauseBackground: async () => { await this.audioSystem.pauseBackground(); },
       resumeBackground: async () => { await this.audioSystem.resumeBackground(); },
+      stopAllAudio: async () => {
+        console.log('🛑 [STOP-ALL] stopAllAudio action called - stopping all audio playback');
+        try {
+          // Stop Track Player completely
+          const state = await TrackPlayer.getPlaybackState();
+          if (state.state !== State.None) {
+            await TrackPlayer.stop();
+          }
+          // Stop background music
+          await this.audioSystem['backgroundPlayer'].cleanup();
+        } catch (error) {
+          console.error('❌ [STOP-ALL] Error stopping audio:', error);
+        }
+      },
       updateGlobalDelay: (args: any) => {
         console.log('⏰ [DELAY] updateGlobalDelay action called');
         const { context, event } = args || {};
