@@ -33,6 +33,10 @@ export const useAudioSystem = () => {
       await coordinator.stop();
     },
     
+    switchPlaylist: async (newPlaylist: Playlist, voiceId: VoiceId) => {
+      await coordinator.switchPlaylist(newPlaylist, voiceId);
+    },
+    
     // Voice functionality for modals (background functionality, no UI controls in main player)
     openVoiceModal: () => {
       coordinator.openVoiceModal();

@@ -55,7 +55,7 @@ export interface ThemesService {
 
 class ThemesServiceImpl implements ThemesService {
   async getAllThemes(): Promise<ApiResponse<Theme[]>> {
-    const response = await apiClient.get<ThemesApiResponse>('/api/v1/homefeed');
+    const response = await apiClient.get<ThemesApiResponse>('/homefeed');
     
     if (response.error) {
       return { error: response.error };

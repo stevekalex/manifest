@@ -43,13 +43,7 @@ export default function HomeScreen() {
       console.log('🏠 HomeScreen: Fetching themes from API...');
       const themesResponse = await themesService.getAllThemes();
       
-      if (themesResponse.error) {
-        console.warn('🏠 HomeScreen: API themes failed, falling back to hardcoded data:', themesResponse.error);
-        // Fallback to hardcoded themes
-        const fallbackThemes = getAllThemes();
-        console.log('🏠 HomeScreen: Using fallback themes:', fallbackThemes);
-        setThemes(fallbackThemes);
-      } else if (themesResponse.data) {
+      if (themesResponse.data) {
         const sortedThemes = [...themesResponse.data].sort((a, b) => (a.order || 0) - (b.order || 0));
         console.log('🏠 HomeScreen: Successfully loaded themes from API:', sortedThemes);
         console.log('🏠 HomeScreen: Sample theme playlist:', sortedThemes[0]?.playlists[0]);
