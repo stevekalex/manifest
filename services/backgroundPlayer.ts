@@ -131,11 +131,27 @@ export class BackgroundPlayer {
     try {
       const oldBackground = this.background;
       
-      // FAST HANDOFF: Start creating new sound immediately (parallel with fade-out)
-      console.log(`🎵 BackgroundPlayer[${this.instanceId}]: Creating new background track in parallel`);
+      // CRITICAL: Stop old background COMPLETELY before starting new one
+      if (oldBackground) {
+        console.log(`🛑 BackgroundPlayer[${this.instanceId}]: Stopping old background completely`);
+        try {
+          // Clear callback to prevent interference
+          oldBackground.setOnPlaybackStatusUpdate(null);
+          // Stop and unload old background immediately
+          await oldBackground.stopAsync();
+          await oldBackground.unloadAsync();
+        } catch (e) {
+          console.log('🔧 BackgroundPlayer: Old background cleanup completed with minor issues (expected)');
+        }
+        // Clear reference immediately to prevent any lingering issues
+        this.background = undefined;
+      }
+      
+      // NOW create and start new sound (after old one is completely gone)
+      console.log(`🎵 BackgroundPlayer[${this.instanceId}]: Creating new background track`);
       
       const source: any = typeof localPath === 'string' ? { uri: localPath } : localPath;
-      const newSoundPromise = Audio.Sound.createAsync(
+      const { sound: newSound } = await Audio.Sound.createAsync(
         source,
         { 
           isLooping: true,
@@ -145,43 +161,20 @@ export class BackgroundPlayer {
         this.onBackgroundStatusUpdate.bind(this)
       );
       
-      // While new sound loads, quickly fade out old background (if exists)
-      if (oldBackground) {
-        console.log(`🎵 BackgroundPlayer[${this.instanceId}]: Quick fade-out of old background`);
-        try {
-          // Fast volume fade (150ms) instead of abrupt stop
-          const fadeSteps = 5;
-          const currentStatus = await oldBackground.getStatusAsync();
-          const currentVolume = currentStatus.isLoaded ? currentStatus.volume || actualVolume : actualVolume;
-          
-          for (let i = 1; i <= fadeSteps; i++) {
-            const fadeVolume = currentVolume * (1 - (i / fadeSteps));
-            await oldBackground.setVolumeAsync(Math.max(0, fadeVolume));
-            await new Promise(resolve => setTimeout(resolve, 30)); // 30ms per step = 150ms total
-          }
-          
-          // Stop old background
-          oldBackground.setOnPlaybackStatusUpdate(null);
-          await oldBackground.stopAsync();
-        } catch (e) {
-          console.log('Old background cleanup had minor issues (expected)');
-        }
-      }
-      
-      // Await new sound creation and assign
-      const { sound: newSound } = await newSoundPromise;
+      // Set new background
       this.background = newSound;
       this.backgroundVolume = targetVolume;
       
-      // Clean up old sound after new one is playing
-      if (oldBackground) {
-        try {
-          await oldBackground.unloadAsync();
-        } catch (e) {}
-      }
+      // Verify new sound is playing
+      const status = await newSound.getStatusAsync();
+      console.log(`📊 BackgroundPlayer[${this.instanceId}]: New background status:`, {
+        isLoaded: status.isLoaded,
+        isPlaying: status.isLoaded ? status.isPlaying : 'N/A',
+        volume: status.isLoaded ? status.volume : 'N/A'
+      });
       
       const endTime = Date.now();
-      console.log(`✅ BackgroundPlayer[${this.instanceId}]: Background switched with fast handoff in ${endTime - startTime}ms`);
+      console.log(`✅ BackgroundPlayer[${this.instanceId}]: Background switched successfully in ${endTime - startTime}ms`);
       
     } catch (error) {
       console.error(`❌ BackgroundPlayer[${this.instanceId}]: Failed to switch background:`, error);

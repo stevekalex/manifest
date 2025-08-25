@@ -182,7 +182,13 @@ export default function PlaylistDetailScreen() {
             } else {
               console.warn(`⚠️ No local asset found for ${filename} from asset_url=${assetUrl}`);
               console.log(`    Available filenames in assetMap:`, Object.keys(assetMap).slice(0, 5));
-              return acc;
+              
+              // FALLBACK: Use TTS placeholder for playlists without local audio
+              // The URLResolver will handle TTS generation
+              return {
+                ...acc,
+                [assetUrl]: `tts://${assetUrl}`
+              };
             }
           }, {})
         };

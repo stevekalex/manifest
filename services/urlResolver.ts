@@ -49,7 +49,7 @@ let BUNDLED_BACKGROUND_TRACKS: BackgroundTrackMap = {};
 try {
   BUNDLED_BACKGROUND_TRACKS = {
     'ethereal': require('../assets/audio/background/ethereal.mp3'),
-    'atmospheric': require('../assets/audio/background/ethereal.mp3'), // Using same file for now
+    'atmospheric': require('../lst-atmospheric-ambient-310691.mp3'),
   };
 } catch (error) {
   // In test environment, use mock values
