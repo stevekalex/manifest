@@ -26,6 +26,14 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="auth" 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_bottom',
+            gestureEnabled: false,
+          }} 
+        />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="player" options={{ headerShown: false }} />
         <Stack.Screen 
