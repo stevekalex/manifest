@@ -90,8 +90,8 @@ export class BundledAssets {
   /**
    * Build the asset registry from bundled files
    * 
-   * This maps affirmation IDs to actual require() paths for bundled MP3 files.
-   * Uses static require statements for Metro bundler compatibility.
+   * NO LONGER USES HARDCODED ASSETS - allows system to fallback to CDN/TTS
+   * Empty registry forces URLResolver to use CDN-first strategy or throw exception for TTS fallback
    */
   private buildAssetRegistry(): AssetRegistry {
     const registry: AssetRegistry = {
@@ -103,91 +103,14 @@ export class BundledAssets {
       energetic: {},
     };
 
-    // Static require statements for Metro bundler compatibility
-    // Serenity voice assets (15 total) - explicit requires for bundler
-    const serenityAssets = [
-      { id: 'affirmation-0', asset: null as any },
-      { id: 'affirmation-1', asset: null as any },
-      { id: 'affirmation-2', asset: null as any },
-      { id: 'affirmation-3', asset: null as any },
-      { id: 'affirmation-4', asset: null as any },
-      { id: 'affirmation-5', asset: null as any },
-      { id: 'affirmation-6', asset: null as any },
-      { id: 'affirmation-7', asset: null as any },
-      { id: 'affirmation-8', asset: null as any },
-      { id: 'affirmation-9', asset: null as any },
-      { id: 'affirmation-10', asset: null as any },
-      { id: 'affirmation-11', asset: null as any },
-      { id: 'affirmation-12', asset: null as any },
-      { id: 'affirmation-13', asset: null as any },
-      { id: 'affirmation-14', asset: null as any },
-    ];
-
-    // Load serenity assets with explicit requires
-    try { serenityAssets[0].asset = require('../assets/voices/serenity/0-hq.mp3'); } catch {}
-    try { serenityAssets[1].asset = require('../assets/voices/serenity/1-hq.mp3'); } catch {}
-    try { serenityAssets[2].asset = require('../assets/voices/serenity/2-hq.mp3'); } catch {}
-    try { serenityAssets[3].asset = require('../assets/voices/serenity/3-hq.mp3'); } catch {}
-    try { serenityAssets[4].asset = require('../assets/voices/serenity/4-hq.mp3'); } catch {}
-    try { serenityAssets[5].asset = require('../assets/voices/serenity/5-hq.mp3'); } catch {}
-    try { serenityAssets[6].asset = require('../assets/voices/serenity/6-hq.mp3'); } catch {}
-    try { serenityAssets[7].asset = require('../assets/voices/serenity/7-hq.mp3'); } catch {}
-    try { serenityAssets[8].asset = require('../assets/voices/serenity/8-hq.mp3'); } catch {}
-    try { serenityAssets[9].asset = require('../assets/voices/serenity/9-hq.mp3'); } catch {}
-    try { serenityAssets[10].asset = require('../assets/voices/serenity/10-hq.mp3'); } catch {}
-    try { serenityAssets[11].asset = require('../assets/voices/serenity/11-hq.mp3'); } catch {}
-    try { serenityAssets[12].asset = require('../assets/voices/serenity/12-hq.mp3'); } catch {}
-    try { serenityAssets[13].asset = require('../assets/voices/serenity/13-hq.mp3'); } catch {}
-    try { serenityAssets[14].asset = require('../assets/voices/serenity/14-hq.mp3'); } catch {}
-
-    // Add serenity assets to registry (use first as fallback for missing)
-    const serenityFallback = serenityAssets[0].asset;
-    for (const { id, asset } of serenityAssets) {
-      registry.serenity[id] = asset || serenityFallback;
-    }
-
-    // Titan voice assets (15 total) - explicit requires for bundler
-    const titanAssets = [
-      { id: 'affirmation-0', asset: null as any },
-      { id: 'affirmation-1', asset: null as any },
-      { id: 'affirmation-2', asset: null as any },
-      { id: 'affirmation-3', asset: null as any },
-      { id: 'affirmation-4', asset: null as any },
-      { id: 'affirmation-5', asset: null as any },
-      { id: 'affirmation-6', asset: null as any },
-      { id: 'affirmation-7', asset: null as any },
-      { id: 'affirmation-8', asset: null as any },
-      { id: 'affirmation-9', asset: null as any },
-      { id: 'affirmation-10', asset: null as any },
-      { id: 'affirmation-11', asset: null as any },
-      { id: 'affirmation-12', asset: null as any },
-      { id: 'affirmation-13', asset: null as any },
-      { id: 'affirmation-14', asset: null as any },
-    ];
-
-    // Load titan assets with explicit requires
-    try { titanAssets[0].asset = require('../assets/voices/titan/0-hq.mp3'); } catch {}
-    try { titanAssets[1].asset = require('../assets/voices/titan/1-hq.mp3'); } catch {}
-    try { titanAssets[2].asset = require('../assets/voices/titan/2-hq.mp3'); } catch {}
-    try { titanAssets[3].asset = require('../assets/voices/titan/3-hq.mp3'); } catch {}
-    try { titanAssets[4].asset = require('../assets/voices/titan/4-hq.mp3'); } catch {}
-    try { titanAssets[5].asset = require('../assets/voices/titan/5-hq.mp3'); } catch {}
-    try { titanAssets[6].asset = require('../assets/voices/titan/6-hq.mp3'); } catch {}
-    try { titanAssets[7].asset = require('../assets/voices/titan/7-hq.mp3'); } catch {}
-    try { titanAssets[8].asset = require('../assets/voices/titan/8-hq.mp3'); } catch {}
-    try { titanAssets[9].asset = require('../assets/voices/titan/9-hq.mp3'); } catch {}
-    try { titanAssets[10].asset = require('../assets/voices/titan/10-hq.mp3'); } catch {}
-    try { titanAssets[11].asset = require('../assets/voices/titan/11-hq.mp3'); } catch {}
-    try { titanAssets[12].asset = require('../assets/voices/titan/12-hq.mp3'); } catch {}
-    try { titanAssets[13].asset = require('../assets/voices/titan/13-hq.mp3'); } catch {}
-    try { titanAssets[14].asset = require('../assets/voices/titan/14-hq.mp3'); } catch {}
-
-    // Add titan assets to registry (use first titan or serenity as fallback)
-    const titanFallback = titanAssets[0].asset || serenityFallback;
-    for (const { id, asset } of titanAssets) {
-      registry.titan[id] = asset || titanFallback;
-    }
-
+    // Registry is intentionally empty - no hardcoded bundled assets
+    // This forces the system to use:
+    // 1. CDN assets (primary)
+    // 2. TTS generation (when CDN fails)
+    // 3. URLResolverException -> graceful TTS fallback
+    
+    console.log('📁 [BUNDLED-ASSETS] No hardcoded assets - using CDN/TTS fallback strategy');
+    
     return registry;
   }
   

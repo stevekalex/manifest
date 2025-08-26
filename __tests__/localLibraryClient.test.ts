@@ -5,60 +5,18 @@
 
 import type { ICDNClient, CanonicalTrackId, CDNManifest } from '../services/cdn/types';
 
-// Mock the manifest file
+// Mock the manifest file - now empty after asset removal
 jest.mock('../assets/voices/manifest.json', () => ({
   version: '1.0.0',
   updatedAt: '2025-01-15T12:00:00Z',
-  voices: [
-    {
-      id: 'serenity',
-      name: 'Serenity',
-      tracks: [
-        {
-          id: 'serenity:affirmation-0',
-          file: '0-hq.mp3',
-          bundledPath: '../assets/voices/serenity/0-hq.mp3'
-        },
-        {
-          id: 'serenity:affirmation-1',
-          file: '1-hq.mp3',
-          bundledPath: '../assets/voices/serenity/1-hq.mp3'
-        }
-      ]
-    },
-    {
-      id: 'titan',
-      name: 'Titan',
-      tracks: [
-        {
-          id: 'titan:affirmation-0',
-          file: '0-hq.mp3',
-          bundledPath: '../assets/voices/titan/0-hq.mp3'
-        }
-      ]
-    }
-  ]
+  voices: []
 }), { virtual: true });
 
-// Mock the actual audio assets
-jest.mock('../assets/voices/serenity/0-hq.mp3', () => 12345, { virtual: true });
-jest.mock('../assets/voices/serenity/1-hq.mp3', () => 12346, { virtual: true });
-jest.mock('../assets/voices/titan/0-hq.mp3', () => 12347, { virtual: true });
-
-// Mock BundledAssets
+// Mock BundledAssets - now returns no assets after removal
 jest.mock('../services/bundledAssets', () => ({
   BundledAssets: jest.fn().mockImplementation(() => ({
-    getAsset: jest.fn((affirmationId: string, voiceId: string) => {
-      // Simulate BundledAssets fallback behavior
-      if (voiceId === 'serenity' && affirmationId === 'affirmation-0') return 12345;
-      if (voiceId === 'serenity' && affirmationId === 'affirmation-1') return 12346;
-      if (voiceId === 'titan' && affirmationId === 'affirmation-0') return 12347;
-      return null;
-    }),
-    hasAsset: jest.fn((affirmationId: string, voiceId: string) => {
-      return voiceId === 'serenity' && ['affirmation-0', 'affirmation-1'].includes(affirmationId) ||
-             voiceId === 'titan' && affirmationId === 'affirmation-0';
-    })
+    getAsset: jest.fn(() => null), // No bundled assets available
+    hasAsset: jest.fn(() => false) // No bundled assets available
   }))
 }));
 
@@ -82,7 +40,7 @@ describe('LocalLibraryClient', () => {
       expect(manifest).toHaveProperty('updatedAt', '2025-01-15T12:00:00Z');
       expect(manifest).toHaveProperty('voices');
       expect(Array.isArray(manifest.voices)).toBe(true);
-      expect(manifest.voices).toHaveLength(2);
+      expect(manifest.voices).toHaveLength(0); // Empty after asset removal
     });
 
     test('should cache manifest after first load', async () => {
@@ -93,18 +51,11 @@ describe('LocalLibraryClient', () => {
       expect(client.getStats().manifestLoaded).toBe(true);
     });
 
-    test('should parse voice structure correctly', async () => {
+    test('should handle empty voice list after asset removal', async () => {
       const manifest = await client.loadManifest();
       
-      const serenityVoice = manifest.voices.find(v => v.id === 'serenity');
-      expect(serenityVoice).toBeDefined();
-      expect(serenityVoice!.name).toBe('Serenity');
-      expect(serenityVoice!.tracks).toHaveLength(2);
-      
-      const track = serenityVoice!.tracks[0];
-      expect(track.id).toBe('serenity:affirmation-0');
-      expect(track.file).toBe('0-hq.mp3');
-      expect(track.bundledPath).toBe('../assets/voices/serenity/0-hq.mp3');
+      expect(manifest.voices).toHaveLength(0);
+      expect(Array.isArray(manifest.voices)).toBe(true);
     });
   });
 
@@ -113,37 +64,24 @@ describe('LocalLibraryClient', () => {
       await client.loadManifest();
     });
 
-    test('should resolve canonical track ID to bundled asset path', async () => {
-      const url = await client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId);
-      
-      expect(url).toBe(12345);
-      expect(client.getStats().totalRequests).toBe(1);
-      expect(client.getStats().successfulRequests).toBe(1);
-    });
-
-    test('should handle different voices', async () => {
-      const serenityUrl = await client.getPlayableUrl('serenity:affirmation-1' as CanonicalTrackId);
-      const titanUrl = await client.getPlayableUrl('titan:affirmation-0' as CanonicalTrackId);
-      
-      expect(serenityUrl).toBe(12346);
-      expect(titanUrl).toBe(12347);
-      expect(client.getStats().totalRequests).toBe(2);
-    });
-
-    test('should throw TrackNotFoundError for non-existent track', async () => {
+    test('should throw TrackNotFoundError since no assets are bundled', async () => {
       const { TrackNotFoundError } = require('../services/cdn/types');
       
       await expect(
-        client.getPlayableUrl('invalid:track-id' as CanonicalTrackId)
+        client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId)
       ).rejects.toThrow(TrackNotFoundError);
       
       expect(client.getStats().failedRequests).toBe(1);
     });
 
-    test('should fall back to BundledAssets for tracks not in manifest', async () => {
-      // This tests the integration with existing BundledAssets
-      const url = await client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId);
-      expect(url).toBe(12345);
+    test('should throw TrackNotFoundError for any track request', async () => {
+      const { TrackNotFoundError } = require('../services/cdn/types');
+      
+      await expect(
+        client.getPlayableUrl('titan:affirmation-0' as CanonicalTrackId)
+      ).rejects.toThrow(TrackNotFoundError);
+      
+      expect(client.getStats().failedRequests).toBe(1);
     });
 
     test('should require manifest to be loaded first', async () => {
@@ -161,9 +99,9 @@ describe('LocalLibraryClient', () => {
       await client.loadManifest();
     });
 
-    test('should return true for tracks in manifest', () => {
-      expect(client.isAvailable('serenity:affirmation-0' as CanonicalTrackId)).toBe(true);
-      expect(client.isAvailable('titan:affirmation-0' as CanonicalTrackId)).toBe(true);
+    test('should return false for all tracks since none are bundled', () => {
+      expect(client.isAvailable('serenity:affirmation-0' as CanonicalTrackId)).toBe(false);
+      expect(client.isAvailable('titan:affirmation-0' as CanonicalTrackId)).toBe(false);
     });
 
     test('should return false for non-existent tracks', () => {
@@ -171,11 +109,11 @@ describe('LocalLibraryClient', () => {
       expect(client.isAvailable('serenity:affirmation-99' as CanonicalTrackId)).toBe(false);
     });
 
-    test('should work without loading manifest (check bundled assets)', () => {
+    test('should check bundled assets even without manifest', () => {
       const freshClient = new (require('../services/cdn/LocalLibraryClient').LocalLibraryClient)();
       
-      // Should check BundledAssets even without manifest
-      expect(freshClient.isAvailable('serenity:affirmation-0' as CanonicalTrackId)).toBe(true);
+      // Should return false since no bundled assets are available
+      expect(freshClient.isAvailable('serenity:affirmation-0' as CanonicalTrackId)).toBe(false);
     });
   });
 
@@ -212,18 +150,31 @@ describe('LocalLibraryClient', () => {
 
     test('should update stats after operations', async () => {
       await client.loadManifest();
-      await client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId);
+      
+      // Try a request that will fail since no assets are bundled
+      try {
+        await client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId);
+      } catch (error) {
+        // Expected to fail
+      }
       
       const stats = client.getStats();
       expect(stats.manifestLoaded).toBe(true);
       expect(stats.totalRequests).toBe(1);
-      expect(stats.successfulRequests).toBe(1);
+      expect(stats.failedRequests).toBe(1);
     });
 
     test('should include last request time', async () => {
       const beforeTime = Date.now();
       await client.loadManifest();
-      await client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId);
+      
+      // Try a request that will fail
+      try {
+        await client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId);
+      } catch (error) {
+        // Expected to fail
+      }
+      
       const afterTime = Date.now();
       
       const stats = client.getStats();
@@ -235,7 +186,13 @@ describe('LocalLibraryClient', () => {
   describe('reset', () => {
     test('should clear all cached data and stats', async () => {
       await client.loadManifest();
-      await client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId);
+      
+      // Try a request that will fail
+      try {
+        await client.getPlayableUrl('serenity:affirmation-0' as CanonicalTrackId);
+      } catch (error) {
+        // Expected to fail
+      }
       
       expect(client.getStats().manifestLoaded).toBe(true);
       expect(client.getStats().totalRequests).toBe(1);
