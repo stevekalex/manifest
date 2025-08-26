@@ -20,6 +20,7 @@ import { GlassButton } from '@/components/common/GlassButton';
 import { ActionIcon } from '@/components/common/ActionIcon';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Playlist } from '@/types/audio';
+import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
 
 interface RouteParams {
   id: string;
@@ -42,8 +43,8 @@ interface Manifestation {
 export default function PlaylistDetailScreen() {
   console.log('🎬 PlaylistDetailScreen: Component mounted');
   
-  const params = useLocalSearchParams<RouteParams>();
-  const { id, themeName, themeDescription, themeImageUrl } = params;
+  const params = useLocalSearchParams();
+  const { id, themeName, themeDescription, themeImageUrl } = (params as unknown) as RouteParams;
   
   console.log('📋 PlaylistDetailScreen: Raw params received:', params);
   console.log('📋 PlaylistDetailScreen: Destructured params:', { id, themeName, themeDescription, themeImageUrl });
@@ -58,6 +59,11 @@ export default function PlaylistDetailScreen() {
   const glassMorphic = useThemeColor({}, 'glassMorphic');
   const glassMorphicBorder = useThemeColor({}, 'glassMorphicBorder');
   const tintColor = useThemeColor({}, 'tint');
+
+  const { isLiked: isLikedFromHook, toggleLike } = usePlaylistLikeStatus(String(id || ''));
+  useEffect(() => {
+    setIsLiked(!!isLikedFromHook);
+  }, [isLikedFromHook]);
 
   useEffect(() => {
     const loadPlaylistData = async () => {
@@ -90,7 +96,7 @@ export default function PlaylistDetailScreen() {
         
         // Transform manifestations into playlist format for audio system
         // CRITICAL: Use asset_url as the ID so audio system can directly lookup assets
-        const affirmations = manifestationsList.map(m => ({
+        const affirmations = manifestationsList.map((m: Manifestation) => ({
           id: m.manifestations.asset_url, // Use asset_url as the ID for direct asset lookup
           text: m.manifestations.content,
           order: m.position,
@@ -98,19 +104,20 @@ export default function PlaylistDetailScreen() {
         }));
         
         console.log('🔍 DEBUG: Raw manifestations from API:');
-        manifestationsList.forEach((m, index) => {
+        manifestationsList.forEach((m: Manifestation, index: number) => {
           console.log(`  [${index}] ID: ${m.manifestations.id}, Position: ${m.position}, Asset: ${m.manifestations.asset_url}`);
         });
         
         console.log('🔍 DEBUG: Transformed affirmations:');
-        affirmations.forEach((a, index) => {
-          console.log(`  [${index}] ID: ${a.id}, Order: ${a.order}, Text: ${a.text.substring(0, 50)}...`);
+        affirmations.forEach((a: { id: string; text?: string; order: number }, index: number) => {
+          const preview = (a.text || '').substring(0, 50);
+          console.log(`  [${index}] ID: ${a.id}, Order: ${a.order}, Text: ${preview}...`);
         });
         
         // SIMPLE FIX: Map asset_url directly to local asset require() statements
         // Now that affirmation.id = asset_url, URLResolver will lookup by asset_url directly
         const cdnUrls = {
-          charlotte: manifestationsList.reduce((acc, m) => {
+          charlotte: manifestationsList.reduce((acc: Record<string, any>, m: Manifestation) => {
             const assetUrl = m.manifestations.asset_url;
             console.log(`🎵 Processing asset_url: ${assetUrl}`);
             
@@ -190,7 +197,7 @@ export default function PlaylistDetailScreen() {
                 [assetUrl]: `tts://${assetUrl}`
               };
             }
-          }, {})
+          }, {} as Record<string, any>)
         };
         
         // Create playlist with dynamic manifestations
@@ -269,7 +276,7 @@ export default function PlaylistDetailScreen() {
             </ThemedText>
             <TouchableOpacity
               style={[styles.backToHomeButton, { backgroundColor: tintColor }]}
-              onPress={() => router.push('/(tabs)/')}
+              onPress={() => router.push('/')}
             >
               <ThemedText style={styles.backToHomeText}>
                 Back to Home
@@ -294,7 +301,7 @@ export default function PlaylistDetailScreen() {
 
 
   const handleLikePress = () => {
-    setIsLiked(!isLiked);
+    toggleLike();
   };
 
   const handleDownloadPress = () => {

@@ -38,10 +38,17 @@ class ApiClient {
       const { requireAuth = false, ...requestOptions } = options;
       const url = `${this.baseUrl}${endpoint}`;
       
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...requestOptions.headers,
-      };
+      const headers: Record<string, string> = {};
+      // Merge any provided headers (only string-string pairs)
+      if (requestOptions.headers && typeof requestOptions.headers === 'object') {
+        Object.entries(requestOptions.headers as Record<string, string>).forEach(([k, v]) => {
+          headers[k] = String(v);
+        });
+      }
+      // Only set JSON content-type when a body is present
+      if (requestOptions.body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+      }
 
       // Add auth token if required or available
       if (requireAuth || await this.getAuthToken()) {
@@ -63,7 +70,21 @@ class ApiClient {
         headers,
       });
 
-      const data = await response.json();
+      // Handle 204 No Content gracefully
+      if (response.status === 204) {
+        console.log(`📡 API Response ${response.status}: (no content)`);
+        return { data: undefined as unknown as T };
+      }
+
+      let data: any = undefined;
+      try {
+        // Some endpoints may return empty body with 200; guard parsing
+        const text = await response.text();
+        data = text ? JSON.parse(text) : undefined;
+      } catch {
+        // Non-JSON or empty body; keep data undefined
+        data = undefined;
+      }
       console.log(`📡 API Response ${response.status}:`, data);
 
       if (!response.ok) {
@@ -134,6 +155,43 @@ class ApiClient {
     message: string;
   }>> {
     return this.get('/auth/status');
+  }
+
+  // Liked playlists methods
+  async likePlaylist(playlistId: string): Promise<ApiResponse<{
+    user_id: string;
+    playlist_id: string;
+    created_at: string;
+  }>> {
+    return this.post('/liked-playlists', { playlist_id: playlistId }, true);
+  }
+
+  async unlikePlaylist(playlistId: string): Promise<ApiResponse<void>> {
+    return this.request(`/liked-playlists/${playlistId}`, {
+      method: 'DELETE',
+      requireAuth: true
+    });
+  }
+
+  async getLikedPlaylists(): Promise<ApiResponse<{
+    user_id: string;
+    playlist_id: string;
+    created_at: string;
+    playlists: {
+      id: string;
+      slug: string;
+      name: string;
+      description?: string;
+      created_at: string;
+    };
+  }[]>> {
+    return this.get('/liked-playlists', true);
+  }
+
+  async checkPlaylistLikedStatus(playlistId: string): Promise<ApiResponse<{
+    isLiked: boolean;
+  }>> {
+    return this.get(`/liked-playlists/${playlistId}/status`, true);
   }
 }
 

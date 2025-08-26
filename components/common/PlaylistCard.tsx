@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
 import type { Playlist } from '@/types/audio';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -38,6 +39,8 @@ export function PlaylistCard({
   const glassMorphicBorder = useThemeColor({}, 'glassMorphicBorder');
   const shadowColor = useThemeColor({}, 'shadowColor');
   const textColor = useThemeColor({}, 'text');
+
+  const { isLiked, toggleLike } = usePlaylistLikeStatus(playlist.id);
 
   const animatedStyle = useAnimatedStyle(() => {
     const shadowOpacity = interpolate(
@@ -105,6 +108,21 @@ export function PlaylistCard({
             <Ionicons name="play" size={20} color="#fff" style={{ marginLeft: 2 }} />
           </View>
         </View>
+        
+        <TouchableOpacity 
+          style={styles.likeButtonContainer}
+          onPress={toggleLike}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.likeButton}>
+            <Ionicons 
+              name={isLiked ? "heart" : "heart-outline"} 
+              size={20} 
+              color={isLiked ? "#FF6B6B" : "#fff"} 
+            />
+          </View>
+        </TouchableOpacity>
       </View>
       
       <View style={styles.content}>
@@ -190,6 +208,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  likeButtonContainer: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+  likeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   content: {
     padding: 16,

@@ -1,58 +1,29 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useLikedPlaylists } from '@/hooks/useLikedPlaylists';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
-import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
-interface LikedPlaylist {
-  id: string;
-  title: string;
-  image: any;
-  listens?: number;
-}
-
-const likedPlaylists: LikedPlaylist[] = [
-  {
-    id: 'production-affirmations',
-    title: 'Daily Affirmations',
-    image: { uri: 'https://picsum.photos/200/200?random=1' },
-    listens: 201000,
-  },
-  {
-    id: 'inner-peace',
-    title: 'Inner Peace & Calm',
-    image: { uri: 'https://picsum.photos/200/200?random=2' },
-    listens: 187000,
-  },
-  {
-    id: 'abundance-mindset',
-    title: 'Abundance Mindset',
-    image: { uri: 'https://picsum.photos/200/200?random=3' },
-    listens: 142000,
-  },
-  {
-    id: 'believe-in-yourself',
-    title: 'Believe In Yourself',
-    image: { uri: 'https://picsum.photos/200/200?random=4' },
-    listens: 85000,
-  },
-  {
-    id: 'money-magnetism',
-    title: 'Money Magnetism',
-    image: { uri: 'https://picsum.photos/200/200?random=5' },
-    listens: 98000,
-  },
-];
 
 export default function LibraryScreen() {
   const iconColor = useThemeColor({}, 'icon');
   const tintColor = useThemeColor({}, 'tint');
-  const backgroundColor = useThemeColor({}, 'background');
-  const cardBackground = useThemeColor({}, 'cardBackground');
-  const textColor = useThemeColor({}, 'text');
+  // Fallback to tinted background using existing palette
+  const cardBackground = useThemeColor({}, 'glassMorphic');
+
+  const { likedPlaylists, loading, error, refetch } = useLikedPlaylists();
+
+  // Refetch when the Library tab/screen gains focus so liked state stays in sync
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -67,46 +38,73 @@ export default function LibraryScreen() {
           style={styles.content} 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={refetch} />
+          }
         >
-          <View style={styles.playlistsSection}>
-            {likedPlaylists.map((playlist, index) => (
-              <TouchableOpacity 
-                key={playlist.id} 
-                style={[
-                  styles.playlistCard,
-                  index === likedPlaylists.length - 1 && styles.lastPlaylistCard
-                ]}
-                onPress={() => router.push(`/playlists/${playlist.id}`)}
-                activeOpacity={0.7}
-                accessibilityLabel={`Play ${playlist.title} playlist with ${playlist.listens ? `${(playlist.listens / 1000).toFixed(0)}k` : 'no'} listens`}
-                accessibilityRole="button"
-              >
-                <Image source={playlist.image} style={styles.playlistImage} />
-                <View style={styles.playlistInfo}>
-                  <ThemedText type="defaultSemiBold" style={styles.playlistTitle}>
-                    {playlist.title}
-                  </ThemedText>
-                  {playlist.listens && (
-                    <View style={styles.playlistStats}>
-                      <Ionicons name="play" size={14} color={iconColor} />
-                      <ThemedText style={styles.playlistListens}>
-                        {(playlist.listens / 1000).toFixed(0)}k listens
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-                <TouchableOpacity 
-                  style={styles.menuButton}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityLabel={`More options for ${playlist.title}`}
-                  accessibilityRole="button"
-                  activeOpacity={0.6}
-                >
-                  <Ionicons name="ellipsis-horizontal" size={24} color={iconColor} />
-                </TouchableOpacity>
+          {loading ? (
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="large" color={tintColor} />
+              <ThemedText style={styles.loadingText}>Loading your saved playlists...</ThemedText>
+            </View>
+          ) : error ? (
+            <View style={styles.centerContainer}>
+              <Ionicons name="alert-circle-outline" size={48} color={iconColor} />
+              <ThemedText style={styles.errorText}>{error}</ThemedText>
+              <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+                <ThemedText style={[styles.retryButtonText, { color: tintColor }]}>Retry</ThemedText>
               </TouchableOpacity>
-            ))}
-          </View>
+            </View>
+          ) : likedPlaylists.length === 0 ? (
+            <View style={styles.centerContainer}>
+              <Ionicons name="heart-outline" size={48} color={iconColor} />
+              <ThemedText style={styles.emptyTitle}>No saved playlists yet</ThemedText>
+              <ThemedText style={styles.emptyDescription}>
+                Tap the heart icon on any playlist to save it here.
+              </ThemedText>
+            </View>
+          ) : (
+            <View style={styles.playlistsSection}>
+              {likedPlaylists.map((item, index) => (
+                <TouchableOpacity 
+                  key={item.playlist_id} 
+                  style={[
+                    styles.playlistCard,
+                    index === likedPlaylists.length - 1 && styles.lastPlaylistCard
+                  ]}
+                  onPress={() => router.push(`/playlists/${item.playlist_id}`)}
+                  activeOpacity={0.7}
+                  accessibilityLabel={`Play ${item.playlists?.name || 'playlist'} playlist`}
+                  accessibilityRole="button"
+                >
+                  <View style={styles.playlistImageContainer}>
+                    <View style={[styles.playlistImagePlaceholder, { backgroundColor: cardBackground }]}>
+                      <Ionicons name="musical-notes" size={32} color={iconColor} opacity={0.3} />
+                    </View>
+                  </View>
+                  <View style={styles.playlistInfo}>
+                    <ThemedText type="defaultSemiBold" style={styles.playlistTitle}>
+                      {item.playlists?.name || 'Untitled playlist'}
+                    </ThemedText>
+                    {item.playlists?.description && (
+                      <ThemedText style={styles.playlistDescription}>
+                        {item.playlists?.description}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.menuButton}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityLabel={`More options for ${item.playlists?.name || 'playlist'}`}
+                    accessibilityRole="button"
+                    activeOpacity={0.6}
+                  >
+                    <Ionicons name="ellipsis-horizontal" size={24} color={iconColor} />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -150,10 +148,16 @@ const styles = StyleSheet.create({
   lastPlaylistCard: {
     marginBottom: 0,
   },
-  playlistImage: {
+  playlistImageContainer: {
+    width: 72,
+    height: 72,
+  },
+  playlistImagePlaceholder: {
     width: 72,
     height: 72,
     borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -184,9 +188,55 @@ const styles = StyleSheet.create({
     opacity: 0.65,
     lineHeight: 18,
   },
+  playlistDescription: {
+    fontSize: 14,
+    opacity: 0.65,
+    lineHeight: 18,
+    marginTop: 2,
+  },
   menuButton: {
     padding: 12,
     borderRadius: 20,
     backgroundColor: 'transparent',
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    opacity: 0.7,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyTitle: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  emptyDescription: {
+    marginTop: 8,
+    fontSize: 16,
+    opacity: 0.7,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
