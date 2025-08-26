@@ -36,7 +36,7 @@ interface AudioStore {
 
 export const useAudioStore = create<AudioStore>()(
   subscribeWithSelector((set, get) => ({
-    currentVoiceId: 'default',
+    currentVoiceId: 'charlotte',
     modalOpen: false,
     globalDelayMs: 3000,
     isPlaying: false,

@@ -492,21 +492,6 @@ import TrackPlayer, {
       // Note: Don't set store.isPlaying here - let state machine handle it
     }
     
-    async skipToNextTrack() {
-      console.log('⏭️ [SKIP] Skipping to next track');
-      await TrackPlayer.skipToNext();
-      
-      const currentTrack = await TrackPlayer.getActiveTrack();
-      console.log('⏭️ [SKIP] New current track:', currentTrack?.id, '-', currentTrack?.title);
-      
-      await TrackPlayer.play();
-      console.log('⏭️ [SKIP] Playback started after skip');
-      // Note: Don't set store.isPlaying here - let state machine handle it
-    }
-    
-    
-    
-    
     async updateUpcomingTracks(tracks: Track[], fromIndex: number) {
       // Get current queue
       const queue = await TrackPlayer.getQueue();
@@ -559,7 +544,7 @@ import TrackPlayer, {
           progressRes.status === 'fulfilled' ? progressRes.value.position : 0;
         const track = trackRes.status === 'fulfilled' ? trackRes.value : undefined;
     
-        const trackIndex = (track as any)?.id ?? 0;
+        const trackIndex = await TrackPlayer.getCurrentTrack() ?? 0;
         const trackDuration = (track as any)?.duration ?? 0;
     
         return { state, position, trackIndex, trackDuration };
@@ -578,9 +563,6 @@ import TrackPlayer, {
       await this.backgroundPlayer.resumeBackground();
     }
 
-    async pauseBackground() {
-      await this.backgroundPlayer.pauseBackground();
-    }
 
     async resumeBackground() {
       await this.backgroundPlayer.resumeBackground();

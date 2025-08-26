@@ -126,7 +126,6 @@ jest.mock('../services/audioPlaybackService', () => ({
     updateUpcomingTracks: jest.fn().mockResolvedValue(undefined),
     pauseAll: jest.fn().mockResolvedValue(undefined),
     resumeAll: jest.fn().mockResolvedValue(undefined),
-    pauseBackground: jest.fn().mockResolvedValue(undefined),
     resumeBackground: jest.fn().mockResolvedValue(undefined),
     switchBackground: jest.fn().mockResolvedValue(undefined),
     captureSnapshot: jest.fn().mockResolvedValue({

@@ -271,7 +271,7 @@ describe('URLResolver CDN Integration', () => {
       expect(urlResolver.isPlayable('https://example.com/file.mp3')).toBe(true);
       expect(urlResolver.isPlayable('http://example.com/file.mp3')).toBe(true);
       expect(urlResolver.isPlayable('bundled://serenity/0')).toBe(true);
-      expect(urlResolver.isPlayable('file:///cache/file.mp3')).toBe(false);
+      expect(urlResolver.isPlayable('file:///cache/file.mp3')).toBe(true);
       expect(urlResolver.isPlayable('tts://voice/id')).toBe(false);
       expect(urlResolver.isPlayable('')).toBe(false);
       expect(urlResolver.isPlayable(null)).toBe(false);

@@ -64,7 +64,7 @@ export const audioMachine = createMachine({
   id: 'audio',
   initial: 'idle',
   context: {
-    currentVoiceId: 'serenity',
+    currentVoiceId: 'charlotte',
     currentTrackIndex: 0,
     modalOpen: false,
     globalDelayMs: 3000,

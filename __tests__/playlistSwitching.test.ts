@@ -86,9 +86,7 @@ describe('Complete Playlist Switching Workflow', () => {
       stop: jest.fn().mockResolvedValue(undefined),
       checkAndExpandQueue: jest.fn().mockResolvedValue(false),
       addTracksToQueue: jest.fn().mockResolvedValue(undefined),
-      pauseBackground: jest.fn().mockResolvedValue(undefined),
       resumeBackground: jest.fn().mockResolvedValue(undefined),
-      skipToNextTrack: jest.fn().mockResolvedValue(undefined),
       updateUpcomingTracks: jest.fn().mockResolvedValue(undefined),
       captureSnapshot: jest.fn().mockResolvedValue({
         affirmationIds: [],

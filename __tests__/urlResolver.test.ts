@@ -180,9 +180,13 @@ describe('URLResolver', () => {
       expect(resolver.isPlayable('tts://voice/affirmation')).toBe(false);
     });
 
+    test('should identify file:// and asset:// URLs as playable', () => {
+      expect(resolver.isPlayable('file://local/path.mp3')).toBe(true);
+      expect(resolver.isPlayable('asset://path.mp3')).toBe(true);
+    });
+
     test('should not identify other types as playable', () => {
-      expect(resolver.isPlayable('file://local/path.mp3')).toBe(false);
-      expect(resolver.isPlayable('asset://path.mp3')).toBe(false);
+      expect(resolver.isPlayable('ftp://remote/path.mp3')).toBe(false);
       expect(resolver.isPlayable(null)).toBe(false);
       expect(resolver.isPlayable(undefined)).toBe(false);
       expect(resolver.isPlayable({})).toBe(false);

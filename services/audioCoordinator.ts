@@ -816,15 +816,12 @@ export class AudioCoordinator {
         console.log('🔇 [DELAY-PAUSE] pauseAffirmations action called - pausing for delay timer');
         await this.audioSystem.pauseAffirmations(); 
       },
-      savePausedState: async () => await this.audioSystem.pauseAffirmations(),
       resumeAffirmations: async () => { 
         console.log('🔊 [DELAY-RESUME] resumeAffirmations action called - resuming after delay timer');
         await this.audioSystem.resumeAffirmations(); 
       },
-      skipToNextTrack: async () => { await this.audioSystem.skipToNextTrack(); },
       pauseAllPlayers: async () => { await this.audioSystem.pauseAll(); },
       resumeAllPlayers: async () => { await this.audioSystem.resumeAll(); },
-      pauseBackground: async () => { await this.audioSystem.pauseBackground(); },
       resumeBackground: async () => { await this.audioSystem.resumeBackground(); },
       stopAllAudio: async () => {
         console.log('🛑 [STOP-ALL] stopAllAudio action called - stopping all audio playback');
@@ -840,31 +837,14 @@ export class AudioCoordinator {
           console.error('❌ [STOP-ALL] Error stopping audio:', error);
         }
       },
-      updateGlobalDelay: (args: any) => {
-        console.log('⏰ [DELAY] updateGlobalDelay action called');
-        const { context, event } = args || {};
-        console.log('⏰ [DELAY] Event details:', { 
-          eventType: event?.type, 
-          delayMs: event?.delayMs,
-          currentDelay: context?.globalDelayMs 
-        });
-        
-        if (event?.type !== 'UPDATE_DELAY') return;
-        if (context) {
-          console.log('⏰ [DELAY] Updating context delay from', context.globalDelayMs, 'to', event.delayMs);
-          context.globalDelayMs = event.delayMs;
+      resumeFromPausedState: async (args: any) => {
+        const { context } = args || {};
+        if (context?.pausedState) {
+          await this.audioSystem.resumeAffirmations(context.pausedState);
+        } else {
+          await this.audioSystem.resumeAffirmations();
         }
       },
-      updateUpcomingTracks: async (args: any) => {
-        console.log('🔄 [DELAY] updateUpcomingTracks action called');
-        const { context } = args || {};
-        console.log('🔄 [DELAY] Context delay for upcoming tracks:', context?.globalDelayMs);
-        // TODO: Actually implement track updates with new delay if needed
-      },
-      logBootstrapSuccess: () => console.log('Playlist bootstrap successful'),
-      logVoiceSwitchSuccess: () => console.log('Voice switch successful'),
-      logVoiceSwitchError: (args: any) => console.error('Voice switch failed:', args?.event?.data),
-      resumeWithOldVoice: async () => { await this.audioSystem.resumeAffirmations(); },
     };
   }
 
