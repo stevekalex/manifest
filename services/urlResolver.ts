@@ -49,7 +49,7 @@ let BUNDLED_BACKGROUND_TRACKS: BackgroundTrackMap = {};
 try {
   BUNDLED_BACKGROUND_TRACKS = {
     'ethereal': require('../assets/audio/background/ethereal.mp3'),
-    'atmospheric': require('../lst-atmospheric-ambient-310691.mp3'),
+    'atmospheric': require('../assets/audio/background/atmospheric.mp3'),
   };
 } catch (error) {
   // In test environment, use mock values
@@ -322,7 +322,7 @@ export class URLResolver {
    * @param playlist Optional playlist that may define custom background tracks
    * @returns Playable URL for the background track
    */
-  resolveBackgroundTrack(soundId: string, playlist?: Playlist): string {
+  resolveBackgroundTrack(soundId: string, playlist?: Playlist): string | number {
     // 1. Check if playlist defines custom background tracks
     if (playlist?.backgroundTracks?.[soundId]) {
       return playlist.backgroundTracks[soundId];
@@ -371,9 +371,12 @@ export class URLResolver {
     // String values that are resolved bundled asset paths are playable
     // These come from our BundledAssets.getAsset() method
     if (typeof url === 'string' && url.length > 0) {
-      // Allow common asset path patterns that come from bundled assets
-      // but reject unsupported URL schemes
-      if (url.startsWith('file://') || url.startsWith('asset://') || url.startsWith('ftp://')) {
+      // Allow file:// and asset:// URLs (TrackPlayer supports these)
+      if (url.startsWith('file://') || url.startsWith('asset://')) {
+        return true;
+      }
+      // Reject unsupported URL schemes
+      if (url.startsWith('ftp://')) {
         return false;
       }
       return true;

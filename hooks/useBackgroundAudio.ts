@@ -5,7 +5,7 @@ type SoundId = 'ethereal' | 'atmospheric' | 'amazonian' | 'blue-beings';
 
 const SOUND_FILES: Record<SoundId, any> = {
   'ethereal': require('../ethereal-ambient-music-55115.mp3'),
-  'atmospheric': require('../lst-atmospheric-ambient-310691.mp3'),
+  'atmospheric': require('../assets/audio/background/atmospheric.mp3'),
   'amazonian': require('../ethereal-ambient-music-55115.mp3'), // Placeholder - same file for now
   'blue-beings': require('../ethereal-ambient-music-55115.mp3'), // Placeholder - same file for now
 };
