@@ -12,22 +12,10 @@ import TrackPlayer, { Track, State } from 'react-native-track-player';
 import { CDNFactory } from './cdn/CDNFactory';
 import type { CanonicalTrackId } from './cdn/types';
 import { audioLog, audioWarn, audioError } from '../utils/logger';
+import { AUDIO_CONFIG } from '../config/audio';
 
-// Constants
-const INITIAL_TRACK_COUNT = 3; // Phase 1B: Reduced from 5 to 3 for better performance
-const DEFAULT_ARTIST_NAME = 'Manifestation App';
-
-// Phase 3: CDN Prefetching Configuration - TESTING VALUES
-const PREFETCH_TRACK_COUNT = 3; // Reduced for testing (was 12)
-const PREFETCH_START_INDEX = INITIAL_TRACK_COUNT; // Start prefetching after initial tracks
-
-// Phase 3.2: Queue Expansion Prefetching Configuration - TESTING VALUES  
-const EXPANSION_PREFETCH_COUNT = 3; // Reduced for testing (was 8)
-
-// Timing constants
-const PREFETCH_DELAY_MS = 2000;
-const EXPANSION_DELAY_MS = 1500;
-const INSTANCE_ID_LENGTH = 7;
+// Derived constants
+const PREFETCH_START_INDEX = AUDIO_CONFIG.INITIAL_TRACK_COUNT; // Start prefetching after initial tracks
 
 // Phase 4: Critical states where event suppression is required
 const CRITICAL_STATES = [
@@ -49,7 +37,7 @@ export class AudioCoordinator {
   private activeSessionId: string | null = null;
   
   constructor(cdnFactory?: CDNFactory) {
-    this.instanceId = Math.random().toString(36).substring(2, 2 + INSTANCE_ID_LENGTH);
+    this.instanceId = Math.random().toString(36).substring(2, 2 + AUDIO_CONFIG.INSTANCE_ID_LENGTH);
     
     this.cdnFactory = cdnFactory;
     
@@ -412,7 +400,7 @@ export class AudioCoordinator {
       console.warn('⚠️ CDN prefetch failed (non-blocking):', error);
     });
 
-    const affirmations = playlist.affirmations.slice(0, INITIAL_TRACK_COUNT);
+    const affirmations = playlist.affirmations.slice(0, AUDIO_CONFIG.INITIAL_TRACK_COUNT);
     
     // Use URL resolver to handle TTS placeholders and mixed URL types
     const resolvedUrls = this.resolveAffirmationUrls(affirmations, playlist, currentVoiceId, 'BOOTSTRAP');
@@ -451,13 +439,13 @@ export class AudioCoordinator {
     }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, PREFETCH_DELAY_MS));
+      await new Promise(resolve => setTimeout(resolve, AUDIO_CONFIG.PREFETCH_DELAY_MS));
       // Abort if session changed (playlist switched)
       if (sessionId !== this.activeSessionId) return;
       
       const prefetchStartIndex = PREFETCH_START_INDEX;
       const prefetchEndIndex = Math.min(
-        prefetchStartIndex + PREFETCH_TRACK_COUNT,
+        prefetchStartIndex + AUDIO_CONFIG.PREFETCH_TRACK_COUNT,
         playlist.affirmations.length
       );
       
@@ -519,7 +507,7 @@ export class AudioCoordinator {
     
     // Calculate which tracks to prefetch (after initial tracks)
     const endIndex = Math.min(
-      PREFETCH_START_INDEX + PREFETCH_TRACK_COUNT,
+      PREFETCH_START_INDEX + AUDIO_CONFIG.PREFETCH_TRACK_COUNT,
       playlist.affirmations.length
     );
     
@@ -544,7 +532,7 @@ export class AudioCoordinator {
     }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, EXPANSION_DELAY_MS));
+      await new Promise(resolve => setTimeout(resolve, AUDIO_CONFIG.EXPANSION_DELAY_MS));
       if (sessionId !== this.activeSessionId) return;
       
       const queueStatus = await this.getCurrentQueueStatus();
@@ -554,7 +542,7 @@ export class AudioCoordinator {
       
       const expansionStartIndex = queueStatus.estimatedNextTrackIndex;
       const expansionEndIndex = Math.min(
-        expansionStartIndex + EXPANSION_PREFETCH_COUNT,
+        expansionStartIndex + AUDIO_CONFIG.EXPANSION_PREFETCH_COUNT,
         playlist.affirmations.length
       );
       
@@ -628,7 +616,7 @@ export class AudioCoordinator {
     
     // Calculate prefetch range starting from the estimated next queue position
     const endIndex = Math.min(
-      startIndex + EXPANSION_PREFETCH_COUNT,
+      startIndex + AUDIO_CONFIG.EXPANSION_PREFETCH_COUNT,
       playlist.affirmations.length
     );
     
@@ -787,7 +775,7 @@ export class AudioCoordinator {
         id: affirmation.id,
         url: url as any,
         title: affirmation.text || `Affirmation ${index + 1}`,
-        artist: DEFAULT_ARTIST_NAME,
+        artist: AUDIO_CONFIG.DEFAULT_ARTIST_NAME,
       };
 
       tracks.push(track);

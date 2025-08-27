@@ -1,6 +1,7 @@
 import type { ICDNClient, CDNClientConfig } from './types';
 import { LocalLibraryClient } from './LocalLibraryClient';
 import { RemoteCDNClient } from './RemoteCDNClient';
+import { DEV_CONFIG } from '../../config/development';
 
 /**
  * CDN Client Factory
@@ -248,7 +249,7 @@ export class CDNFactory {
    * Detect current environment
    */
   private detectEnvironment(): 'development' | 'production' {
-    return process.env.NODE_ENV === 'production' ? 'production' : 'development';
+    return DEV_CONFIG.CDN_ENVIRONMENT as 'development' | 'production';
   }
 
   /**

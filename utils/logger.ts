@@ -5,12 +5,11 @@
  * Replaces direct console.log usage throughout the codebase.
  */
 
-// Environment detection
-const __DEV__ = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+import { DEV_CONFIG } from '../config/development';
 
-// Configuration from environment
-const LOG_ENABLED = __DEV__ && process.env.LOG_AUDIO !== 'false';
-const LOG_PREFIX = '🎵'; // Consistent prefix for all audio-related logs
+// Configuration from centralized config
+const LOG_ENABLED = DEV_CONFIG.LOG_AUDIO;
+const LOG_PREFIX = DEV_CONFIG.LOG_PREFIX;
 
 /**
  * Development logging - disabled in production builds
@@ -93,6 +92,6 @@ export const startTimer = (label: string) => {
  */
 export const LOGGER_CONFIG = {
   enabled: LOG_ENABLED,
-  isDev: __DEV__,
+  isDev: DEV_CONFIG.IS_DEVELOPMENT,
   prefix: LOG_PREFIX,
 } as const;

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { Playlist, VoiceId, PausedState } from '../types/audio';
 import { Affirmation } from '../types/audio';
+import { AUDIO_CONFIG } from '../config/audio';
 
 interface AudioStore {
   // State (read-only for UI components)
@@ -36,13 +37,13 @@ interface AudioStore {
 
 export const useAudioStore = create<AudioStore>()(
   subscribeWithSelector((set, get) => ({
-    currentVoiceId: 'charlotte',
+    currentVoiceId: AUDIO_CONFIG.DEFAULT_VOICE,
     modalOpen: false,
-    globalDelayMs: 3000,
+    globalDelayMs: AUDIO_CONFIG.DEFAULT_DELAY_MS,
     isPlaying: false,
     currentTrackIndex: 0,
-    backgroundVolume: 0.7, // Default background volume
-    affirmationVolume: 1.0, // Default affirmation volume
+    backgroundVolume: AUDIO_CONFIG.DEFAULT_BACKGROUND_VOLUME,
+    affirmationVolume: AUDIO_CONFIG.DEFAULT_AFFIRMATION_VOLUME,
     
     setPlaylist: (playlist) => set({ playlist }),
     setVoiceId: (voiceId) => set({ currentVoiceId: voiceId }),

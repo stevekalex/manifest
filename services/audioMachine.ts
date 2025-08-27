@@ -1,6 +1,7 @@
 import { createMachine, assign } from 'xstate';
 import type { ActorRefFrom } from 'xstate';
-import { Playlist, VoiceId, PausedState } from '../types/audio'
+import { Playlist, VoiceId, PausedState } from '../types/audio';
+import { AUDIO_CONFIG } from '../config/audio';
 
 // Machine types
 interface AudioContext {
@@ -64,10 +65,10 @@ export const audioMachine = createMachine({
   id: 'audio',
   initial: 'idle',
   context: {
-    currentVoiceId: 'charlotte',
+    currentVoiceId: AUDIO_CONFIG.DEFAULT_VOICE,
     currentTrackIndex: 0,
     modalOpen: false,
-    globalDelayMs: 3000,
+    globalDelayMs: AUDIO_CONFIG.DEFAULT_DELAY_MS,
     errorCounts: {},
   },
   states: {
