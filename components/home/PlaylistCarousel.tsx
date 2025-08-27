@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ThemedText } from '@/components/ThemedText';
+import { ThemedText } from '@/components/theme/Themed';
 import { PlaylistCard } from '@/components/common/PlaylistCard';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Playlist } from '@/types/audio';

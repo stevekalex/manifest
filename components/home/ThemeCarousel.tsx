@@ -1,4 +1,4 @@
-import { ThemedText } from '@/components/ThemedText';
+import { ThemedText } from '@/components/theme/Themed';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Theme, ThemePlaylist } from '@/types/audio';
 import { LinearGradient } from 'expo-linear-gradient';

@@ -12,10 +12,8 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { ThemedView } from '@/components/ThemedView';
-import { ThemedText } from '@/components/ThemedText';
-import { LoadingState } from '@/components/common/LoadingState';
-import { ErrorState } from '@/components/common/ErrorState';
+import { ThemedView, ThemedText } from '@/components/theme/Themed';
+import { StateHandler } from '@/components/common/StateHandler';
 import { PlaylistCard } from '@/components/common/PlaylistCard';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { getAllPlaylists } from '@/data/playlists';
@@ -62,54 +60,6 @@ export default function AllPlaylistsScreen() {
     router.back();
   };
 
-  if (isLoading) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-          {/* Header with Back Button */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={[styles.backButton, { backgroundColor: `${tintColor}20`, borderWidth: 1, borderColor: tintColor }]}
-              onPress={handleBackPress}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={24} color={tintColor} />
-            </TouchableOpacity>
-            <ThemedText type="title" style={styles.headerTitle}>
-              All Playlists
-            </ThemedText>
-            <View style={styles.headerSpacer} />
-          </View>
-          <LoadingState itemCount={6} />
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
-
-  if (error) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-          {/* Header with Back Button */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={[styles.backButton, { backgroundColor: `${tintColor}20`, borderWidth: 1, borderColor: tintColor }]}
-              onPress={handleBackPress}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={24} color={tintColor} />
-            </TouchableOpacity>
-            <ThemedText type="title" style={styles.headerTitle}>
-              All Playlists
-            </ThemedText>
-            <View style={styles.headerSpacer} />
-          </View>
-          <ErrorState message={error} onRetry={loadPlaylists} />
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
-
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -127,6 +77,13 @@ export default function AllPlaylistsScreen() {
           </ThemedText>
           <View style={styles.headerSpacer} />
         </View>
+        
+        <StateHandler
+          loading={isLoading}
+          error={error}
+          onRetry={loadPlaylists}
+          loadingItemCount={6}
+        >
 
         {/* Playlists Count */}
         <View style={styles.countContainer}>
@@ -163,6 +120,7 @@ export default function AllPlaylistsScreen() {
             ))}
           </View>
         </ScrollView>
+        </StateHandler>
       </SafeAreaView>
     </ThemedView>
   );

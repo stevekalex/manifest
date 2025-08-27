@@ -1,6 +1,5 @@
-import { ThemedView } from '@/components/ThemedView';
-import { ErrorState } from '@/components/common/ErrorState';
-import { LoadingState } from '@/components/common/LoadingState';
+import { ThemedView } from '@/components/theme/Themed';
+import { StateHandler } from '@/components/common/StateHandler';
 import { RecentlyPlayedCarousel } from '@/components/home/RecentlyPlayedCarousel';
 import { ThemeCarousel } from '@/components/home/ThemeCarousel';
 import { WelcomePage } from '@/components/welcome';
@@ -116,28 +115,14 @@ export default function HomeScreen() {
   };
 
 
-  if (isLoading) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <LoadingState itemCount={2} />
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
-
-  if (error) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <ErrorState message={error} onRetry={loadData} />
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
-
   return (
     <ThemedView style={styles.container}>
+      <StateHandler 
+        loading={isLoading} 
+        error={error} 
+        onRetry={loadData} 
+        loadingItemCount={2}
+      >
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView 
           style={styles.scrollView} 
@@ -193,6 +178,7 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+      </StateHandler>
     </ThemedView>
   );
 }

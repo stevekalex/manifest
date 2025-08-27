@@ -1,5 +1,4 @@
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { ThemedText, ThemedView } from '@/components/theme/Themed';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLikedPlaylists } from '@/hooks/useLikedPlaylists';
 import { Ionicons } from '@expo/vector-icons';

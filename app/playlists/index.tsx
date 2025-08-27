@@ -3,11 +3,9 @@ import { StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { ThemedText, ThemedView } from '@/components/theme/Themed';
 import { PlaylistCard } from '@/components/common/PlaylistCard';
-import { LoadingState } from '@/components/common/LoadingState';
-import { ErrorState } from '@/components/common/ErrorState';
+import { StateHandler } from '@/components/common/StateHandler';
 import { getAllPlaylists } from '@/data/playlists';
 import type { Playlist } from '@/types/audio';
 
@@ -46,29 +44,6 @@ export default function PlaylistsScreen() {
     router.push(`/playlists/${playlistId}`);
   };
 
-  if (isLoading) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <ThemedText type="title" style={styles.title}>
-            Playlists
-          </ThemedText>
-          <LoadingState itemCount={2} />
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
-
-  if (error) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <ErrorState message={error} onRetry={loadPlaylists} />
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
-
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -76,29 +51,36 @@ export default function PlaylistsScreen() {
           Playlists
         </ThemedText>
         
-        <ScrollView 
-          style={styles.scrollView} 
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor="#6C5CE7"
-            />
-          }
+        <StateHandler
+          loading={isLoading}
+          error={error}
+          onRetry={loadPlaylists}
+          loadingItemCount={2}
         >
-          {playlists.map((playlist, index) => (
-            <Animated.View
-              key={playlist.id}
-              entering={FadeInDown.delay(index * 100).springify()}
-            >
-              <PlaylistCard
-                playlist={playlist}
-                onPress={() => handlePlaylistPress(playlist.id)}
+          <ScrollView 
+            style={styles.scrollView} 
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor="#6C5CE7"
               />
-            </Animated.View>
-          ))}
-        </ScrollView>
+            }
+          >
+            {playlists.map((playlist, index) => (
+              <Animated.View
+                key={playlist.id}
+                entering={FadeInDown.delay(index * 100).springify()}
+              >
+                <PlaylistCard
+                  playlist={playlist}
+                  onPress={() => handlePlaylistPress(playlist.id)}
+                />
+              </Animated.View>
+            ))}
+          </ScrollView>
+        </StateHandler>
       </SafeAreaView>
     </ThemedView>
   );

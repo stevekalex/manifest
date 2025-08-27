@@ -12,7 +12,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { ThemedText } from '@/components/ThemedText';
+import { ThemedText } from '@/components/theme/Themed';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);

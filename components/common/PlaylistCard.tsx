@@ -15,7 +15,7 @@ import Animated, {
   withSpring,
   interpolate,
 } from 'react-native-reanimated';
-import { ThemedText } from '@/components/ThemedText';
+import { ThemedText } from '@/components/theme/Themed';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
 import type { Playlist } from '@/types/audio';
