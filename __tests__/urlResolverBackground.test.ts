@@ -2,9 +2,9 @@ import { URLResolver, URLResolverError, URLResolverException } from '../services
 import { BundledAssets } from '../services/bundledAssets';
 import type { Playlist } from '../types/audio';
 
-// Mock audio files
-jest.mock('../ethereal-ambient-music-55115.mp3', () => 12345, { virtual: true });
-jest.mock('../lst-atmospheric-ambient-310691.mp3', () => 23456, { virtual: true });
+// Mock background audio files to match URLResolver require paths
+jest.mock('../assets/audio/background/ethereal.mp3', () => 12345, { virtual: true });
+jest.mock('../assets/audio/background/atmospheric.mp3', () => 23456, { virtual: true });
 
 describe('URLResolver Background Track Resolution', () => {
   let urlResolver: URLResolver;

@@ -10,6 +10,10 @@ import type { Playlist, VoiceId, AffirmationId } from '../types/audio';
 import type { ICDNClient } from '../services/cdn/types';
 import * as FileSystem from 'expo-file-system';
 
+// Mock background audio files (inline mocks are cleaner than separate files)
+jest.mock('../assets/audio/background/ethereal.mp3', () => 12345, { virtual: true });
+jest.mock('../assets/audio/background/atmospheric.mp3', () => 23456, { virtual: true });
+
 // Mock expo-file-system
 jest.mock('expo-file-system', () => ({
   documentDirectory: 'file:///mock/document/',
@@ -24,29 +28,16 @@ jest.mock('expo-file-system', () => ({
   }))
 }));
 
-// Mock bundled assets
+// Mock bundled assets - REALITY: Empty registry (DAY 3 architectural decision)
 jest.mock('../services/bundledAssets', () => ({
   BundledAssets: jest.fn().mockImplementation(() => {
-    const assets: Record<string, Record<string, string>> = {
-      serenity: {
-        'affirmation-0': 'bundled://serenity/0',
-        'affirmation-1': 'bundled://serenity/1',
-        'affirmation-2': 'bundled://serenity/2'
-      },
-      titan: {
-        'affirmation-0': 'bundled://titan/0',
-        'affirmation-1': 'bundled://titan/1'
-      }
-    };
+    // DAY 3: All bundled assets were removed for CDN-first strategy
+    // Registry is intentionally empty - no hardcoded bundled assets
     
     return {
-      getAsset: jest.fn((affirmationId, voiceId) => {
-        return assets[voiceId]?.[affirmationId] || null;
-      }),
-      hasAsset: jest.fn((affirmationId, voiceId) => {
-        return !!(assets[voiceId]?.[affirmationId]);
-      }),
-      getAllAssets: jest.fn().mockReturnValue(assets),
+      getAsset: jest.fn(() => null), // Always returns null (no bundled assets)
+      hasAsset: jest.fn(() => false), // Always returns false (no bundled assets)
+      getAllAssets: jest.fn().mockReturnValue({}),
       addAsset: jest.fn(),
       setFallbackVoice: jest.fn()
     };
@@ -164,25 +155,24 @@ describe('URLResolver CDN Integration', () => {
       expect(mockCDNClient.getPlayableUrl).toHaveBeenCalledWith('serenity:affirmation-3');
     });
 
-    test('should fall back to bundled assets when CDN unavailable', async () => {
+    test('should throw exception when CDN unavailable and no bundled assets', async () => {
       const result = urlResolver.resolve(mockPlaylist, 'affirmation-5', 'serenity');
       
       // Should return a promise
       expect(result).toBeInstanceOf(Promise);
       
-      const resolvedUrl = await result;
-      // CDN doesn't have it, but serenity has no bundled fallback for affirmation-5
-      // So it should use the 'serenity' fallback voice
-      expect(resolvedUrl).toBe('bundled://serenity/0'); // Falls back to first available
+      // CDN doesn't have it, no bundled assets exist (DAY 3 architectural decision)
+      // Should throw URLResolverException
+      await expect(result).rejects.toThrow('No asset found for TTS placeholder');
       expect(mockCDNClient.isAvailable).toHaveBeenCalledWith('serenity:affirmation-5');
     });
 
-    test('should use fallback voice when primary voice unavailable', async () => {
+    test('should throw exception when primary voice unavailable and no bundled fallback', async () => {
       const result = urlResolver.resolve(mockPlaylist, 'affirmation-3', 'titan');
       
-      const resolvedUrl = await result;
-      // Titan affirmation-3 not in CDN or bundled, should fall back to serenity
-      expect(resolvedUrl).toBe('bundled://serenity/0');
+      // Titan affirmation-3 not in CDN, no bundled assets exist
+      // Should throw URLResolverException after trying fallback voices
+      await expect(result).rejects.toThrow('No asset found for TTS placeholder');
       expect(bundledAssets.getAsset).toHaveBeenCalledWith('affirmation-3', 'titan');
       expect(bundledAssets.getAsset).toHaveBeenCalledWith('affirmation-3', 'serenity');
     });
@@ -197,7 +187,7 @@ describe('URLResolver CDN Integration', () => {
 
   describe('Batch URL resolution', () => {
     test('should resolve mixed URL types in batch', async () => {
-      const affirmationIds = ['affirmation-0', 'affirmation-1', 'affirmation-3', 'affirmation-5'];
+      const affirmationIds = ['affirmation-0', 'affirmation-1', 'affirmation-3', 'affirmation-4'];
       const result = urlResolver.resolveMultiple(mockPlaylist, affirmationIds, 'serenity');
       
       // Should return promise since some are TTS placeholders
@@ -208,7 +198,7 @@ describe('URLResolver CDN Integration', () => {
       expect(resolvedUrls[0]).toBe(100); // Mock require value
       expect(resolvedUrls[1]).toBe('https://cdn.example.com/serenity/1.mp3');
       expect(resolvedUrls[2]).toBe('file:///cache/cdn/serenity:affirmation-3.mp3');
-      // affirmation-5 should fallback but doesn't exist in our mock
+      expect(resolvedUrls[3]).toBe('file:///cache/cdn/serenity:affirmation-4.mp3'); // CDN cached
     });
 
     test('should handle all synchronous URLs without returning promise', () => {
@@ -235,11 +225,10 @@ describe('URLResolver CDN Integration', () => {
       // Create resolver without CDN
       const resolverNoCDN = new URLResolver(bundledAssets);
       
-      const result = resolverNoCDN.resolve(mockPlaylist, 'affirmation-0', 'titan');
-      
-      // Should use bundled fallback synchronously
-      expect(typeof result).toBe('string');
-      expect(result).toBe('bundled://titan/0');
+      // Should throw exception synchronously when trying to resolve - no bundled assets exist, no CDN
+      expect(() => {
+        resolverNoCDN.resolve(mockPlaylist, 'affirmation-0', 'titan');
+      }).toThrow('No bundled asset found for TTS placeholder');
     });
 
     test('should handle CDN client errors gracefully', async () => {
@@ -247,21 +236,27 @@ describe('URLResolver CDN Integration', () => {
       mockCDNClient.getPlayableUrl = jest.fn().mockRejectedValue(new Error('Network error'));
       
       const result = urlResolver.resolve(mockPlaylist, 'affirmation-3', 'serenity');
-      const resolvedUrl = await result;
       
-      // Should fall back to bundled assets
-      expect(resolvedUrl).toBe('bundled://serenity/0');
+      // Should throw exception after CDN error and no bundled fallback
+      await expect(result).rejects.toThrow('No asset found for TTS placeholder');
       expect(mockCDNClient.isAvailable).toHaveBeenCalled();
     });
 
     test('should check CDN availability before attempting download', async () => {
-      const result = urlResolver.resolve(mockPlaylist, 'affirmation-2', 'serenity');
+      const result = urlResolver.resolve(mockPlaylist, 'affirmation-3', 'serenity');
       await result;
       
       // Should check availability first
-      expect(mockCDNClient.isAvailable).toHaveBeenCalledBefore(
-        mockCDNClient.getPlayableUrl as jest.Mock
-      );
+      expect(mockCDNClient.isAvailable).toHaveBeenCalled();
+      expect(mockCDNClient.getPlayableUrl).toHaveBeenCalled();
+      
+      // Verify isAvailable was called before getPlayableUrl by checking call order
+      const isAvailableCalls = (mockCDNClient.isAvailable as jest.Mock).mock.invocationCallOrder;
+      const getPlayableUrlCalls = (mockCDNClient.getPlayableUrl as jest.Mock).mock.invocationCallOrder;
+      
+      if (isAvailableCalls.length > 0 && getPlayableUrlCalls.length > 0) {
+        expect(isAvailableCalls[0]).toBeLessThan(getPlayableUrlCalls[0]);
+      }
     });
   });
 
@@ -270,7 +265,7 @@ describe('URLResolver CDN Integration', () => {
       expect(urlResolver.isPlayable(12345)).toBe(true); // require() number
       expect(urlResolver.isPlayable('https://example.com/file.mp3')).toBe(true);
       expect(urlResolver.isPlayable('http://example.com/file.mp3')).toBe(true);
-      expect(urlResolver.isPlayable('bundled://serenity/0')).toBe(true);
+      expect(urlResolver.isPlayable('cached://serenity/0')).toBe(true); // CDN cached files
       expect(urlResolver.isPlayable('file:///cache/file.mp3')).toBe(true);
       expect(urlResolver.isPlayable('tts://voice/id')).toBe(false);
       expect(urlResolver.isPlayable('')).toBe(false);
@@ -301,9 +296,9 @@ describe('URLResolver CDN Integration', () => {
       expect(forestUrl).toBe(200); // Mock require value
     });
 
-    test('should fall back to bundled background tracks', () => {
+    test('should resolve background tracks from require() fallback', () => {
       const url = urlResolver.resolveBackgroundTrack('ethereal');
-      expect(url).toBe(12345); // Mock bundled background track
+      expect(url).toBe(12345); // Mock background track from require() fallback
     });
 
     test('should use playlist default for unknown tracks', () => {
