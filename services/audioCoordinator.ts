@@ -11,6 +11,7 @@ import type { Playlist, VoiceId, PausedState, PlaybackSnapshot } from '../types/
 import TrackPlayer, { Track, State } from 'react-native-track-player';
 import { CDNFactory } from './cdn/CDNFactory';
 import type { CanonicalTrackId } from './cdn/types';
+import { audioLog, audioWarn, audioError } from '../utils/logger';
 
 // Constants
 const INITIAL_TRACK_COUNT = 3; // Phase 1B: Reduced from 5 to 3 for better performance
@@ -80,18 +81,18 @@ export class AudioCoordinator {
         voiceSwitchTransaction: fromPromise(({ input }) => machineServices.voiceSwitchTransaction(input)),
         pauseAndSnapshot: fromPromise(() => machineServices.pauseAndSnapshot()),
         createDelay: fromPromise(({ input }: { input: { delayMs: number } }) => {
-          console.log('⏱️ [DELAY-TIMER] Starting delay timer for', input.delayMs, 'ms');
+          audioLog('[DELAY-TIMER] Starting timer:', `${input.delayMs}ms`);
           
           // Phase 4: Use managed delay timer with app state handling
           return new Promise<void>((resolve) => {
             const timerManager = getDelayTimerManager();
             const timer = timerManager.createManagedTimer(input.delayMs, () => {
-              console.log('⏱️ [DELAY-TIMER] Timer completed via managed timer');
+              audioLog('[DELAY-TIMER] Timer completed');
               resolve();
             }, {
               enableDriftCompensation: true,
               onCancel: (elapsed) => {
-                console.log('⏱️ [DELAY-TIMER-CANCEL] Timer cancelled after', elapsed, 'ms (expected:', input.delayMs, 'ms)');
+                audioWarn('[DELAY-TIMER] Timer cancelled:', `${elapsed}ms/${input.delayMs}ms`);
               }
             });
             
@@ -116,18 +117,13 @@ export class AudioCoordinator {
 
   private setupStoreSync() {
     this.actor.subscribe((snapshot: any) => {
-      console.log('🏃 [STATE] State machine transition:', {
-        state: snapshot.value,
-        modalOpen: snapshot.context.modalOpen,
-        currentTrackIndex: snapshot.context.currentTrackIndex,
-        currentVoiceId: snapshot.context.currentVoiceId,
-        globalDelayMs: snapshot.context.globalDelayMs,
-        isPlaying: snapshot.matches('playing') || snapshot.matches('voiceSelecting'),
-        // TODO - this is fine for now, but once we do voice previews this might need to change
-        isPreviewMode: snapshot.matches('voiceSelecting.previewing'),
-        isVoiceSwitching: snapshot.matches('voiceSwitching'),
-        isRestoring: snapshot.matches('voiceSelecting.restoring')
-      });
+      // Only log significant state changes, not every transition
+      const stateValue = typeof snapshot.value === 'object' ? Object.keys(snapshot.value)[0] : snapshot.value;
+      const isSignificantChange = ['playing', 'paused', 'stopped', 'voiceSwitching'].includes(stateValue);
+      
+      if (isSignificantChange) {
+        audioLog('[STATE]', stateValue, snapshot.context.currentVoiceId, `track:${snapshot.context.currentTrackIndex}`);
+      }
       
       const store = useAudioStore.getState();
       store.setModalOpen(!!snapshot.context.modalOpen);
@@ -162,33 +158,28 @@ export class AudioCoordinator {
 
   // Public API
   async selectPlaylist(playlist: Playlist) {
-    console.log(`🎮 AudioCoordinator[${this.instanceId}].selectPlaylist called for:`, playlist.name);
+    audioLog('[COORDINATOR] Selecting playlist:', playlist.name);
     this.actor.send({ type: 'SELECT_PLAYLIST', playlist });
-    console.log(`✅ AudioCoordinator[${this.instanceId}].selectPlaylist completed`);
   }
 
   async startPlayback(playlist: Playlist, voiceId: VoiceId) {
-    console.log(`🎮 AudioCoordinator[${this.instanceId}].startPlayback called for:`, playlist.name, 'with voice:', voiceId);
+    audioLog('[COORDINATOR] Starting playback:', playlist.name, voiceId);
     this.actor.send({ type: 'START_PLAYBACK', playlist, voiceId });
-    console.log(`✅ AudioCoordinator[${this.instanceId}].startPlayback completed`);
   }
 
   openVoiceModal() {
-    console.log(`🔓 AudioCoordinator[${this.instanceId}].openVoiceModal - sending OPEN_VOICE_MODAL event`);
+    audioLog('[COORDINATOR] Opening voice modal');
     this.actor.send({ type: 'OPEN_VOICE_MODAL' });
-    console.log(`✅ AudioCoordinator[${this.instanceId}].openVoiceModal completed`);
   }
 
   async closeVoiceModal() {
-    console.log(`🔒 AudioCoordinator[${this.instanceId}].closeVoiceModal - sending CANCEL_VOICE_MODAL event`);
+    audioLog('[COORDINATOR] Closing voice modal');
     this.actor.send({ type: 'CANCEL_VOICE_MODAL' });
-    console.log(`✅ AudioCoordinator[${this.instanceId}].closeVoiceModal completed`);
   }
 
   async confirmVoiceSelection(voiceId: VoiceId) {
-    console.log(`✅ AudioCoordinator[${this.instanceId}].confirmVoiceSelection called with:`, voiceId);
+    audioLog('[COORDINATOR] Voice selected:', voiceId);
     this.actor.send({ type: 'CONFIRM_VOICE', voiceId });
-    console.log(`✅ AudioCoordinator[${this.instanceId}].confirmVoiceSelection completed`);
   }
 
   updateDelay(delayMs: number) {

@@ -15,6 +15,7 @@ import TrackPlayer, {
   import AsyncStorage from '@react-native-async-storage/async-storage';
   import { useAudioStore } from '../store/audioStore';
   import { URLResolver } from './urlResolver';
+  import { audioLog, audioWarn, audioError } from '../utils/logger';
   
   // Phase 4: Enhanced queue management configuration
   interface QueueConfig {
@@ -136,14 +137,10 @@ import TrackPlayer, {
       
       // Track change events (most important for coordination)
       TrackPlayer.addEventListener(TrackPlayerEvent.PlaybackTrackChanged, (event) => {
-        console.log('🎵 [EVENT] PlaybackTrackChanged fired:', {
-          nextTrack: event.nextTrack,
-          prevTrack: event.track,
-          suppressEvents: this.shouldSuppressEvents?.()
-        });
+        audioLog('[TRACK] Changed to:', event.nextTrack);
         
         if (this.shouldSuppressEvents?.()) {
-          console.log('🚫 [EVENT] Suppressing RNTP PlaybackTrackChanged event');
+          audioLog('[TRACK] Event suppressed');
           return;
         }
         

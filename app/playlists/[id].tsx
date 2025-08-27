@@ -21,6 +21,7 @@ import { ActionIcon } from '@/components/common/ActionIcon';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Playlist } from '@/types/audio';
 import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
+import { warn } from '@/utils/logger';
 
 interface RouteParams {
   id: string;
@@ -41,15 +42,16 @@ interface Manifestation {
 }
 
 export default function PlaylistDetailScreen() {
-  console.log('🎬 PlaylistDetailScreen: Component mounted');
   
   const params = useLocalSearchParams();
   const { id, themeName, themeDescription, themeImageUrl } = (params as unknown) as RouteParams;
   
-  console.log('📋 PlaylistDetailScreen: Raw params received:', params);
-  console.log('📋 PlaylistDetailScreen: Destructured params:', { id, themeName, themeDescription, themeImageUrl });
-  console.log('📋 PlaylistDetailScreen: Full URL search params object keys:', Object.keys(params));
-  console.log('📋 PlaylistDetailScreen: ID type and value:', typeof id, id);
+  // Validate required playlist ID
+  if (!id) {
+    warn('[PLAYLIST] No ID provided, redirecting');
+    router.back();
+    return null;
+  }
   
   const [playlist, setPlaylist] = useState<Playlist | undefined>(undefined);
   const [manifestations, setManifestations] = useState<Manifestation[]>([]);
