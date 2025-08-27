@@ -20,6 +20,7 @@ import { ActionIcon } from '@/components/common/ActionIcon';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Playlist } from '@/types/audio';
 import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
+import { apiClient } from '@/utils/api';
 
 interface RouteParams {
   id: string;
@@ -73,20 +74,20 @@ export default function PlaylistDetailScreen() {
           return;
         }
 
-        // Fetch manifestations from API
+        // Fetch manifestations from API using centralized API client
         console.log('🌐 Fetching manifestations for playlist:', id);
-        const response = await fetch(`http://localhost:3000/api/v1/playlists/${id}/manifestations`);
+        const response = await apiClient.get<{ manifestations: Manifestation[] }>(`/playlists/${id}/manifestations`);
         
-        if (!response.ok) {
-          throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        if (response.error) {
+          throw new Error(`API Error: ${response.error}`);
         }
 
-        const data = await response.json();
+        const data = response.data;
         console.log('✅ Manifestations API response:', data);
-        console.log('🎵 Sample manifestation asset_url:', data.manifestations?.[0]?.manifestations?.asset_url);
+        console.log('🎵 Sample manifestation asset_url:', data?.manifestations?.[0]?.manifestations?.asset_url);
         
         // Set manifestations
-        const manifestationsList = data.manifestations || [];
+        const manifestationsList = data?.manifestations || [];
         setManifestations(manifestationsList);
         
         // Transform manifestations into playlist format for audio system

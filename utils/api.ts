@@ -51,8 +51,8 @@ class ApiClient {
       }
 
       // Add auth token if required or available
-      if (requireAuth || await this.getAuthToken()) {
-        const token = await this.getAuthToken();
+      const token = await this.getAuthToken();
+      if (requireAuth || token) {
         if (token) {
           headers.Authorization = `Bearer ${token}`;
         } else if (requireAuth) {

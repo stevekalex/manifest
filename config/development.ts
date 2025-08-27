@@ -8,24 +8,25 @@
  * - Mock configurations
  */
 
-// Environment detection
-const __DEV__ = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+// Environment detection - React Native provides __DEV__ globally
+declare const __DEV__: boolean;
+const IS_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 
 export const DEV_CONFIG = {
   // Logging Configuration
-  LOG_AUDIO: __DEV__ && process.env.LOG_AUDIO !== 'false',  // Audio system logging
-  LOG_PREFIX: '🎵',                                         // Consistent prefix for audio logs
+  LOG_AUDIO: IS_DEV && process.env.LOG_AUDIO !== 'false',  // Audio system logging
+  LOG_PREFIX: '🎵',                                        // Consistent prefix for audio logs
   
   // Development Flags
-  USE_LOCAL_ASSETS: __DEV__,                               // Use local bundled assets in dev
-  SHOW_TEST_BUTTONS: false,                                // Show debug/test UI elements
+  USE_LOCAL_ASSETS: IS_DEV,                               // Use local bundled assets in dev
+  SHOW_TEST_BUTTONS: false,                               // Show debug/test UI elements
   
   // Mock/Test Configuration
-  MOCK_API_DELAY: 0,                                       // Artificial delay for API calls (ms)
+  MOCK_API_DELAY: 0,                                      // Artificial delay for API calls (ms)
   
   // Environment Detection
-  IS_DEVELOPMENT: __DEV__,
-  IS_PRODUCTION: !__DEV__,
+  IS_DEVELOPMENT: IS_DEV,
+  IS_PRODUCTION: !IS_DEV,
   
   // CDN Configuration  
   CDN_ENVIRONMENT: process.env.NODE_ENV === 'production' ? 'production' : 'development',
