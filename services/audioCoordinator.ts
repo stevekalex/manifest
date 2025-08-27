@@ -11,7 +11,7 @@ import type { Playlist, VoiceId, PausedState, PlaybackSnapshot } from '../types/
 import TrackPlayer, { Track, State } from 'react-native-track-player';
 import { CDNFactory } from './cdn/CDNFactory';
 import type { CanonicalTrackId } from './cdn/types';
-import { audioLog, audioWarn, audioError } from '../utils/logger';
+import { audioLog, audioWarn } from '../utils/logger';
 import { AUDIO_CONFIG } from '../config/audio';
 
 // Derived constants
@@ -210,24 +210,8 @@ export class AudioCoordinator {
     console.log(`🔄 AudioCoordinator[${this.instanceId}].switchPlaylist called: ${newPlaylist.name} (${voiceId})`);
     
     return new Promise<void>((resolve) => {
-      const subscription = this.actor.subscribe((state) => {
-        // Wait for idle state after STOP_PLAYBACK
-        if (state.value === 'idle' && state.context.playlist === undefined) {
-          subscription.unsubscribe();
-          
-          console.log(`🔄 AudioCoordinator[${this.instanceId}].switchPlaylist: Reached idle state, starting new playlist`);
-          
-          // Start new playlist
-          this.actor.send({ type: 'START_PLAYBACK', playlist: newPlaylist, voiceId });
-          resolve();
-        }
-      });
-      
-      // Trigger the switch by stopping current playback
-      console.log(`🔄 AudioCoordinator[${this.instanceId}].switchPlaylist: Stopping current playlist`);
-      // Invalidate async tasks immediately so any queued work from the old session is dropped
-      this.activeSessionId = null;
-      this.actor.send({ type: 'STOP_PLAYBACK' });
+      this.waitForIdleState(newPlaylist, voiceId, resolve);
+      this.initiatePlaylistSwitch();
     });
   }
 
@@ -357,53 +341,99 @@ export class AudioCoordinator {
 
   // === PRIVATE BUSINESS LOGIC (moved from AudioServices) ===
 
-  // Assumes playlist URLs are already local (file://, asset:/, or absolute path).
-  private bootstrapPlaylist = async (context: { playlist: Playlist; currentVoiceId: VoiceId; globalDelayMs: number }) => {
-    const { playlist, currentVoiceId } = context;
+  /**
+   * PLAYLIST SWITCH HELPER METHODS (Internal refactoring for better readability)
+   * These methods break down the complex switchPlaylist coordination logic.
+   */
+
+  /**
+   * Setup state machine monitoring for playlist switch completion
+   */
+  private waitForIdleState(newPlaylist: Playlist, voiceId: VoiceId, resolve: () => void) {
+    const subscription = this.actor.subscribe((state) => {
+      // Wait for idle state after STOP_PLAYBACK
+      if (state.value === 'idle' && state.context.playlist === undefined) {
+        subscription.unsubscribe();
+        
+        console.log(`🔄 AudioCoordinator[${this.instanceId}].switchPlaylist: Reached idle state, starting new playlist`);
+        
+        // Start new playlist
+        this.actor.send({ type: 'START_PLAYBACK', playlist: newPlaylist, voiceId });
+        resolve();
+      }
+    });
     
-    if (!playlist) throw new Error('No playlist selected');
-    
-    // Start a new playback session; invalidate any previously scheduled async tasks
+    return subscription;
+  }
+
+  /**
+   * Initiate playlist switch by invalidating session and stopping current playback
+   */
+  private initiatePlaylistSwitch(): void {
+    // Trigger the switch by stopping current playback
+    console.log(`🔄 AudioCoordinator[${this.instanceId}].switchPlaylist: Stopping current playlist`);
+    // Invalidate async tasks immediately so any queued work from the old session is dropped
+    this.activeSessionId = null;
+    this.actor.send({ type: 'STOP_PLAYBACK' });
+  }
+
+  /**
+   * BOOTSTRAP HELPER METHODS (Internal refactoring for better readability)
+   * These methods break down the complex bootstrapPlaylist logic into focused steps.
+   */
+
+  /**
+   * Start a new playback session and invalidate previous async tasks
+   */
+  private startNewPlaybackSession(): string {
     const sessionId = Math.random().toString(36).slice(2);
     this.activeSessionId = sessionId;
-    
-    // CRITICAL: Ensure complete audio cleanup before starting new playlist
-    console.log('🧹 [BOOTSTRAP] Ensuring complete audio cleanup before new playlist');
+    audioLog('[BOOTSTRAP] Started new playback session:', sessionId);
+    return sessionId;
+  }
+
+  /**
+   * Ensure complete audio cleanup before starting new playlist
+   */
+  private async performAudioCleanup(): Promise<void> {
+    audioLog('[BOOTSTRAP] Ensuring complete audio cleanup before new playlist');
     try {
-      // Pause all audio first  
       await this.audioSystem.pauseAll();
       // The queue reset will happen in setupAffirmationsQueueWindowed which calls TrackPlayer.reset()
     } catch (error) {
       console.warn('⚠️ [BOOTSTRAP] Cleanup warning (non-fatal):', error);
     }
+  }
 
-    // 1) Play background directly (accept require module or uri string)
+  /**
+   * Resolve and start background track playback
+   */
+  private async setupBackgroundTrack(playlist: Playlist): Promise<void> {
     const store = useAudioStore.getState();
     let backgroundUrl = playlist.backgroundTrackUrl;
     
-    console.log('🎵 [BOOTSTRAP] Original background URL:', backgroundUrl);
+    audioLog('[BOOTSTRAP] Original background URL:', backgroundUrl);
     
     // Handle special bundled:// scheme for API playlists
     if (typeof backgroundUrl === 'string' && backgroundUrl.startsWith('bundled://')) {
       const soundId = backgroundUrl.replace('bundled://', '');
-      console.log('🎵 [BOOTSTRAP] Resolving bundled background track:', soundId);
+      audioLog('[BOOTSTRAP] Resolving bundled background track:', soundId);
       backgroundUrl = this.urlResolver.resolveBackgroundTrack(soundId, playlist);
-      console.log('🎵 [BOOTSTRAP] Resolved background URL:', backgroundUrl);
+      audioLog('[BOOTSTRAP] Resolved background URL:', backgroundUrl);
     }
     
-    console.log('🎵 [BOOTSTRAP] Final background URL for playback:', backgroundUrl);
+    audioLog('[BOOTSTRAP] Final background URL for playback:', backgroundUrl);
     await this.audioSystem.playBackground(backgroundUrl as any, store.backgroundVolume);
+  }
 
-    // 2) Build initial queue with URL resolution + CDN prefetching
-    // Phase 3.1: CDN Prefetching - fetch additional tracks in background
-    this.prefetchPlaylistTracks(playlist, currentVoiceId, sessionId).catch(error => {
-      console.warn('⚠️ CDN prefetch failed (non-blocking):', error);
-    });
-
+  /**
+   * Build and setup initial affirmations queue with URL resolution
+   */
+  private async setupInitialAffirmationsQueue(playlist: Playlist, voiceId: VoiceId): Promise<void> {
     const affirmations = playlist.affirmations.slice(0, AUDIO_CONFIG.INITIAL_TRACK_COUNT);
     
     // Use URL resolver to handle TTS placeholders and mixed URL types
-    const resolvedUrls = this.resolveAffirmationUrls(affirmations, playlist, currentVoiceId, 'BOOTSTRAP');
+    const resolvedUrls = this.resolveAffirmationUrls(affirmations, playlist, voiceId, 'BOOTSTRAP');
     const tracks = this.buildTracksWithResolvedUrls(affirmations, resolvedUrls);
 
     if (!tracks.length) {
@@ -411,22 +441,58 @@ export class AudioCoordinator {
     }
     
     await this.audioSystem.setupAffirmationsQueueWindowed(tracks);
-    
-    // Phase 3.3: Wait for CDN prefetch to complete, then add prefetched tracks to queue
-    this.addPrefetchedTracksToQueue(playlist, currentVoiceId, sessionId).catch(error => {
-      console.error('❌ Adding prefetched tracks failed (non-blocking):', error);
-    });
+  }
+
+  /**
+   * Start affirmations playback if session is still valid
+   */
+  private async startAffirmationsPlayback(sessionId: string): Promise<{ success: boolean }> {
+    const store = useAudioStore.getState();
     
     // Ensure session is still valid before starting playback
     if (sessionId === this.activeSessionId) {
       await this.audioSystem.playAffirmations();
+      await this.audioSystem.setAffirmationVolume(store.affirmationVolume);
+      return { success: true };
     } else {
-      console.log('⏭️ [BOOTSTRAP] Session changed before starting playback; aborting start');
-      return { success: false } as any;
+      audioLog('[BOOTSTRAP] Session changed before starting playback; aborting start');
+      return { success: false };
     }
-    await this.audioSystem.setAffirmationVolume(store.affirmationVolume);
+  }
+
+  /**
+   * Main playlist bootstrap orchestration - now using focused helper methods
+   * Assumes playlist URLs are already local (file://, asset:/, or absolute path).
+   */
+  private bootstrapPlaylist = async (context: { playlist: Playlist; currentVoiceId: VoiceId; globalDelayMs: number }) => {
+    const { playlist, currentVoiceId } = context;
     
-    return { success: true };
+    if (!playlist) throw new Error('No playlist selected');
+    
+    // Step 1: Start new session and invalidate previous async tasks
+    const sessionId = this.startNewPlaybackSession();
+    
+    // Step 2: Ensure complete audio cleanup before starting new playlist
+    await this.performAudioCleanup();
+    
+    // Step 3: Setup and start background track playback
+    await this.setupBackgroundTrack(playlist);
+    
+    // Step 4: Start CDN prefetching for additional tracks (non-blocking)
+    this.prefetchPlaylistTracks(playlist, currentVoiceId, sessionId).catch(error => {
+      console.warn('⚠️ CDN prefetch failed (non-blocking):', error);
+    });
+    
+    // Step 5: Build and setup initial affirmations queue
+    await this.setupInitialAffirmationsQueue(playlist, currentVoiceId);
+    
+    // Step 6: Schedule adding prefetched tracks to queue (non-blocking)
+    this.addPrefetchedTracksToQueue(playlist, currentVoiceId, sessionId).catch(error => {
+      console.error('❌ Adding prefetched tracks failed (non-blocking):', error);
+    });
+    
+    // Step 7: Start affirmations playback if session is still valid
+    return await this.startAffirmationsPlayback(sessionId);
   };
 
   /**
@@ -439,30 +505,16 @@ export class AudioCoordinator {
     }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, AUDIO_CONFIG.PREFETCH_DELAY_MS));
-      // Abort if session changed (playlist switched)
-      if (sessionId !== this.activeSessionId) return;
+      // Step 1: Wait and validate session is still active
+      const sessionValid = await this.validateSessionAndWait(sessionId);
+      if (!sessionValid) return;
       
-      const prefetchStartIndex = PREFETCH_START_INDEX;
-      const prefetchEndIndex = Math.min(
-        prefetchStartIndex + AUDIO_CONFIG.PREFETCH_TRACK_COUNT,
-        playlist.affirmations.length
-      );
+      // Step 2: Calculate prefetch range and slice affirmations
+      const prefetchedAffirmations = this.calculatePrefetchRange(playlist);
+      if (prefetchedAffirmations.length === 0) return;
       
-      const prefetchedAffirmations = playlist.affirmations.slice(prefetchStartIndex, prefetchEndIndex);
-      
-      if (prefetchedAffirmations.length === 0) {
-        return;
-      }
-      
-      const resolvedUrls = this.resolveAffirmationUrls(prefetchedAffirmations, playlist, voiceId, 'QUEUE-ADD');
-      const tracks = this.buildTracksWithResolvedUrls(prefetchedAffirmations, resolvedUrls);
-      
-      if (tracks.length > 0) {
-        // Guard again before mutating queue
-        if (sessionId !== this.activeSessionId) return;
-        await this.audioSystem.addTracksToQueue(tracks);
-      }
+      // Step 3: Resolve URLs and add tracks to queue
+      await this.addResolvedTracksToQueue(prefetchedAffirmations, playlist, voiceId, sessionId);
       
     } catch (error) {
       console.error('❌ Failed to add prefetched tracks to queue (non-blocking):', error);
@@ -482,16 +534,11 @@ export class AudioCoordinator {
     try {
       // Abort early if session already changed
       if (sessionId !== this.activeSessionId) return;
-      const cdnClient = this.cdnFactory.getDefaultClient();
-      const trackIdsToPrefetch = this.generatePrefetchTrackIds(playlist, voiceId);
       
-      if (trackIdsToPrefetch.length === 0) {
-        return;
-      }
+      const trackIdsToPrefetch = this.generatePrefetchTrackIds(playlist, voiceId);
+      if (trackIdsToPrefetch.length === 0) return;
 
-      // Guard again before network work (best-effort)
-      if (sessionId !== this.activeSessionId) return;
-      await cdnClient.prefetch(trackIdsToPrefetch);
+      await this.executeCDNPrefetch(trackIdsToPrefetch, sessionId);
     } catch (error) {
       console.error('❌ CDN prefetch error (non-blocking):', error);
       // Don't throw - prefetch failures should not block playback
@@ -655,25 +702,89 @@ export class AudioCoordinator {
     }
   }
 
-  // Switch to a new voice without downloads; assumes local files exist
-  private voiceSwitchTransaction = async (data: {
+  /**
+   * CDN PREFETCHING HELPER METHODS (Internal refactoring for better readability)
+   * These methods break down complex CDN prefetching and queue management logic.
+   */
+
+  /**
+   * Execute CDN prefetch operation with session validation
+   */
+  private async executeCDNPrefetch(trackIdsToPrefetch: CanonicalTrackId[], sessionId: string): Promise<void> {
+    // Guard again before network work (best-effort)
+    if (sessionId !== this.activeSessionId) return;
+    
+    const cdnClient = this.cdnFactory!.getDefaultClient();
+    await cdnClient.prefetch(trackIdsToPrefetch);
+  }
+
+  /**
+   * Wait for prefetch delay and validate session is still active
+   */
+  private async validateSessionAndWait(sessionId: string): Promise<boolean> {
+    await new Promise(resolve => setTimeout(resolve, AUDIO_CONFIG.PREFETCH_DELAY_MS));
+    
+    // Abort if session changed (playlist switched)
+    return sessionId === this.activeSessionId;
+  }
+
+  /**
+   * Calculate prefetch range and return sliced affirmations
+   */
+  private calculatePrefetchRange(playlist: Playlist): { id: string; text: string }[] {
+    const prefetchStartIndex = PREFETCH_START_INDEX;
+    const prefetchEndIndex = Math.min(
+      prefetchStartIndex + AUDIO_CONFIG.PREFETCH_TRACK_COUNT,
+      playlist.affirmations.length
+    );
+    
+    return playlist.affirmations.slice(prefetchStartIndex, prefetchEndIndex);
+  }
+
+  /**
+   * Resolve URLs and add tracks to audio system queue
+   */
+  private async addResolvedTracksToQueue(
+    affirmations: { id: string; text: string }[], 
+    playlist: Playlist, 
+    voiceId: VoiceId, 
+    sessionId: string
+  ): Promise<void> {
+    const resolvedUrls = this.resolveAffirmationUrls(affirmations, playlist, voiceId, 'QUEUE-ADD');
+    const tracks = this.buildTracksWithResolvedUrls(affirmations, resolvedUrls);
+    
+    if (tracks.length > 0) {
+      // Guard again before mutating queue
+      if (sessionId !== this.activeSessionId) return;
+      await this.audioSystem.addTracksToQueue(tracks);
+    }
+  }
+
+  /**
+   * VOICE SWITCH HELPER METHODS (Internal refactoring for better readability)
+   * These methods break down the complex voiceSwitchTransaction logic into focused steps.
+   */
+
+  /**
+   * Validate voice switch input data and extract parameters
+   */
+  private validateVoiceSwitchData(data: {
     newVoiceId: VoiceId;
     pausedState: PausedState;
     playlist: Playlist;
     globalDelayMs: number;
-  }) => {
-    console.log('🔄 [VOICE-SWITCH] Starting voice switch transaction:', {
-      newVoiceId: data.newVoiceId,
-      fromIndex: data.pausedState.trackIndex,
-      positionMs: data.pausedState.positionMs,
-      globalDelayMs: data.globalDelayMs
-    });
-    
+  }) {
     console.log('🔄 [VOICE-SWITCH] Executing main voice switch operation');
     const { newVoiceId, pausedState, playlist } = data;
     if (!playlist || !pausedState) throw new Error('Missing required data for voice switch');
+    
+    return { newVoiceId, pausedState, playlist };
+  }
 
-    const fromIndex = pausedState.trackIndex;
+  /**
+   * Build tracks for voice switch from current position
+   */
+  private buildVoiceSwitchTracks(playlist: Playlist, newVoiceId: VoiceId, fromIndex: number) {
     console.log('🔄 [VOICE-SWITCH] Building tracks from index:', fromIndex);
     
     const remainingAffirmations = playlist.affirmations.slice(fromIndex);
@@ -681,12 +792,22 @@ export class AudioCoordinator {
     
     // Use URL resolver for voice switching
     const resolvedUrls = this.resolveAffirmationUrls(remainingAffirmations, playlist, newVoiceId, 'VOICE-SWITCH');
-    
     console.log('🔄 [VOICE-SWITCH] Resolved URLs for voice:', resolvedUrls.length);
 
     const tracks = this.buildTracksWithResolvedUrls(remainingAffirmations, resolvedUrls);
     console.log('🔄 [VOICE-SWITCH] Built tracks with resolved URLs:', tracks.length);
+    
+    return tracks;
+  }
 
+  /**
+   * Update audio system with new voice tracks and resume playback
+   */
+  private async updateAudioSystemForVoiceSwitch(
+    tracks: any[], 
+    pausedState: PausedState, 
+    fromIndex: number
+  ): Promise<void> {
     // TODO - consider the perofrmance of this code - would this be too blocking for what we need? Could we update a quick few tracks and then
     // create a queue of tracks to play?
     console.log('🔄 [VOICE-SWITCH] Updating upcoming tracks...');
@@ -694,8 +815,47 @@ export class AudioCoordinator {
     
     console.log('🔄 [VOICE-SWITCH] Resuming affirmations with paused state...');
     await this.audioSystem.resumeAffirmations(pausedState);
+  }
 
-    console.log('✅ [VOICE-SWITCH] Voice switch completed successfully to:', newVoiceId);
+  /**
+   * Log voice switch progress with consistent formatting
+   */
+  private logVoiceSwitchProgress(message: string, data?: any): void {
+    if (data && typeof data === 'object' && 'newVoiceId' in data) {
+      // Initial log with full details
+      console.log(`🔄 [VOICE-SWITCH] ${message}:`, {
+        newVoiceId: data.newVoiceId,
+        fromIndex: data.pausedState?.trackIndex,
+        positionMs: data.pausedState?.positionMs,
+        globalDelayMs: data.globalDelayMs
+      });
+    } else {
+      // Completion or simple progress log
+      console.log(`✅ [VOICE-SWITCH] ${message}${data ? ':' : ''}`, data || '');
+    }
+  }
+
+  // Switch to a new voice without downloads; assumes local files exist
+  private voiceSwitchTransaction = async (data: {
+    newVoiceId: VoiceId;
+    pausedState: PausedState;
+    playlist: Playlist;
+    globalDelayMs: number;
+  }) => {
+    this.logVoiceSwitchProgress('Starting voice switch transaction', data);
+    
+    // Step 1: Validate input data and extract parameters
+    const validatedData = this.validateVoiceSwitchData(data);
+    const { newVoiceId, pausedState, playlist } = validatedData;
+    const fromIndex = pausedState.trackIndex;
+    
+    // Step 2: Build tracks for the new voice from current position
+    const tracks = this.buildVoiceSwitchTracks(playlist, newVoiceId, fromIndex);
+    
+    // Step 3: Update audio system with new tracks and resume playback
+    await this.updateAudioSystemForVoiceSwitch(tracks, pausedState, fromIndex);
+    
+    this.logVoiceSwitchProgress('Voice switch completed successfully', { voiceId: newVoiceId });
     return { voiceId: newVoiceId };
   };
 
@@ -713,33 +873,13 @@ export class AudioCoordinator {
     voiceId: VoiceId,
     context: string
   ): string[] {
-    console.log(`🔍 [${context}] Resolving URLs for ${affirmations.length} affirmations with voice: ${voiceId}`);
-    console.log(`🔍 [${context}] Playlist CDN URLs available for voice ${voiceId}:`, Object.keys(playlist.cdnUrls?.[voiceId] || {}));
+    this.logResolutionStart(affirmations, playlist, voiceId, context);
     
-    const results = affirmations.map((affirmation, index) => {
-      try {
-        console.log(`🔍 [${context}] [${index}] Resolving affirmation ID: ${affirmation.id}`);
-        const resolvedUrl = this.urlResolver.resolve(playlist, affirmation.id, voiceId);
-        console.log(`✅ [${context}] [${index}] Resolved to: ${typeof resolvedUrl} ${typeof resolvedUrl === 'number' ? `(require module ${resolvedUrl})` : `(${resolvedUrl})`}`);
-        
-        // Validate that resolved URL is playable
-        if (!this.urlResolver.isPlayable(resolvedUrl)) {
-          console.warn(`⚠️ [${context}] [${index}] Resolved URL not playable for ${affirmation.id}: ${resolvedUrl}`);
-          return null;
-        }
-        
-        console.log(`🎵 [${context}] [${index}] URL validation passed for ${affirmation.id}`);
-        return resolvedUrl;
-      } catch (error) {
-        console.error(`❌ [${context}] [${index}] Failed to resolve URL for ${affirmation.id}:`, error);
-        return null;
-      }
-    });
+    const results = affirmations.map((affirmation, index) => 
+      this.resolveIndividualAffirmationUrl(affirmation, playlist, voiceId, context, index)
+    );
     
-    const filteredResults = results.filter(Boolean) as string[];
-    console.log(`📊 [${context}] URL Resolution Summary: ${filteredResults.length}/${affirmations.length} URLs resolved successfully`);
-    
-    return filteredResults;
+    return this.logResolutionSummary(results, affirmations.length, context);
   }
 
   /**
@@ -752,41 +892,129 @@ export class AudioCoordinator {
     affirmations: { id: string; text?: string }[], 
     resolvedUrls: string[]
   ): Track[] {
-    console.log(`🔧 [TRACK-BUILD] Building tracks from ${affirmations.length} affirmations and ${resolvedUrls.length} resolved URLs`);
+    const minLength = this.validateAndProcessArrays(affirmations, resolvedUrls);
     const tracks: Track[] = [];
-
-    // Ensure we have matching arrays
-    const minLength = Math.min(affirmations.length, resolvedUrls.length);
-    console.log(`🔧 [TRACK-BUILD] Processing ${minLength} tracks (minimum of affirmations and URLs)`);
     
     for (let index = 0; index < minLength; index++) {
-      const affirmation = affirmations[index];
-      const url = resolvedUrls[index];
-      
-      console.log(`🔧 [TRACK-BUILD] [${index}] Building track:`, {
-        id: affirmation.id,
-        title: affirmation.text?.substring(0, 30) + '...',
-        urlType: typeof url,
-        urlValue: typeof url === 'number' ? `require(${url})` : url?.toString().substring(0, 50)
-      });
-      
-      // URLs are already validated in resolveAffirmationUrls
-      const track = {
-        id: affirmation.id,
-        url: url as any,
-        title: affirmation.text || `Affirmation ${index + 1}`,
-        artist: AUDIO_CONFIG.DEFAULT_ARTIST_NAME,
-      };
-
+      const track = this.buildIndividualTrack(affirmations[index], resolvedUrls[index], index);
       tracks.push(track);
-      console.log(`✅ [TRACK-BUILD] [${index}] Track added to queue: ${track.id}`);
-
-      // Delay insertion disabled until silence assets are bundled or a timer-based gap is implemented
     }
 
-    console.log(`🎵 [TRACK-BUILD] Built ${tracks.length} tracks from ${affirmations.length} affirmations`);
-    console.log(`🎵 [TRACK-BUILD] Final tracks summary:`, tracks.map(t => ({ id: t.id, title: (t.title || '').substring(0, 20) + '...' })));
+    this.logTrackBuildingSummary(tracks, affirmations.length);
     return tracks;
+  }
+
+  /**
+   * URL RESOLUTION HELPER METHODS (Internal refactoring for better readability)
+   * These methods break down the complex URL resolution and track building logic.
+   */
+
+  /**
+   * Log the start of URL resolution with context and available CDN URLs
+   */
+  private logResolutionStart(
+    affirmations: { id: string }[],
+    playlist: Playlist,
+    voiceId: VoiceId,
+    context: string
+  ): void {
+    console.log(`🔍 [${context}] Resolving URLs for ${affirmations.length} affirmations with voice: ${voiceId}`);
+    console.log(`🔍 [${context}] Playlist CDN URLs available for voice ${voiceId}:`, Object.keys(playlist.cdnUrls?.[voiceId] || {}));
+  }
+
+  /**
+   * Resolve a single affirmation URL with validation and error handling
+   */
+  private resolveIndividualAffirmationUrl(
+    affirmation: { id: string },
+    playlist: Playlist,
+    voiceId: VoiceId,
+    context: string,
+    index: number
+  ): string | null {
+    try {
+      console.log(`🔍 [${context}] [${index}] Resolving affirmation ID: ${affirmation.id}`);
+      const resolvedUrl = this.urlResolver.resolve(playlist, affirmation.id, voiceId);
+      
+      // Handle the case where urlResolver returns a Promise (for CDN downloads)
+      if (resolvedUrl instanceof Promise) {
+        console.warn(`⚠️ [${context}] [${index}] Async URL resolution not supported in batch mode for ${affirmation.id}`);
+        return null;
+      }
+      
+      console.log(`✅ [${context}] [${index}] Resolved to: ${typeof resolvedUrl} ${typeof resolvedUrl === 'number' ? `(require module ${resolvedUrl})` : `(${resolvedUrl})`}`);
+      
+      // Validate that resolved URL is playable
+      if (!this.urlResolver.isPlayable(resolvedUrl)) {
+        console.warn(`⚠️ [${context}] [${index}] Resolved URL not playable for ${affirmation.id}: ${resolvedUrl}`);
+        return null;
+      }
+      
+      console.log(`🎵 [${context}] [${index}] URL validation passed for ${affirmation.id}`);
+      return resolvedUrl as string;
+    } catch (error) {
+      console.error(`❌ [${context}] [${index}] Failed to resolve URL for ${affirmation.id}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Filter results and log resolution summary
+   */
+  private logResolutionSummary(results: (string | null)[], totalCount: number, context: string): string[] {
+    const filteredResults = results.filter(Boolean) as string[];
+    console.log(`📊 [${context}] URL Resolution Summary: ${filteredResults.length}/${totalCount} URLs resolved successfully`);
+    return filteredResults;
+  }
+
+  /**
+   * Validate arrays and return minimum processing length
+   */
+  private validateAndProcessArrays(
+    affirmations: { id: string; text?: string }[],
+    resolvedUrls: string[]
+  ): number {
+    console.log(`🔧 [TRACK-BUILD] Building tracks from ${affirmations.length} affirmations and ${resolvedUrls.length} resolved URLs`);
+    const minLength = Math.min(affirmations.length, resolvedUrls.length);
+    console.log(`🔧 [TRACK-BUILD] Processing ${minLength} tracks (minimum of affirmations and URLs)`);
+    return minLength;
+  }
+
+  /**
+   * Build a single track with logging
+   */
+  private buildIndividualTrack(
+    affirmation: { id: string; text?: string },
+    url: string,
+    index: number
+  ): Track {
+    console.log(`🔧 [TRACK-BUILD] [${index}] Building track:`, {
+      id: affirmation.id,
+      title: affirmation.text?.substring(0, 30) + '...',
+      urlType: typeof url,
+      urlValue: typeof url === 'number' ? `require(${url})` : url?.toString().substring(0, 50)
+    });
+    
+    // URLs are already validated in resolveAffirmationUrls
+    const track = {
+      id: affirmation.id,
+      url: url as any,
+      title: affirmation.text || `Affirmation ${index + 1}`,
+      artist: AUDIO_CONFIG.DEFAULT_ARTIST_NAME,
+    };
+
+    console.log(`✅ [TRACK-BUILD] [${index}] Track added to queue: ${track.id}`);
+    
+    // Delay insertion disabled until silence assets are bundled or a timer-based gap is implemented
+    return track;
+  }
+
+  /**
+   * Log track building completion summary
+   */
+  private logTrackBuildingSummary(tracks: Track[], totalAffirmations: number): void {
+    console.log(`🎵 [TRACK-BUILD] Built ${tracks.length} tracks from ${totalAffirmations} affirmations`);
+    console.log(`🎵 [TRACK-BUILD] Final tracks summary:`, tracks.map(t => ({ id: t.id, title: (t.title || '').substring(0, 20) + '...' })));
   }
 
   private getMachineActions() {
