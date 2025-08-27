@@ -370,14 +370,10 @@ DAY 13: ERROR BOUNDARIES & CRASH REPORTING (3-4 hours)
      - components/player/* (audio components)
      - app/(tabs)/* (main screens)
 
-2. CRASH REPORTING SETUP 📊 [PRODUCTION VISIBILITY]
-   □ Install @sentry/react-native
-   □ Create account and get DSN
-   □ Configure Sentry in app/_layout.tsx
-   □ Test error reporting in development
-   □ Add source maps for production builds
+2. CRASH REPORTING SETUP 📊 [PRODUCTION VISIBILITY] - DEFERRED
+   See DEFERRED TASKS section for Sentry implementation
 
-Validation: Error boundaries catch errors, Sentry receives test crashes
+Validation: Error boundaries catch errors and log locally
 
 DAY 14: REQUEST RELIABILITY (2-3 hours) 
 ----------------------------------------
@@ -511,6 +507,18 @@ SECURE TOKEN STORAGE 🔒 [DEFERRED FROM DAY 12]
 
 REASON FOR DEFERRAL: Current AsyncStorage implementation works for development.
 Security improvement can be implemented after core functionality is stable.
+
+SENTRY CRASH REPORTING 📊 [DEFERRED FROM DAY 13]
+-----------------------------------------------
+□ Create Sentry account and get project DSN
+□ Install @sentry/react-native: npm install @sentry/react-native
+□ Configure Sentry in app/_layout.tsx with DSN
+□ Set up source maps for production builds
+□ Test error reporting in development environment
+□ Add release tracking for production deployments
+
+REASON FOR DEFERRAL: ErrorBoundaries with local logging provide immediate stability.
+Sentry integration requires account setup and can be added after core error handling is working.
 
 ====================================================
 VALIDATION CHECKLIST

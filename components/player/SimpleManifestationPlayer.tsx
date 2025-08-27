@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRODUCTION_PLAYLIST } from '../../data/productionPlaylist';
 import { getPlaylistById } from '../../data/playlists';
 import { useAudioSystem } from '../../hooks/useAudioSystem';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { BackgroundMusicModal } from './BackgroundMusicModal';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { StarField } from './StarField';
@@ -319,7 +320,13 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
 
 SimpleManifestationPlayerComponent.displayName = 'SimpleManifestationPlayer';
 
-export const SimpleManifestationPlayer = React.memo(SimpleManifestationPlayerComponent);
+const WrappedSimpleManifestationPlayer = React.memo(SimpleManifestationPlayerComponent);
+
+export const SimpleManifestationPlayer: React.FC = () => (
+  <ErrorBoundary>
+    <WrappedSimpleManifestationPlayer />
+  </ErrorBoundary>
+);
 
 const styles = StyleSheet.create({
   container: {

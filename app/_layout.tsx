@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -18,48 +19,50 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack
-        screenOptions={{
-          animation: 'fade',
-          animationDuration: 300,
-        }}
-      >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="auth" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_bottom',
-            gestureEnabled: false,
-          }} 
-        />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="player" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="search" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_right',
-          }} 
-        />
-        <Stack.Screen 
-          name="playlists/index" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_right',
-          }} 
-        />
-        <Stack.Screen 
-          name="playlists/[id]" 
-          options={{ 
-            headerShown: false,
-            animation: 'slide_from_right',
-          }} 
-        />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack
+          screenOptions={{
+            animation: 'fade',
+            animationDuration: 300,
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen 
+            name="auth" 
+            options={{ 
+              headerShown: false,
+              animation: 'slide_from_bottom',
+              gestureEnabled: false,
+            }} 
+          />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="player" options={{ headerShown: false }} />
+          <Stack.Screen 
+            name="search" 
+            options={{ 
+              headerShown: false,
+              animation: 'slide_from_right',
+            }} 
+          />
+          <Stack.Screen 
+            name="playlists/index" 
+            options={{ 
+              headerShown: false,
+              animation: 'slide_from_right',
+            }} 
+          />
+          <Stack.Screen 
+            name="playlists/[id]" 
+            options={{ 
+              headerShown: false,
+              animation: 'slide_from_right',
+            }} 
+          />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
