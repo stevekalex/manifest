@@ -21,7 +21,6 @@ import { ActionIcon } from '@/components/common/ActionIcon';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Playlist } from '@/types/audio';
 import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
-import { warn } from '@/utils/logger';
 
 interface RouteParams {
   id: string;
@@ -46,13 +45,7 @@ export default function PlaylistDetailScreen() {
   const params = useLocalSearchParams();
   const { id, themeName, themeDescription, themeImageUrl } = (params as unknown) as RouteParams;
   
-  // Validate required playlist ID
-  if (!id) {
-    warn('[PLAYLIST] No ID provided, redirecting');
-    router.back();
-    return null;
-  }
-  
+  // All hooks must be called before any early returns
   const [playlist, setPlaylist] = useState<Playlist | undefined>(undefined);
   const [manifestations, setManifestations] = useState<Manifestation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +56,7 @@ export default function PlaylistDetailScreen() {
   const tintColor = useThemeColor({}, 'tint');
 
   const { isLiked: isLikedFromHook, toggleLike } = usePlaylistLikeStatus(String(id || ''));
+  
   useEffect(() => {
     setIsLiked(!!isLikedFromHook);
   }, [isLikedFromHook]);

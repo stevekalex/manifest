@@ -1,12 +1,39 @@
+import { useMemo } from 'react';
 import { getAudioCoordinator } from '../services/audioCoordinator';
 import { CDNFactory } from '../services/cdn/CDNFactory';
 import { useAudioStore } from '../store/audioStore';
 import type { Playlist, VoiceId } from '../types/audio';
+import { audioLog } from '../utils/logger';
+
+// Singleton CDNFactory - shared across all components
+let sharedCDNFactory: CDNFactory | null = null;
+
+const getSharedCDNFactory = (): CDNFactory => {
+  if (!sharedCDNFactory) {
+    sharedCDNFactory = new CDNFactory();
+  }
+  return sharedCDNFactory;
+};
+
+/**
+ * Reset shared CDNFactory instance (primarily for testing or config changes)
+ */
+export const resetSharedCDNFactory = (): void => {
+  sharedCDNFactory = null;
+};
+
+/**
+ * Get the current shared CDNFactory instance (for configuration changes)
+ */
+export const getSharedCDNFactoryInstance = (): CDNFactory | null => {
+  return sharedCDNFactory;
+};
 
 export const useAudioSystem = () => {
   const storeState = useAudioStore();
   
-  const coordinator = getAudioCoordinator(new CDNFactory());
+  // Use memoized coordinator with shared CDNFactory
+  const coordinator = useMemo(() => getAudioCoordinator(getSharedCDNFactory()), []);
   
   return {
     // All store state
@@ -29,8 +56,8 @@ export const useAudioSystem = () => {
       coordinator.stop();
     },
     
-    stopAll: async () => {
-      await coordinator.stop();
+    stopAll: () => {
+      coordinator.stop();
     },
     
     switchPlaylist: async (newPlaylist: Playlist, voiceId: VoiceId) => {
@@ -59,21 +86,21 @@ export const useAudioSystem = () => {
     },
     
     setBackgroundVolume: async (volume: number) => {
-      console.log('🎵 useAudioSystem.setBackgroundVolume called with:', volume);
+      audioLog('[AUDIO-SYSTEM] Setting background volume:', volume);
       await coordinator.setBackgroundVolume(volume);
-      console.log('✅ useAudioSystem.setBackgroundVolume completed');
+      audioLog('[AUDIO-SYSTEM] Background volume set successfully');
     },
     
     setAffirmationVolume: async (volume: number) => {
-      console.log('🎤 useAudioSystem.setAffirmationVolume called with:', volume);
+      audioLog('[AUDIO-SYSTEM] Setting affirmation volume:', volume);
       await coordinator.setAffirmationVolume(volume);
-      console.log('✅ useAudioSystem.setAffirmationVolume completed');
+      audioLog('[AUDIO-SYSTEM] Affirmation volume set successfully');
     },
     
     switchBackgroundTrack: async (soundId: string) => {
-      console.log('🔄 useAudioSystem.switchBackgroundTrack called with:', soundId);
+      audioLog('[AUDIO-SYSTEM] Switching background track:', soundId);
       await coordinator.switchBackgroundTrack(soundId);
-      console.log('✅ useAudioSystem.switchBackgroundTrack completed');
+      audioLog('[AUDIO-SYSTEM] Background track switched successfully');
     },
   };
 };

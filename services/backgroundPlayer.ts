@@ -1,4 +1,4 @@
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { Audio, AVPlaybackStatus, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 
 export class BackgroundPlayer {
   private background?: Audio.Sound;
@@ -14,13 +14,22 @@ export class BackgroundPlayer {
   }
   
   private async setupAudioMode() {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      staysActiveInBackground: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-    });
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+        // Enhanced interruption handling for meditation apps
+        interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      });
+      console.log(`✅ BackgroundPlayer[${this.instanceId}]: Audio mode configured successfully`);
+    } catch (error) {
+      console.error(`❌ BackgroundPlayer[${this.instanceId}]: Failed to configure audio mode:`, error);
+      // Continue execution - audio mode setup failure shouldn't prevent app functionality
+    }
   }
   
   async playBackground(localPath: string | number, volume: number = 0.7) {
