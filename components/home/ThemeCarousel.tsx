@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/theme/Themed';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Theme, ThemePlaylist } from '@/types/audio';
+import { audioLog } from '@/utils/logger';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React from 'react';
@@ -39,7 +40,7 @@ export function ThemeCarousel({ theme }: ThemeCarouselProps) {
   const tintColor = useThemeColor({}, 'tint');
 
   const handlePlaylistPress = (playlist: ThemePlaylist) => {
-    console.log('🎯 ThemeCarousel: handlePlaylistPress called with playlist:', playlist);
+    audioLog('[THEME] Playlist press:', playlist.name);
     
     const navigationParams = {
       themeName: playlist.name,
@@ -48,8 +49,7 @@ export function ThemeCarousel({ theme }: ThemeCarouselProps) {
       themeCreatedAt: playlist.created_at || '',
     };
     
-    console.log('🚀 ThemeCarousel: Navigating to playlist with params:', navigationParams);
-    console.log('🚀 ThemeCarousel: Full navigation path:', `/playlists/${playlist.id}`);
+    audioLog('[THEME] Navigating to playlist:', `/playlists/${playlist.id}`, navigationParams);
     
     // Pass theme playlist information to the playlist detail page
     // This allows the playlist page to display theme-specific info (name, description, image)

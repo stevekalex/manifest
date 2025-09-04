@@ -127,3 +127,21 @@ export interface ThemePlaylist {
 export interface ThemesApiResponse {
   themes: Theme[];
 }
+
+// Search-optimized playlist metadata (lightweight for client-side filtering)
+export interface PlaylistSearchResult {
+  id: PlaylistId;
+  name: string;
+  description?: string;
+  coverImage?: any;
+  listensCount?: number;
+  category?: string;
+}
+
+// Search functionality types
+export interface SearchOptions {
+  query: string;
+  includeDescription?: boolean;
+  caseSensitive?: boolean;
+  limit?: number;
+}

@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { audioLog, audioWarn, audioError } from './logger';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+
+// API Configuration
+const API_CONFIG = {
+  TIMEOUT_MS: 20000, // 20 second timeout
+  MAX_RETRIES: 3,
+  RETRY_DELAYS: [1000, 2000, 4000], // Exponential backoff: 1s, 2s, 4s
+  CIRCUIT_BREAKER_THRESHOLD: 5, // Fail after 5 consecutive errors
+  CIRCUIT_BREAKER_RESET_TIME: 30000, // Reset circuit after 30 seconds
+} as const;
 
 export interface ApiResponse<T> {
   data?: T;
@@ -16,6 +26,9 @@ export interface ApiError {
 
 class ApiClient {
   private baseUrl: string;
+  private failureCount = 0;
+  private lastFailureTime = 0;
+  private isCircuitOpen = false;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
@@ -25,19 +38,70 @@ class ApiClient {
     try {
       return await AsyncStorage.getItem('access_token');
     } catch (error) {
-      console.error('Failed to get auth token:', error);
+      audioError('[API] Failed to get auth token:', error);
       return null;
     }
   }
 
-  private async request<T>(
-    endpoint: string, 
-    options: RequestInit & { requireAuth?: boolean } = {}
+  private isCircuitBreakerOpen(): boolean {
+    if (!this.isCircuitOpen) return false;
+    
+    // Reset circuit breaker after timeout
+    if (Date.now() - this.lastFailureTime > API_CONFIG.CIRCUIT_BREAKER_RESET_TIME) {
+      audioLog('[API] Circuit breaker reset - allowing requests');
+      this.isCircuitOpen = false;
+      this.failureCount = 0;
+      return false;
+    }
+    
+    return true;
+  }
+
+  private recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+    
+    if (this.failureCount >= API_CONFIG.CIRCUIT_BREAKER_THRESHOLD) {
+      this.isCircuitOpen = true;
+      audioWarn(`[API] Circuit breaker opened after ${this.failureCount} failures`);
+    }
+  }
+
+  private recordSuccess(): void {
+    if (this.failureCount > 0) {
+      audioLog('[API] Request succeeded - resetting failure count');
+    }
+    this.failureCount = 0;
+    this.isCircuitOpen = false;
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async requestWithTimeout<T>(
+    endpoint: string,
+    options: RequestInit & { requireAuth?: boolean } = {},
+    attempt = 1
   ): Promise<ApiResponse<T>> {
+    // Check circuit breaker
+    if (this.isCircuitBreakerOpen()) {
+      return {
+        error: 'Service temporarily unavailable - circuit breaker is open',
+        code: 'CIRCUIT_BREAKER_OPEN'
+      };
+    }
+
+    const { requireAuth = false, ...requestOptions } = options;
+    const url = `${this.baseUrl}${endpoint}`;
+    const controller = new AbortController();
+    
+    // Set up timeout
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, API_CONFIG.TIMEOUT_MS);
+
     try {
-      const { requireAuth = false, ...requestOptions } = options;
-      const url = `${this.baseUrl}${endpoint}`;
-      
       const headers: Record<string, string> = {};
       // Merge any provided headers (only string-string pairs)
       if (requestOptions.headers && typeof requestOptions.headers === 'object') {
@@ -63,16 +127,21 @@ class ApiClient {
         }
       }
 
-      console.log(`🌐 API ${requestOptions.method || 'GET'} ${url}`, requestOptions.body ? { body: requestOptions.body } : '');
+      const logBody = requestOptions.body ? { hasBody: true } : '';
+      audioLog(`[API] ${requestOptions.method || 'GET'} ${url} (attempt ${attempt}/${API_CONFIG.MAX_RETRIES})`, logBody);
 
       const response = await fetch(url, {
         ...requestOptions,
         headers,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       // Handle 204 No Content gracefully
       if (response.status === 204) {
-        console.log(`📡 API Response ${response.status}: (no content)`);
+        audioLog(`[API] Response ${response.status}: (no content)`);
+        this.recordSuccess();
         return { data: undefined as unknown as T };
       }
 
@@ -85,23 +154,83 @@ class ApiClient {
         // Non-JSON or empty body; keep data undefined
         data = undefined;
       }
-      console.log(`📡 API Response ${response.status}:`, data);
+      
+      audioLog(`[API] Response ${response.status}:`, data ? { hasData: true } : { hasData: false });
 
       if (!response.ok) {
-        return {
-          error: data.error || `HTTP ${response.status}: ${response.statusText}`,
-          code: data.code || 'REQUEST_FAILED'
+        const error = {
+          error: data?.error || `HTTP ${response.status}: ${response.statusText}`,
+          code: data?.code || 'REQUEST_FAILED'
         };
+        
+        // Record failure for circuit breaker
+        this.recordFailure();
+        
+        return error;
       }
 
+      this.recordSuccess();
       return { data };
     } catch (error) {
-      console.error('API request failed:', error);
+      clearTimeout(timeoutId);
+      
+      // Handle abort/timeout specifically
+      if (error instanceof Error && error.name === 'AbortError') {
+        audioError(`[API] Request timeout after ${API_CONFIG.TIMEOUT_MS}ms:`, { url, attempt });
+        this.recordFailure();
+        return {
+          error: `Request timeout after ${API_CONFIG.TIMEOUT_MS / 1000} seconds`,
+          code: 'TIMEOUT_ERROR'
+        };
+      }
+      
+      audioError(`[API] Request failed:`, { error: error instanceof Error ? error.message : error, url, attempt });
+      this.recordFailure();
+      
       return {
         error: error instanceof Error ? error.message : 'Network error occurred',
         code: 'NETWORK_ERROR'
       };
     }
+  }
+
+  private async request<T>(
+    endpoint: string, 
+    options: RequestInit & { requireAuth?: boolean } = {}
+  ): Promise<ApiResponse<T>> {
+    let lastError: ApiResponse<T> | null = null;
+    
+    for (let attempt = 1; attempt <= API_CONFIG.MAX_RETRIES; attempt++) {
+      const result = await this.requestWithTimeout<T>(endpoint, options, attempt);
+      
+      // Success - return immediately
+      if (!result.error) {
+        if (attempt > 1) {
+          audioLog(`[API] Request succeeded on attempt ${attempt}`);
+        }
+        return result;
+      }
+      
+      lastError = result;
+      
+      // Don't retry on auth errors or circuit breaker
+      if (result.code === 'UNAUTHORIZED' || result.code === 'CIRCUIT_BREAKER_OPEN') {
+        return result;
+      }
+      
+      // Don't retry on final attempt
+      if (attempt === API_CONFIG.MAX_RETRIES) {
+        audioWarn(`[API] All ${API_CONFIG.MAX_RETRIES} attempts failed for ${endpoint}`);
+        return result;
+      }
+      
+      // Wait before retry (exponential backoff)
+      const delay = API_CONFIG.RETRY_DELAYS[attempt - 1] || API_CONFIG.RETRY_DELAYS[API_CONFIG.RETRY_DELAYS.length - 1];
+      audioLog(`[API] Retrying in ${delay}ms... (${result.error})`);
+      await this.sleep(delay);
+    }
+    
+    return lastError!;
   }
 
   async get<T>(endpoint: string, requireAuth = false): Promise<ApiResponse<T>> {
@@ -192,6 +321,39 @@ class ApiClient {
     isLiked: boolean;
   }>> {
     return this.get(`/liked-playlists/${playlistId}/status`, true);
+  }
+
+  // Playlist search methods
+  async getAllPlaylists(params?: { 
+    search?: string; 
+    limit?: number; 
+    offset?: number; 
+  }): Promise<ApiResponse<{
+    id: string;
+    slug: string;
+    name: string;
+    description?: string;
+    created_at: string;
+  }[]>> {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/playlists${queryString ? `?${queryString}` : ''}`;
+    
+    return this.get(endpoint);
+  }
+
+  async searchPlaylists(query: string, limit = 50): Promise<ApiResponse<{
+    id: string;
+    slug: string;
+    name: string;
+    description?: string;
+    created_at: string;
+  }[]>> {
+    return this.getAllPlaylists({ search: query, limit });
   }
 }
 

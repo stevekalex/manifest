@@ -21,6 +21,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Playlist } from '@/types/audio';
 import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
 import { apiClient } from '@/utils/api';
+import { audioWarn, audioError } from '@/utils/logger';
 
 interface RouteParams {
   id: string;
@@ -68,7 +69,7 @@ export default function PlaylistDetailScreen() {
         console.log('⚙️ PlaylistDetailScreen: Current params in useEffect:', { id, themeName, themeDescription, themeImageUrl });
         
         if (!id) {
-          console.error('❌ PlaylistDetailScreen: No playlist ID provided in URL');
+          audioError('[PLAYLIST] No playlist ID provided in URL');
           setPlaylist(undefined);
           setIsLoading(false);
           return;
@@ -183,7 +184,7 @@ export default function PlaylistDetailScreen() {
                 [assetUrl]: localAsset
               };
             } else {
-              console.warn(`⚠️ No local asset found for ${filename} from asset_url=${assetUrl}`);
+              audioWarn(`[PLAYLIST] No local asset found for ${filename}`);
               console.log(`    Available filenames in assetMap:`, Object.keys(assetMap).slice(0, 5));
               
               // FALLBACK: Use TTS placeholder for playlists without local audio
@@ -234,7 +235,7 @@ export default function PlaylistDetailScreen() {
         setPlaylist(apiPlaylist);
         
       } catch (error) {
-        console.error('💥 PlaylistDetailScreen: Error loading playlist data:', error);
+        audioError('[PLAYLIST] Error loading playlist data:', error);
         setPlaylist(undefined);
         setManifestations([]);
       } finally {

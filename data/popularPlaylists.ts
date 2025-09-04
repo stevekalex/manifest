@@ -149,4 +149,34 @@ export const POPULAR_PLAYLISTS: Playlist[] = [
     'Transform negative thoughts into positive, empowering beliefs',
     119000
   ),
+  createPopularPlaylist(
+    'evening-gratitude',
+    'Evening Gratitude & Reflection',
+    'End your day with thankfulness and peaceful reflection on your blessings',
+    98000
+  ),
+  createPopularPlaylist(
+    'sleep-preparation',
+    'Sleep & Deep Rest',
+    'Gentle affirmations to help you unwind and prepare for restful sleep',
+    87000
+  ),
+  createPopularPlaylist(
+    'anxiety-relief',
+    'Anxiety Relief',
+    'Calm your nervous system and reduce worry with reassuring affirmations',
+    76000
+  ),
+  createPopularPlaylist(
+    'self-love',
+    'Self-Love & Acceptance',
+    'Cultivate unconditional love and acceptance for yourself as you are',
+    65000
+  ),
+  createPopularPlaylist(
+    'focus-concentration',
+    'Focus & Mental Clarity',
+    'Enhance your concentration and mental sharpness for important tasks',
+    54000
+  ),
 ];

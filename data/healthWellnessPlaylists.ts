@@ -1,7 +1,7 @@
 import type { Playlist } from '../types/audio';
 
-// Base template for financial playlists - all use same audio files but different themes
-const createFinancialPlaylist = (
+// Base template for health & wellness playlists - all use same audio files but different themes
+const createHealthPlaylist = (
   id: string,
   name: string,
   description: string,
@@ -57,114 +57,108 @@ const createFinancialPlaylist = (
   affirmations: [
     {
       id: 'affirmation-0',
-      text: 'I allow myself to be who I am meant to be',
+      text: 'My body is healthy, strong, and full of vitality',
       order: 0,
       durationMs: 5000,
     },
     {
       id: 'affirmation-1', 
-      text: 'I am worthy of all the abundance the universe has to offer',
+      text: 'I nourish my body with healthy choices and self-care',
       order: 1,
       durationMs: 6000,
     },
     {
       id: 'affirmation-2',
-      text: 'Success flows to me effortlessly and naturally',
+      text: 'Every cell in my body radiates perfect health',
       order: 2,
       durationMs: 5500,
     },
     {
       id: 'affirmation-3',
-      text: 'I attract positive opportunities into my life',
+      text: 'I am grateful for my body and treat it with respect',
       order: 3,
       durationMs: 5000,
     },
     {
       id: 'affirmation-4',
-      text: 'I am confident in my ability to achieve my dreams',
+      text: 'My mind is calm and my stress melts away',
       order: 4,
       durationMs: 5500,
     },
     {
       id: 'affirmation-5',
-      text: 'Money comes to me easily and frequently',
+      text: 'I sleep peacefully and wake up refreshed',
       order: 5,
       durationMs: 4500,
     },
     {
       id: 'affirmation-6',
-      text: 'I am grateful for all the blessings in my life',
+      text: 'I have abundant energy for all I wish to accomplish',
       order: 6,
       durationMs: 5000,
     },
     {
       id: 'affirmation-7',
-      text: 'I radiate positive energy and attract positive people',
+      text: 'My immune system is strong and protects me',
       order: 7,
       durationMs: 6000,
     },
     {
       id: 'affirmation-8',
-      text: 'My mind is focused on success and prosperity',
+      text: 'I choose thoughts that support my wellbeing',
       order: 8,
       durationMs: 5000,
     },
     {
       id: 'affirmation-9',
-      text: 'Every day, I am becoming more successful',
+      text: 'I am in perfect harmony with my body and mind',
       order: 9,
       durationMs: 4500,
     },
   ],
 });
 
-export const FINANCIAL_PLAYLISTS: Playlist[] = [
-  createFinancialPlaylist(
-    'abundance-mindset',
-    'Abundance Mindset',
-    'Reprogram your mind for unlimited wealth and prosperity',
-    142000
+export const HEALTH_WELLNESS_PLAYLISTS: Playlist[] = [
+  createHealthPlaylist(
+    'perfect-health',
+    'Perfect Health & Vitality',
+    'Program your mind for optimal health and vibrant energy throughout your body',
+    89000
   ),
-  createFinancialPlaylist(
-    'money-magnetism',
-    'Money Magnetism',
-    'Become a powerful magnet for financial opportunities and wealth',
-    98000
+  createHealthPlaylist(
+    'weight-loss-mindset',
+    'Healthy Weight & Body Love',
+    'Transform your relationship with food and embrace your ideal healthy body',
+    73000
   ),
-  createFinancialPlaylist(
-    'prosperity-flow',
-    'Prosperity Flow',
-    'Open yourself to receiving abundance from all sources',
-    76000
+  createHealthPlaylist(
+    'healing-recovery',
+    'Healing & Recovery',
+    'Support your body\'s natural healing process and accelerate recovery',
+    61000
   ),
-  createFinancialPlaylist(
-    'wealth-consciousness',
-    'Wealth Consciousness',
-    'Develop the mindset of financially successful people',
-    63000
-  ),
-  createFinancialPlaylist(
-    'financial-freedom',
-    'Financial Freedom Journey',
-    'Break free from money limitations and create lasting financial independence',
+  createHealthPlaylist(
+    'energy-vitality',
+    'Energy & Vitality Boost',
+    'Increase your natural energy levels and feel more vibrant every day',
     55000
   ),
-  createFinancialPlaylist(
-    'entrepreneur-success',
-    'Entrepreneur Success',
-    'Build unstoppable business confidence and attract profitable opportunities',
-    48000
+  createHealthPlaylist(
+    'immune-system',
+    'Strong Immune System',
+    'Strengthen your body\'s natural defenses and maintain optimal health',
+    47000
   ),
-  createFinancialPlaylist(
-    'debt-freedom',
-    'Debt-Free Living',
-    'Transform your relationship with money and eliminate financial stress',
-    41000
+  createHealthPlaylist(
+    'pain-relief',
+    'Pain Relief & Comfort',
+    'Reduce physical discomfort and promote healing through positive mindset',
+    39000
   ),
-  createFinancialPlaylist(
-    'investment-confidence',
-    'Investment & Growth Mindset',
-    'Develop smart money habits and confidence in wealth-building decisions',
-    34000
+  createHealthPlaylist(
+    'addiction-freedom',
+    'Freedom from Habits',
+    'Break free from unwanted habits and create healthy lifestyle patterns',
+    33000
   ),
 ];

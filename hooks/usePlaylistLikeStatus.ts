@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { router } from 'expo-router';
 import { apiClient } from '@/utils/api';
 import { useAuth } from '@/hooks/useAuth';
+import { audioLog, audioWarn, audioError } from '@/utils/logger';
 
 export interface UsePlaylistLikeStatusResult {
   isLiked: boolean;
@@ -16,32 +17,47 @@ export function usePlaylistLikeStatus(playlistId: string): UsePlaylistLikeStatus
   const [error, setError] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
 
-  console.log('🎯 usePlaylistLikeStatus hook initialized for playlist:', playlistId);
+  audioLog('[LIKE] Hook initialized for playlist:', playlistId);
 
   const checkLikeStatus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔍 Checking like status for playlist:', playlistId);
+      audioLog('[LIKE] Checking status for playlist:', playlistId);
       
       if (!isAuthenticated) {
         // When not authenticated, treat as not liked without error noise
         setIsLiked(false);
+        setLoading(false);
+        return;
+      }
+      
+      // For sample/demo data, just return false without API call
+      if (playlistId.includes('production-') || playlistId.includes('confidence-') || 
+          playlistId.includes('financial-') || playlistId.includes('relationship-') ||
+          playlistId.includes('health-') || playlistId.includes('inner-peace') ||
+          playlistId.includes('morning-') || playlistId.includes('stress-') ||
+          playlistId.includes('positive-') || playlistId.includes('evening-') ||
+          playlistId.includes('sleep-') || playlistId.includes('anxiety-') ||
+          playlistId.includes('self-love') || playlistId.includes('focus-')) {
+        audioLog('[LIKE] Using sample data - no API call needed');
+        setIsLiked(false);
+        setLoading(false);
         return;
       }
       
       const response = await apiClient.checkPlaylistLikedStatus(playlistId);
       
       if (response.error) {
-        console.error('❌ Check like status error:', response.error);
+        audioError('[LIKE] Check status error:', response.error);
         setError(response.error);
         setIsLiked(false);
       } else {
-        console.log('✅ Like status response:', response.data);
+        audioLog('[LIKE] Status response received:', { isLiked: response.data?.isLiked });
         setIsLiked(response.data?.isLiked || false);
       }
     } catch (err) {
-      console.error('💥 Check like status exception:', err);
+      audioError('[LIKE] Check status exception:', err);
       setError(err instanceof Error ? err.message : 'Failed to check like status');
       setIsLiked(false);
     } finally {
@@ -52,7 +68,7 @@ export function usePlaylistLikeStatus(playlistId: string): UsePlaylistLikeStatus
   const toggleLike = useCallback(async () => {
     try {
       setError(null);
-      console.log('🔄 Toggling like for playlist:', playlistId, 'Current status:', isLiked);
+      audioLog('[LIKE] Toggling for playlist:', playlistId, 'Current:', isLiked);
       
       if (!isAuthenticated) {
         setError('Authentication required');
@@ -61,29 +77,42 @@ export function usePlaylistLikeStatus(playlistId: string): UsePlaylistLikeStatus
         return;
       }
       
+      // For sample/demo data, just toggle locally without API call
+      if (playlistId.includes('production-') || playlistId.includes('confidence-') || 
+          playlistId.includes('financial-') || playlistId.includes('relationship-') ||
+          playlistId.includes('health-') || playlistId.includes('inner-peace') ||
+          playlistId.includes('morning-') || playlistId.includes('stress-') ||
+          playlistId.includes('positive-') || playlistId.includes('evening-') ||
+          playlistId.includes('sleep-') || playlistId.includes('anxiety-') ||
+          playlistId.includes('self-love') || playlistId.includes('focus-')) {
+        audioLog('[LIKE] Sample data - toggling locally');
+        setIsLiked(!isLiked);
+        return;
+      }
+      
       if (isLiked) {
-        console.log('➖ Unliking playlist...');
+        audioLog('[LIKE] Unliking playlist...');
         const response = await apiClient.unlikePlaylist(playlistId);
         if (response.error) {
-          console.error('❌ Failed to unlike:', response.error);
+          audioError('[LIKE] Failed to unlike:', response.error);
           setError(response.error);
           return;
         }
-        console.log('✅ Successfully unliked');
+        audioLog('[LIKE] Successfully unliked');
         setIsLiked(false);
       } else {
-        console.log('➕ Liking playlist...');
+        audioLog('[LIKE] Liking playlist...');
         const response = await apiClient.likePlaylist(playlistId);
         if (response.error) {
-          console.error('❌ Failed to like:', response.error);
+          audioError('[LIKE] Failed to like:', response.error);
           setError(response.error);
           return;
         }
-        console.log('✅ Successfully liked');
+        audioLog('[LIKE] Successfully liked');
         setIsLiked(true);
       }
     } catch (err) {
-      console.error('💥 Toggle like error:', err);
+      audioError('[LIKE] Toggle error:', err);
       setError(err instanceof Error ? err.message : 'Failed to toggle like');
     }
   }, [playlistId, isLiked, isAuthenticated]);

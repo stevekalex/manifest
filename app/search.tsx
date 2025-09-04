@@ -1,21 +1,33 @@
 import { ThemedText, ThemedView } from '@/components/theme/Themed';
 import { SearchBar } from '@/components/search/SearchBar';
+import { SearchResults } from '@/components/search/SearchResults';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePlaylistSearchHybrid } from '@/hooks/usePlaylistSearchHybrid';
+import { audioLog } from '@/utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { StatusBar, StyleSheet, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SearchScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    // TODO: Implement search functionality
-    console.log('Search query:', query);
+  // Initialize hybrid search hook
+  const {
+    searchQuery,
+    filteredPlaylists,
+    isSearching,
+    isLoadingPlaylists,
+    error,
+    handleSearch,
+    refreshPlaylists,
+    hasQuery,
+    isCacheStale,
+  } = usePlaylistSearchHybrid();
+
+  const handleSearchSubmit = (query: string) => {
+    audioLog('[SEARCH] Search submitted:', query);
   };
 
   const handleBackPress = () => {
@@ -37,30 +49,73 @@ export default function SearchScreen() {
             <Ionicons name="arrow-back" size={24} color={tintColor} />
           </TouchableOpacity>
           
-          <ThemedText style={styles.headerTitle}>Search</ThemedText>
+          <View style={styles.headerCenter}>
+            <ThemedText style={styles.headerTitle}>Search</ThemedText>
+          </View>
           
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity
+            style={[styles.refreshButton, { backgroundColor: `${tintColor}20` }]}
+            onPress={refreshPlaylists}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh" size={20} color={tintColor} />
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
         <SearchBar
-          placeholder="Search meditations, affirmations..."
-          onSearch={handleSearch}
-          autoFocus={true}
+          placeholder="Search playlists..."
+          onSearch={handleSearchSubmit}
+          onChangeText={handleSearch}
+          autoFocus={!isLoadingPlaylists}
         />
 
-        {/* Search Results Area */}
-        <View style={styles.resultsContainer}>
-          {searchQuery ? (
-            <ThemedText style={[styles.resultsText, { color: `${textColor}80` }]}>
-              Search results for &ldquo;{searchQuery}&rdquo; will appear here
+        {/* Loading State */}
+        {isLoadingPlaylists ? (
+          <ThemedView style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={tintColor} />
+            <ThemedText style={[styles.loadingText, { color: `${tintColor}80` }]}>
+              Loading playlists...
             </ThemedText>
-          ) : (
-            <ThemedText style={[styles.placeholderText, { color: `${textColor}60` }]}>
-              Start typing to search for meditations, affirmations, and more...
-            </ThemedText>
-          )}
-        </View>
+          </ThemedView>
+        ) : (
+          <>
+            {/* Cache Status */}
+            {isCacheStale && (
+              <View style={[styles.statusBar, { backgroundColor: `#ff6b6b20` }]}>
+                <ThemedText style={[styles.statusText, { color: '#ff6b6b' }]}>
+                  ⚠️ Data may be outdated. Tap refresh to update.
+                </ThemedText>
+              </View>
+            )}
+
+            {/* Search Results */}
+            <SearchResults
+              results={filteredPlaylists}
+              query={searchQuery}
+              isSearching={isSearching}
+              hasQuery={hasQuery}
+            />
+            
+            {/* Error Display */}
+            {error && (
+              <ThemedView style={styles.errorContainer}>
+                <ThemedText style={styles.errorText}>
+                  {error}
+                </ThemedText>
+                <TouchableOpacity 
+                  style={[styles.retryButton, { borderColor: tintColor }]}
+                  onPress={refreshPlaylists}
+                  activeOpacity={0.7}
+                >
+                  <ThemedText style={[styles.retryText, { color: tintColor }]}>
+                    Retry
+                  </ThemedText>
+                </TouchableOpacity>
+              </ThemedView>
+            )}
+          </>
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -87,30 +142,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
-  headerSpacer: {
-    width: 40,
-  },
-  resultsContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  resultsText: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
   },
-  placeholderText: {
+  loadingText: {
     fontSize: 16,
+    fontWeight: '500',
+  },
+  statusBar: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 13,
     textAlign: 'center',
-    lineHeight: 22,
-    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  errorContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    textAlign: 'center',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  retryButton: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  retryText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

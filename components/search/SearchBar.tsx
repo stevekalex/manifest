@@ -12,12 +12,14 @@ import Animated, {
 interface SearchBarProps {
   placeholder?: string;
   onSearch?: (query: string) => void;
+  onChangeText?: (query: string) => void;
   autoFocus?: boolean;
 }
 
 export function SearchBar({ 
   placeholder = "Search...",
   onSearch,
+  onChangeText,
   autoFocus = false
 }: SearchBarProps) {
   const [query, setQuery] = useState('');
@@ -67,7 +69,13 @@ export function SearchBar({
 
   const handleClear = () => {
     setQuery('');
+    onChangeText?.('');
     inputRef.current?.focus();
+  };
+
+  const handleTextChange = (text: string) => {
+    setQuery(text);
+    onChangeText?.(text);
   };
 
   const animatedContainerStyle = useAnimatedStyle(() => {
@@ -120,6 +128,8 @@ export function SearchBar({
           {/* Placeholder text when collapsed */}
           {!isExpanded && (
             <Animated.Text 
+              numberOfLines={1}
+              ellipsizeMode="tail"
               style={[
                 styles.placeholderText, 
                 { color: `${textColor}80` },
@@ -138,7 +148,7 @@ export function SearchBar({
               placeholder={placeholder}
               placeholderTextColor={`${textColor}60`}
               value={query}
-              onChangeText={setQuery}
+              onChangeText={handleTextChange}
               onFocus={handleFocus}
               onBlur={handleBlur}
               onSubmitEditing={handleSearch}

@@ -1,7 +1,7 @@
 import type { Playlist } from '../types/audio';
 
-// Base template for financial playlists - all use same audio files but different themes
-const createFinancialPlaylist = (
+// Base template for relationship playlists - all use same audio files but different themes
+const createRelationshipPlaylist = (
   id: string,
   name: string,
   description: string,
@@ -57,114 +57,102 @@ const createFinancialPlaylist = (
   affirmations: [
     {
       id: 'affirmation-0',
-      text: 'I allow myself to be who I am meant to be',
+      text: 'I attract loving and supportive relationships into my life',
       order: 0,
       durationMs: 5000,
     },
     {
       id: 'affirmation-1', 
-      text: 'I am worthy of all the abundance the universe has to offer',
+      text: 'I am worthy of deep love and meaningful connections',
       order: 1,
       durationMs: 6000,
     },
     {
       id: 'affirmation-2',
-      text: 'Success flows to me effortlessly and naturally',
+      text: 'I communicate with kindness and understanding',
       order: 2,
       durationMs: 5500,
     },
     {
       id: 'affirmation-3',
-      text: 'I attract positive opportunities into my life',
+      text: 'My relationships are built on trust and mutual respect',
       order: 3,
       durationMs: 5000,
     },
     {
       id: 'affirmation-4',
-      text: 'I am confident in my ability to achieve my dreams',
+      text: 'I forgive easily and love unconditionally',
       order: 4,
       durationMs: 5500,
     },
     {
       id: 'affirmation-5',
-      text: 'Money comes to me easily and frequently',
+      text: 'I set healthy boundaries with love and compassion',
       order: 5,
       durationMs: 4500,
     },
     {
       id: 'affirmation-6',
-      text: 'I am grateful for all the blessings in my life',
+      text: 'I am grateful for the love that surrounds me',
       order: 6,
       durationMs: 5000,
     },
     {
       id: 'affirmation-7',
-      text: 'I radiate positive energy and attract positive people',
+      text: 'I radiate love and attract loving people',
       order: 7,
       durationMs: 6000,
     },
     {
       id: 'affirmation-8',
-      text: 'My mind is focused on success and prosperity',
+      text: 'My heart is open to giving and receiving love',
       order: 8,
       durationMs: 5000,
     },
     {
       id: 'affirmation-9',
-      text: 'Every day, I am becoming more successful',
+      text: 'I create harmony and peace in all my relationships',
       order: 9,
       durationMs: 4500,
     },
   ],
 });
 
-export const FINANCIAL_PLAYLISTS: Playlist[] = [
-  createFinancialPlaylist(
-    'abundance-mindset',
-    'Abundance Mindset',
-    'Reprogram your mind for unlimited wealth and prosperity',
-    142000
+export const RELATIONSHIP_PLAYLISTS: Playlist[] = [
+  createRelationshipPlaylist(
+    'soulmate-attraction',
+    'Attract Your Soulmate',
+    'Open your heart to attract your perfect romantic partner and deep connection',
+    72000
   ),
-  createFinancialPlaylist(
-    'money-magnetism',
-    'Money Magnetism',
-    'Become a powerful magnet for financial opportunities and wealth',
-    98000
+  createRelationshipPlaylist(
+    'marriage-harmony',
+    'Marriage & Partnership Bliss',
+    'Strengthen your committed relationship and create lasting love and harmony',
+    59000
   ),
-  createFinancialPlaylist(
-    'prosperity-flow',
-    'Prosperity Flow',
-    'Open yourself to receiving abundance from all sources',
-    76000
+  createRelationshipPlaylist(
+    'family-healing',
+    'Family Relationships & Healing',
+    'Heal family wounds and create loving, supportive family connections',
+    46000
   ),
-  createFinancialPlaylist(
-    'wealth-consciousness',
-    'Wealth Consciousness',
-    'Develop the mindset of financially successful people',
-    63000
+  createRelationshipPlaylist(
+    'friendship-magnetism',
+    'Friendship & Social Connections',
+    'Attract genuine friendships and build meaningful social relationships',
+    38000
   ),
-  createFinancialPlaylist(
-    'financial-freedom',
-    'Financial Freedom Journey',
-    'Break free from money limitations and create lasting financial independence',
-    55000
+  createRelationshipPlaylist(
+    'forgiveness-healing',
+    'Forgiveness & Relationship Healing',
+    'Release past hurts and create space for love and healing in relationships',
+    31000
   ),
-  createFinancialPlaylist(
-    'entrepreneur-success',
-    'Entrepreneur Success',
-    'Build unstoppable business confidence and attract profitable opportunities',
-    48000
-  ),
-  createFinancialPlaylist(
-    'debt-freedom',
-    'Debt-Free Living',
-    'Transform your relationship with money and eliminate financial stress',
-    41000
-  ),
-  createFinancialPlaylist(
-    'investment-confidence',
-    'Investment & Growth Mindset',
-    'Develop smart money habits and confidence in wealth-building decisions',
-    34000
+  createRelationshipPlaylist(
+    'communication-mastery',
+    'Communication & Understanding',
+    'Improve your ability to communicate with love, clarity, and empathy',
+    27000
   ),
 ];

@@ -143,4 +143,28 @@ export const CONFIDENCE_PLAYLISTS: Playlist[] = [
     'Transform limiting beliefs and embrace your inherent worth',
     43000
   ),
+  createConfidencePlaylist(
+    'leadership-confidence',
+    'Leadership & Authority',
+    'Develop natural leadership qualities and command respect in any room',
+    38000
+  ),
+  createConfidencePlaylist(
+    'social-confidence',
+    'Social Confidence',
+    'Feel comfortable and charismatic in social situations and networking',
+    32000
+  ),
+  createConfidencePlaylist(
+    'body-confidence',
+    'Body Confidence & Self-Image',
+    'Love and appreciate your body while radiating confidence from within',
+    29000
+  ),
+  createConfidencePlaylist(
+    'public-speaking',
+    'Public Speaking Mastery',
+    'Overcome stage fright and become a confident, compelling speaker',
+    25000
+  ),
 ];

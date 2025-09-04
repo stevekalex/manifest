@@ -334,5 +334,5 @@ describe('Complete Playlist Switching Workflow', () => {
       expect(finalState.context.playlist?.affirmations.length).toBe(5);
       expect(finalState.context.currentTrackIndex).toBe(0);
     });
-    
+  });
 });
