@@ -61,8 +61,26 @@ export function ThemeCarousel({ theme }: ThemeCarouselProps) {
   };
 
   const handleViewAllPress = () => {
-    // Navigation disabled - no action taken
-    return;
+    console.log('🐛 [DEBUG] ThemeCarousel - View All pressed for theme:', theme.name);
+    console.log('🐛 [DEBUG] ThemeCarousel - Theme ID:', theme.id);
+    console.log('🐛 [DEBUG] ThemeCarousel - Theme playlists count:', theme.playlists.length);
+    console.log('🐛 [DEBUG] ThemeCarousel - Theme playlists:', theme.playlists);
+    
+    const playlistsJson = JSON.stringify(theme.playlists);
+    console.log('🐛 [DEBUG] ThemeCarousel - JSON stringified playlists:', playlistsJson);
+    
+    const navigationParams = { 
+      themeId: theme.id,
+      themeName: theme.name,
+      themePlaylists: playlistsJson
+    };
+    
+    console.log('🐛 [DEBUG] ThemeCarousel - Navigation params:', navigationParams);
+    
+    router.push({
+      pathname: '/all-playlists',
+      params: navigationParams
+    });
   };
 
   return (
@@ -84,12 +102,11 @@ export function ThemeCarousel({ theme }: ThemeCarouselProps) {
             )}
           </View>
           <TouchableOpacity
-            style={[styles.viewAllButton, { backgroundColor: `${tintColor}08` }]}
+            style={[styles.viewAllButton, { backgroundColor: `${tintColor}15` }]}
             onPress={handleViewAllPress}
-            activeOpacity={1}
-            disabled={true}
+            activeOpacity={0.7}
           >
-            <ThemedText style={[styles.viewAllText, { color: tintColor, opacity: 0.4 }]}>
+            <ThemedText style={[styles.viewAllText, { color: tintColor }]}>
               View all
             </ThemedText>
           </TouchableOpacity>
