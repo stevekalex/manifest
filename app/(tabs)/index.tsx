@@ -3,12 +3,11 @@ import { StateHandler } from '@/components/common/StateHandler';
 import { RecentlyPlayedCarousel } from '@/components/home/RecentlyPlayedCarousel';
 import { ThemeCarousel } from '@/components/home/ThemeCarousel';
 import { WelcomePage } from '@/components/welcome';
-import { getAllPlaylists } from '@/data/playlists';
 import { getAllThemes } from '@/data/themes';
 import { themesService } from '@/utils/themesService';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAudioSystem } from '@/hooks/useAudioSystem';
-import type { Playlist, Theme } from '@/types/audio';
+import type { Theme } from '@/types/audio';
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View, TouchableOpacity, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +16,6 @@ import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function HomeScreen() {
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,10 +31,6 @@ export default function HomeScreen() {
   const loadData = async () => {
     try {
       setError(null);
-      
-      // Load playlists (keeping existing logic)
-      const playlistData = getAllPlaylists();
-      setPlaylists(playlistData);
       
       // Load themes from API with fallback to hardcoded data
       console.log('🏠 HomeScreen: Fetching themes from API...');
@@ -143,7 +137,7 @@ export default function HomeScreen() {
           <View style={styles.contentContainer}>
             {/* Recently Played Section */}
             <View style={styles.sectionWrapper}>
-              <RecentlyPlayedCarousel playlists={playlists} />
+              <RecentlyPlayedCarousel userId="8" />
             </View>
 
             {/* Theme-based Carousel Sections */}

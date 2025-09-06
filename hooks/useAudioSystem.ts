@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { getAudioCoordinator } from '../services/audioCoordinator';
 import { CDNFactory } from '../services/cdn/CDNFactory';
 import { useAudioStore } from '../store/audioStore';
+import { useRecentlyPlayedTracking } from './useRecentlyPlayedTracking';
 import type { Playlist, VoiceId } from '../types/audio';
 import { audioLog } from '../utils/logger';
 
@@ -35,12 +36,22 @@ export const useAudioSystem = () => {
   // Use memoized coordinator with shared CDNFactory
   const coordinator = useMemo(() => getAudioCoordinator(getSharedCDNFactory()), []);
   
+  // Recently played tracking (dev only)
+  const { trackPlaylistPlay } = useRecentlyPlayedTracking({
+    userId: 'test-user-123', // TODO: Get from auth system
+    enabled: __DEV__ // Only in development for now
+  });
+  
   return {
     // All store state
     ...storeState,
     
     // Action methods that component expects
     playPlaylist: async (playlist: Playlist, voiceId: VoiceId) => {
+      // Track the playlist play (non-blocking)
+      trackPlaylistPlay(playlist.id);
+      
+      // Continue with existing audio logic
       await coordinator.startPlayback(playlist, voiceId);
     },
     

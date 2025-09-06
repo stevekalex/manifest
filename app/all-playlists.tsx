@@ -18,25 +18,31 @@ import { PlaylistCard } from '@/components/common/PlaylistCard';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { getAllPlaylists } from '@/data/playlists';
 import type { Playlist, ThemePlaylist } from '@/types/audio';
+import { recentlyPlayedService } from '@/services/recentlyPlayedService';
+import type { RecentlyPlayedWithPlaylist } from '@/types/recently-played';
 
 export default function AllPlaylistsScreen() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [themePlaylists, setThemePlaylists] = useState<ThemePlaylist[]>([]);
+  const [recentlyPlayedPlaylists, setRecentlyPlayedPlaylists] = useState<RecentlyPlayedWithPlaylist[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [displayTitle, setDisplayTitle] = useState('All Playlists');
   const [isThemeView, setIsThemeView] = useState(false);
+  const [isRecentlyPlayedView, setIsRecentlyPlayedView] = useState(false);
 
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
   const glassMorphic = useThemeColor({}, 'glassMorphic');
   const glassMorphicBorder = useThemeColor({}, 'glassMorphicBorder');
   
-  // Get theme parameters from navigation
+  // Get parameters from navigation
   const params = useLocalSearchParams();
   const themeName = params.themeName as string;
   const themePlaylistsParam = params.themePlaylists as string;
+  const mode = params.mode as string; // 'recently-played' or undefined
+  const userId = params.userId as string;
   
 
   const loadPlaylists = useCallback(async () => {
@@ -44,7 +50,15 @@ export default function AllPlaylistsScreen() {
       setError(null);
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      if (themePlaylistsParam && themeName) {
+      if (mode === 'recently-played' && userId) {
+        // Load recently played playlists
+        console.log('🎵 Loading recently played playlists for user:', userId);
+        const recentlyPlayed = await recentlyPlayedService.getRecentlyPlayed(userId, 50);
+        setRecentlyPlayedPlaylists(recentlyPlayed);
+        setDisplayTitle('Recently Played');
+        setIsRecentlyPlayedView(true);
+        setIsThemeView(false);
+      } else if (themePlaylistsParam && themeName) {
         // Parse theme playlists from navigation - use them directly
         const themePlaylists: ThemePlaylist[] = JSON.parse(themePlaylistsParam);
         console.log('✅ Using theme playlists directly:', themePlaylists.length, 'playlists');
@@ -53,11 +67,14 @@ export default function AllPlaylistsScreen() {
         setThemePlaylists(themePlaylists);
         setDisplayTitle(themeName);
         setIsThemeView(true);
+        setIsRecentlyPlayedView(false);
       } else {
         // Fallback: Show all playlists (default behavior when no theme data)
         const data = getAllPlaylists();
         setPlaylists(data);
         setDisplayTitle('All Playlists');
+        setIsThemeView(false);
+        setIsRecentlyPlayedView(false);
       }
     } catch (err) {
       console.error('Error loading playlists:', err);
@@ -66,7 +83,7 @@ export default function AllPlaylistsScreen() {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, [themePlaylistsParam, themeName]);
+  }, [themePlaylistsParam, themeName, mode, userId]);
 
   useEffect(() => {
     loadPlaylists();
@@ -77,13 +94,39 @@ export default function AllPlaylistsScreen() {
     loadPlaylists();
   };
 
-  const handlePlaylistPress = (playlist: ThemePlaylist | Playlist) => {
-    console.log('🐛 [DEBUG] Playlist pressed:', playlist);
-    console.log('🐛 [DEBUG] Playlist ID:', playlist.id);
-    console.log('🐛 [DEBUG] Playlist name:', playlist.name);
+  const getRelativeTime = (dateString: string): string => {
+    const now = new Date();
+    const playedDate = new Date(dateString);
+    const diffMs = now.getTime() - playedDate.getTime();
     
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (minutes < 1) {
+      return "Just now";
+    } else if (minutes < 60) {
+      return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    } else if (hours < 24) {
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    } else {
+      return `${days} day${days !== 1 ? 's' : ''} ago`;
+    }
+  };
+
+  const handlePlaylistPress = (playlist: ThemePlaylist | Playlist | RecentlyPlayedWithPlaylist) => {
+    console.log('🐛 [DEBUG] Playlist pressed:', playlist);
+    
+    // Handle recently played playlists
+    if ('playlist_id' in playlist) { // This indicates it's a RecentlyPlayedWithPlaylist
+      const params = new URLSearchParams({
+        themeName: playlist.name,
+        themeDescription: playlist.description || 'A beautiful meditation experience awaits you',
+      });
+      router.push(`/playlists/${playlist.playlist_id}?${params.toString()}`);
+    }
     // For theme playlists, pass the data directly to avoid API lookup issues
-    if ('created_at' in playlist) { // This indicates it's a ThemePlaylist
+    else if ('created_at' in playlist) { // This indicates it's a ThemePlaylist
       router.push({
         pathname: `/playlists/${playlist.id}`,
         params: {
@@ -99,6 +142,44 @@ export default function AllPlaylistsScreen() {
     }
   };
 
+
+  const renderRecentlyPlayedPlaylist = ({ item, index }: { item: RecentlyPlayedWithPlaylist; index: number }) => (
+    <Animated.View
+      entering={FadeInDown.delay(index * 100).springify()}
+      style={styles.playlistCard}
+    >
+      <TouchableOpacity
+        style={[styles.cardTouchable, { 
+          backgroundColor: glassMorphic,
+          borderColor: glassMorphicBorder,
+        }]}
+        onPress={() => handlePlaylistPress(item)}
+        activeOpacity={0.8}
+      >
+        {/* Playlist Image */}
+        <View style={styles.imageContainer}>
+          <View style={[styles.placeholderImage, { backgroundColor: `${tintColor}20` }]}>
+            <Ionicons name="musical-notes-outline" size={32} color={tintColor} />
+          </View>
+        </View>
+
+        {/* Playlist Info */}
+        <View style={styles.playlistInfo}>
+          <Text style={[styles.playlistTitle, { color: textColor }]} numberOfLines={2}>
+            {item.name}
+          </Text>
+          {item.description && (
+            <Text style={[styles.playlistDescription, { color: `${textColor}70` }]} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+          <Text style={[styles.playCount, { color: `${textColor}60` }]}>
+            {item.play_count} plays • Last played {getRelativeTime(item.last_played_at)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
 
   const renderThemePlaylist = ({ item, index }: { item: ThemePlaylist; index: number }) => (
     <Animated.View
@@ -154,7 +235,42 @@ export default function AllPlaylistsScreen() {
           onRetry={loadPlaylists}
           loadingItemCount={6}
         >
-          {isThemeView ? (
+          {isRecentlyPlayedView ? (
+            <>
+              {/* Page Heading */}
+              <View style={styles.pageHeading}>
+                <Animated.Text 
+                  entering={FadeInDown.delay(100).springify()}
+                  style={[styles.headingText, { color: textColor }]}
+                >
+                  {displayTitle}
+                </Animated.Text>
+              </View>
+
+
+              {/* Recently Played Playlists Grid */}
+              <ScrollView
+                style={styles.scrollView}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor={tintColor}
+                  />
+                }
+                contentContainerStyle={styles.scrollContentTheme}
+              >
+                <View style={styles.themeGrid}>
+                  {recentlyPlayedPlaylists.map((playlist, index) => (
+                    <React.Fragment key={`${playlist.user_id}-${playlist.playlist_id}`}>
+                      {renderRecentlyPlayedPlaylist({ item: playlist, index })}
+                    </React.Fragment>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          ) : isThemeView ? (
             <>
               {/* Page Heading */}
               <View style={styles.pageHeading}>
@@ -355,5 +471,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
+  },
+  playCount: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
   },
 });
