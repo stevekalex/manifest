@@ -36,11 +36,13 @@ export const useAudioSystem = () => {
   // Use memoized coordinator with shared CDNFactory
   const coordinator = useMemo(() => getAudioCoordinator(getSharedCDNFactory()), []);
   
-  // Recently played tracking (dev only)
+  // Recently played tracking (enabled in all environments)
   const { trackPlaylistPlay } = useRecentlyPlayedTracking({
-    userId: 'test-user-123', // TODO: Get from auth system
-    enabled: __DEV__ // Only in development for now
+    userId: '8', // Fixed user ID for now - TODO: Get from auth system when implemented
+    enabled: true // Always enabled for recently played functionality
   });
+  
+  console.log('🎵 [AUDIO SYSTEM] Hook initialized with tracking enabled for user 8');
   
   return {
     // All store state
@@ -48,10 +50,28 @@ export const useAudioSystem = () => {
     
     // Action methods that component expects
     playPlaylist: async (playlist: Playlist, voiceId: VoiceId) => {
-      // Track the playlist play (non-blocking)
-      trackPlaylistPlay(playlist.id);
+      console.log('🎵 [AUDIO SYSTEM] playPlaylist called:', { playlistId: playlist.id, voiceId });
+      
+      // Check if this is genuinely a new play session
+      const currentPlaylistId = storeState.playlist?.id;
+      const isNewPlaySession = !currentPlaylistId || currentPlaylistId !== playlist.id;
+      
+      console.log('🎵 [AUDIO SYSTEM] Play session analysis:', { 
+        currentPlaylistId, 
+        newPlaylistId: playlist.id,
+        isNewPlaySession 
+      });
+      
+      // Only track if this is a new play session (different playlist or no current playlist)
+      if (isNewPlaySession) {
+        console.log('🎵 [AUDIO SYSTEM] NEW play session detected - triggering recently played tracking...');
+        trackPlaylistPlay(playlist.id);
+      } else {
+        console.log('🎵 [AUDIO SYSTEM] RESUME existing session - skipping recently played tracking');
+      }
       
       // Continue with existing audio logic
+      console.log('🎵 [AUDIO SYSTEM] Starting audio coordinator playbook...');
       await coordinator.startPlayback(playlist, voiceId);
     },
     
@@ -72,6 +92,12 @@ export const useAudioSystem = () => {
     },
     
     switchPlaylist: async (newPlaylist: Playlist, voiceId: VoiceId) => {
+      console.log('🔄 [AUDIO SYSTEM] switchPlaylist called:', { playlistId: newPlaylist.id, voiceId });
+      
+      // Switching to a different playlist is always a new play session
+      console.log('🔄 [AUDIO SYSTEM] PLAYLIST SWITCH - triggering recently played tracking...');
+      trackPlaylistPlay(newPlaylist.id);
+      
       await coordinator.switchPlaylist(newPlaylist, voiceId);
     },
     

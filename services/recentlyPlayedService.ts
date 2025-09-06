@@ -16,26 +16,48 @@ class RecentlyPlayedServiceImpl implements RecentlyPlayedService {
    */
   async recordPlaylistPlay(userId: string, playlistId: string): Promise<void> {
     if (this.mockMode) {
-      console.log('📱 [Recently Played Mock] Recording play:', { userId, playlistId });
+      console.log('🎭 [Recently Played SERVICE] Mock mode - simulating play recording:', { userId, playlistId });
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('🎭 [Recently Played SERVICE] Mock recording completed');
       return;
     }
 
     try {
-      const response = await apiClient.post(`${this.basePath}/play`, {
+      console.log('🌐 [Recently Played SERVICE] Making API call to record play:', { 
+        userId, 
+        playlistId,
+        endpoint: `${this.basePath}/play` 
+      });
+      
+      const payload = {
         user_id: userId,
         playlist_id: playlistId
+      };
+      console.log('🌐 [Recently Played SERVICE] API payload:', payload);
+      
+      const response = await apiClient.post(`${this.basePath}/play`, payload);
+      
+      console.log('🌐 [Recently Played SERVICE] API response received:', {
+        hasError: !!response.error,
+        hasData: !!response.data,
+        response: response
       });
       
       if (response.error) {
-        console.warn('📱 [Recently Played] API error recording play:', response.error);
+        console.error('❌ [Recently Played SERVICE] API error recording play:', response.error);
+        throw new Error(`API Error: ${response.error}`);
       } else {
-        console.log('📱 [Recently Played] Recorded play:', { userId, playlistId });
+        console.log('✅ [Recently Played SERVICE] Successfully recorded play:', { userId, playlistId });
       }
     } catch (error) {
-      console.warn('📱 [Recently Played] Failed to record play:', error);
-      // Don't throw - audio playback should continue regardless
+      console.error('💥 [Recently Played SERVICE] Exception while recording play:', {
+        userId,
+        playlistId,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error; // Re-throw so the hook can catch and handle it
     }
   }
 

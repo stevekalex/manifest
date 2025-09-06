@@ -13,22 +13,44 @@ interface UseRecentlyPlayedTrackingProps {
 
 export function useRecentlyPlayedTracking({ 
   userId, 
-  enabled = __DEV__ // Only enabled in development by default
+  enabled = true // Enabled by default for recently played functionality
 }: UseRecentlyPlayedTrackingProps = {}) {
+  
+  // Log initialization
+  console.log('🎬 [Recently Played TRACKING] Hook initialized:', {
+    userId,
+    enabled,
+    isReady: enabled && !!userId
+  });
   
   const trackPlaylistPlay = useCallback(async (playlistId: string) => {
     // Early return if not enabled or missing data
     if (!enabled || !userId || !playlistId) {
-      console.log('📱 [Recently Played] Tracking disabled or missing data:', { enabled, userId: !!userId, playlistId });
+      console.log('🚫 [Recently Played TRACKING] Disabled or missing data:', { enabled, userId: !!userId, playlistId });
       return;
     }
     
     try {
-      console.log('📱 [Recently Played] Tracking playlist play:', { userId, playlistId });
+      console.log('🎯 [Recently Played TRACKING] STARTING playlist play tracking:', { userId, playlistId });
+      console.log('🎯 [Recently Played TRACKING] Calling recentlyPlayedService.recordPlaylistPlay...');
+      
+      const startTime = Date.now();
       await recentlyPlayedService.recordPlaylistPlay(userId, playlistId);
+      const endTime = Date.now();
+      
+      console.log('✅ [Recently Played TRACKING] SUCCESS! Playlist play recorded:', { 
+        userId, 
+        playlistId, 
+        duration: `${endTime - startTime}ms` 
+      });
     } catch (error) {
-      console.warn('📱 [Recently Played] Tracking failed (non-blocking):', error);
-      // Don't throw - audio playback should continue regardless of tracking issues
+      console.error('❌ [Recently Played TRACKING] FAILED to record play:', {
+        userId,
+        playlistId,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      // Don't throw - audio playbook should continue regardless of tracking issues
     }
   }, [userId, enabled]);
   
