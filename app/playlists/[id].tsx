@@ -22,6 +22,8 @@ import type { Playlist } from '@/types/audio';
 import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
 import { apiClient } from '@/utils/api';
 import { audioWarn, audioError } from '@/utils/logger';
+import { getCompatibleCdnUrl } from '@/utils/manifestationsService';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 interface RouteParams {
   id: string;
@@ -44,7 +46,9 @@ interface Manifestation {
 export default function PlaylistDetailScreen() {
   
   const params = useLocalSearchParams();
+  console.log('🔍 [DEBUG] Route params:', params);
   const { id, themeName, themeDescription, themeImageUrl } = (params as unknown) as RouteParams;
+  console.log('🔍 [DEBUG] Parsed params:', { id, themeName, themeDescription, themeImageUrl });
   
   // All hooks must be called before any early returns
   const [playlist, setPlaylist] = useState<Playlist | undefined>(undefined);
@@ -57,6 +61,110 @@ export default function PlaylistDetailScreen() {
   const tintColor = useThemeColor({}, 'tint');
 
   const { isLiked: isLikedFromHook, toggleLike } = usePlaylistLikeStatus(String(id || ''));
+  const { multiVoiceEnabled } = useFeatureFlags();
+  
+  // Helper function for new multi-voice CDN URLs
+  const createDynamicCdnUrls = (manifestationsList: Manifestation[]) => {
+    console.log('🎵 [MULTI-VOICE] Creating dynamic CDN URLs');
+    return {
+      rachel: manifestationsList.reduce((acc: Record<string, any>, m: Manifestation) => {
+        const cdnUrl = getCompatibleCdnUrl(m, 'rachel');
+        console.log(`🎵 [DYNAMIC] Processing manifestation ${m.id}: ${cdnUrl}`);
+        return {
+          ...acc,
+          [m.id]: cdnUrl // Use manifestation.id as key, CDN URL as value
+        };
+      }, {} as Record<string, any>)
+    };
+  };
+
+  // Helper function for legacy static asset mapping  
+  const createStaticAssetUrls = (manifestationsList: Manifestation[]) => {
+    console.log('🎵 [LEGACY] Using static asset mapping');
+    return {
+      rachel: manifestationsList.reduce((acc: Record<string, any>, m: Manifestation) => {
+        const assetUrl = getCompatibleCdnUrl(m, 'rachel'); // Use compatibility function
+        console.log(`🎵 Processing manifestation ${m.id} with cdn_url: ${assetUrl}`);
+        
+        // Extract the filename from cdn_url (remove any path prefixes)
+        const filename = assetUrl.split('/').pop() || assetUrl;
+        
+        // Create a comprehensive static mapping for all known assets by filename
+        const assetMap: Record<string, any> = {
+          // All available assets mapped by filename - covers all playlists
+          '0ae09709-9532-4aa9-880e-039a5811728f-0-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-0-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-1-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-1-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-2-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-2-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-3-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-3-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-4-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-4-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-5-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-5-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-6-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-6-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-7-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-7-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-8-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-8-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-9-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-9-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-10-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-10-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-11-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-11-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-12-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-12-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-13-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-13-charlotte.mp3'),
+          '0ae09709-9532-4aa9-880e-039a5811728f-14-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-14-charlotte.mp3'),
+          
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-0-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-0-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-1-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-1-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-2-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-2-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-3-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-3-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-4-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-4-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-5-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-5-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-6-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-6-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-7-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-7-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-8-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-8-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-9-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-9-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-10-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-10-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-11-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-11-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-12-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-12-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-13-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-13-charlotte.mp3'),
+          '33a2f325-0556-4a50-9abd-1710abaa29e0-14-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-14-charlotte.mp3'),
+          
+          '33d90fcb-0613-49b2-9935-23f20017f55d-0-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-0-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-1-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-1-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-2-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-2-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-3-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-3-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-4-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-4-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-5-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-5-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-6-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-6-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-7-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-7-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-8-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-8-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-9-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-9-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-10-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-10-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-11-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-11-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-12-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-12-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-13-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-13-charlotte.mp3'),
+          '33d90fcb-0613-49b2-9935-23f20017f55d-14-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-14-charlotte.mp3'),
+        };
+        
+        const localAsset = assetMap[filename];
+        
+        if (localAsset) {
+          console.log(`✅ Mapped manifestation ${m.id} (${assetUrl}) to local asset`);
+          console.log(`    Asset value type: ${typeof localAsset}, value: ${localAsset}`);
+          // FIXED: Map manifestation.id to the local asset  
+          return {
+            ...acc,
+            [m.id]: localAsset
+          };
+        } else {
+          audioWarn(`[PLAYLIST] No local asset found for ${filename}`);
+          console.log(`    Available filenames in assetMap:`, Object.keys(assetMap).slice(0, 5));
+          
+          // FALLBACK: Use TTS placeholder for playlists without local audio
+          // The URLResolver will handle TTS generation
+          return {
+            ...acc,
+            [m.id]: `tts://${assetUrl}`
+          };
+        }
+      }, {} as Record<string, any>)
+    };
+  };
   
   useEffect(() => {
     setIsLiked(!!isLikedFromHook);
@@ -77,7 +185,7 @@ export default function PlaylistDetailScreen() {
 
         // Fetch manifestations from API using centralized API client
         console.log('🌐 Fetching manifestations for playlist:', id);
-        const response = await apiClient.get<{ manifestations: Manifestation[] }>(`/playlists/${id}/manifestations`);
+        const response = await apiClient.get<{ manifestations: Manifestation[] }>(`/manifestations?playlist_id=${id}`);
         
         if (response.error) {
           throw new Error(`API Error: ${response.error}`);
@@ -85,117 +193,53 @@ export default function PlaylistDetailScreen() {
 
         const data = response.data;
         console.log('✅ Manifestations API response:', data);
-        console.log('🎵 Sample manifestation cdn_url:', data?.manifestations?.[0]?.manifestations?.cdn_url);
+        
+        // Safety check for API response structure
+        if (!data || !Array.isArray(data.manifestations)) {
+          throw new Error('Invalid API response structure');
+        }
+        
+        const firstManifestation = data.manifestations[0];
+        if (firstManifestation) {
+          console.log('🔍 First manifestation structure:', firstManifestation);
+          const sampleUrl = getCompatibleCdnUrl(firstManifestation, 'rachel');
+          console.log('🎵 Sample manifestation compatible URL:', sampleUrl);
+        }
         
         // Set manifestations
-        const manifestationsList = data?.manifestations || [];
+        const manifestationsList = data.manifestations || [];
+        console.log('🔍 Setting manifestations list:', manifestationsList.length, 'items');
         setManifestations(manifestationsList);
         
         // Transform manifestations into playlist format for audio system
-        // CRITICAL: Use cdn_url as the ID so audio system can directly lookup assets
-        const affirmations = manifestationsList.map((m: Manifestation) => ({
-          id: m.manifestations.cdn_url, // Use cdn_url as the ID for direct asset lookup
-          text: m.manifestations.content,
-          order: m.position,
-          durationMs: 0 // Will be measured on first play
-        }));
+        // CRITICAL: Use compatible URL as the ID so audio system can directly lookup assets
+        const affirmations = manifestationsList.map((m: any, index: number) => {
+          console.log(`🔍 Processing manifestation ${index}:`, { id: m?.id, content: m?.content, hasAudioVersions: !!m?.audio_versions });
+          return {
+            id: m.id, // Use manifestation.id as affirmation.id
+            text: m?.content || `Affirmation ${index + 1}`, // Add fallback text
+            order: index, // Use array index as order since position field doesn't exist in new format
+            durationMs: 0 // Will be measured on first play
+          };
+        });
         
         console.log('🔍 DEBUG: Raw manifestations from API:');
         manifestationsList.forEach((m: Manifestation, index: number) => {
-          console.log(`  [${index}] ID: ${m.manifestations.id}, Position: ${m.position}, CDN: ${m.manifestations.cdn_url}`);
+          const compatibleUrl = getCompatibleCdnUrl(m, 'rachel');
+          console.log(`  [${index}] Manifestation ID: ${m.id}, Order: ${index}, Compatible CDN: ${compatibleUrl}`);
         });
         
         console.log('🔍 DEBUG: Transformed affirmations:');
         affirmations.forEach((a: { id: string; text?: string; order: number }, index: number) => {
           const preview = (a.text || '').substring(0, 50);
-          console.log(`  [${index}] ID: ${a.id}, Order: ${a.order}, Text: ${preview}...`);
+          console.log(`  [${index}] Affirmation ID: ${a.id}, Order: ${a.order}, Text: ${preview}...`);
         });
         
-        // SIMPLE FIX: Map cdn_url directly to local asset require() statements
-        // Now that affirmation.id = cdn_url, URLResolver will lookup by cdn_url directly
-        const cdnUrls = {
-          charlotte: manifestationsList.reduce((acc: Record<string, any>, m: Manifestation) => {
-            const assetUrl = m.manifestations.cdn_url;
-            console.log(`🎵 Processing cdn_url: ${assetUrl}`);
-            
-            // Extract the filename from cdn_url (remove any path prefixes)
-            const filename = assetUrl.split('/').pop() || assetUrl;
-            
-            // Create a comprehensive static mapping for all known assets by filename
-            const assetMap: Record<string, any> = {
-              // All available assets mapped by filename - covers all playlists
-              '0ae09709-9532-4aa9-880e-039a5811728f-0-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-0-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-1-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-1-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-2-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-2-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-3-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-3-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-4-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-4-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-5-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-5-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-6-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-6-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-7-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-7-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-8-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-8-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-9-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-9-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-10-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-10-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-11-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-11-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-12-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-12-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-13-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-13-charlotte.mp3'),
-              '0ae09709-9532-4aa9-880e-039a5811728f-14-charlotte.mp3': require('../../assets/voices/charlotte/0ae09709-9532-4aa9-880e-039a5811728f-14-charlotte.mp3'),
-              
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-0-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-0-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-1-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-1-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-2-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-2-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-3-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-3-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-4-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-4-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-5-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-5-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-6-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-6-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-7-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-7-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-8-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-8-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-9-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-9-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-10-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-10-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-11-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-11-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-12-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-12-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-13-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-13-charlotte.mp3'),
-              '33a2f325-0556-4a50-9abd-1710abaa29e0-14-charlotte.mp3': require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-14-charlotte.mp3'),
-              
-              '33d90fcb-0613-49b2-9935-23f20017f55d-0-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-0-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-1-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-1-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-2-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-2-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-3-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-3-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-4-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-4-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-5-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-5-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-6-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-6-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-7-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-7-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-8-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-8-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-9-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-9-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-10-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-10-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-11-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-11-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-12-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-12-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-13-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-13-charlotte.mp3'),
-              '33d90fcb-0613-49b2-9935-23f20017f55d-14-charlotte.mp3': require('../../assets/voices/charlotte/33d90fcb-0613-49b2-9935-23f20017f55d-14-charlotte.mp3'),
-            };
-            
-            const localAsset = assetMap[filename];
-            
-            if (localAsset) {
-              console.log(`✅ Mapped cdn_url=${assetUrl} to local asset`);
-              console.log(`    Asset value type: ${typeof localAsset}, value: ${localAsset}`);
-              // SIMPLE: Map cdn_url directly to the local asset  
-              return {
-                ...acc,
-                [assetUrl]: localAsset
-              };
-            } else {
-              audioWarn(`[PLAYLIST] No local asset found for ${filename}`);
-              console.log(`    Available filenames in assetMap:`, Object.keys(assetMap).slice(0, 5));
-              
-              // FALLBACK: Use TTS placeholder for playlists without local audio
-              // The URLResolver will handle TTS generation
-              return {
-                ...acc,
-                [assetUrl]: `tts://${assetUrl}`
-              };
-            }
-          }, {} as Record<string, any>)
-        };
+        // Feature-flagged URL resolution: Static assets vs Dynamic CDN
+        console.log('🏁 [FEATURE-FLAG] multiVoiceEnabled:', multiVoiceEnabled);
+        const cdnUrls = multiVoiceEnabled 
+          ? createDynamicCdnUrls(manifestationsList)
+          : createStaticAssetUrls(manifestationsList);
         
         // Create playlist with dynamic manifestations
         const apiPlaylist: Playlist = {
@@ -203,12 +247,12 @@ export default function PlaylistDetailScreen() {
           name: themeName || 'Meditation Playlist',
           description: themeDescription || 'A beautiful meditation experience awaits you',
           backgroundTrackUrl: 'bundled://ethereal', // Special scheme to indicate bundled asset
-          defaultVoiceId: 'charlotte',
+          defaultVoiceId: 'rachel',
           affirmations: affirmations,
           voices: [{ 
-            id: 'charlotte', 
-            name: 'Charlotte', 
-            sampleUrl: require('../../assets/voices/charlotte/33a2f325-0556-4a50-9abd-1710abaa29e0-0-charlotte.mp3') 
+            id: 'rachel', 
+            name: 'Rachel', 
+            sampleUrl: 'https://manifest-audio-mvp-2.ccf512a15aec14f2faf6016a4444d004.r2.cloudflarestorage.com/audio/rachel/195-rachel-hq.mp3' 
           }],
           cdnUrls: cdnUrls,
           coverImage: themeImageUrl ? { uri: themeImageUrl } : undefined,
@@ -226,9 +270,9 @@ export default function PlaylistDetailScreen() {
         console.log('🔍 DEBUG: Final playlist cdnUrls structure:');
         Object.keys(apiPlaylist.cdnUrls).forEach(voiceId => {
           console.log(`  Voice ${voiceId}:`);
-          Object.keys(apiPlaylist.cdnUrls[voiceId]).forEach(affirmationId => {
-            const url = apiPlaylist.cdnUrls[voiceId][affirmationId];
-            console.log(`    ${affirmationId} -> ${typeof url} (${typeof url === 'number' ? url : url?.toString?.()?.substring(0, 50)})`);
+          Object.keys(apiPlaylist.cdnUrls[voiceId]).forEach(manifestationId => {
+            const url = apiPlaylist.cdnUrls[voiceId][manifestationId];
+            console.log(`    Manifestation ${manifestationId} -> ${typeof url} (${typeof url === 'number' ? url : url?.toString?.()?.substring(0, 50)})`);
           });
         });
         
@@ -244,7 +288,7 @@ export default function PlaylistDetailScreen() {
     };
 
     loadPlaylistData();
-  }, [id, themeName, themeDescription, themeImageUrl]);
+  }, [id, themeName, themeDescription, themeImageUrl, multiVoiceEnabled]);
 
   if (isLoading) {
     return (
@@ -291,7 +335,7 @@ export default function PlaylistDetailScreen() {
       pathname: '/player',
       params: {
         playlistData: JSON.stringify(playlist),
-        voiceId: playlist?.defaultVoiceId || 'charlotte',
+        voiceId: playlist?.defaultVoiceId || 'rachel',
       },
     });
   };
@@ -412,16 +456,16 @@ export default function PlaylistDetailScreen() {
               <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
                 Affirmations ({manifestations.length})
               </ThemedText>
-              {manifestations.map((item) => (
-                <View key={item.manifestations.id} style={styles.manifestationItem}>
+              {manifestations.map((item, index) => (
+                <View key={item.id} style={styles.manifestationItem}>
                   <View style={styles.manifestationNumber}>
                     <ThemedText style={styles.numberText}>
-                      {item.position + 1}
+                      {index + 1}
                     </ThemedText>
                   </View>
                   <View style={styles.manifestationContent}>
                     <ThemedText style={styles.affirmationText}>
-                      {item.manifestations.content}
+                      {item.content}
                     </ThemedText>
                   </View>
                   <TouchableOpacity style={styles.playItemButton}>

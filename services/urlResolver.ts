@@ -110,8 +110,26 @@ export class URLResolver {
           return this.resolveTTSPlaceholderSync(rawUrl, affirmationId, voiceId);
         }
       } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-        // CDN URL - return as-is for RNTP to fetch
+        // CDN URL - check if it's a broken CloudFlare storage URL and fix it
+        if (rawUrl.includes('.r2.cloudflarestorage.com')) {
+          const workingUrl = this.constructWorkingCdnUrl(affirmationId, voiceId);
+          console.log('🎵 [URL-RESOLVER] Fixed broken CDN URL:', rawUrl, '→', workingUrl);
+          console.log('🎵 [URL-RESOLVER] Constructed URL details:', {
+            affirmationId,
+            voiceId,
+            constructedUrl: workingUrl,
+            urlLength: workingUrl.length
+          });
+          return workingUrl;
+        }
+        // Other CDN URLs - return as-is for RNTP to fetch
         console.log('🎵 [URL-RESOLVER] Using CDN URL:', rawUrl);
+        console.log('🎵 [URL-RESOLVER] Raw URL details:', {
+          affirmationId,
+          voiceId,
+          rawUrl,
+          urlLength: rawUrl.length
+        });
         return rawUrl;
       } else {
         // Unknown string format
@@ -383,5 +401,17 @@ export class URLResolver {
     }
     
     return false;
+  }
+
+  /**
+   * Construct a working CDN URL using CloudFlare Workers domain
+   * @param affirmationId - Manifestation ID (e.g., '195')
+   * @param voiceId - Voice ID (e.g., 'rachel')
+   * @returns Working CDN URL for the audio file
+   */
+  private constructWorkingCdnUrl(affirmationId: string, voiceId: string): string {
+    // Use your CloudFlare Workers domain for public access
+    // Based on the original broken URL structure, files are stored as: audio/voice/id-voice-hq.mp3
+    return `https://gentle-poetry-33dd.stevekalex.workers.dev/audio/${voiceId}/${affirmationId}-${voiceId}-hq.mp3`;
   }
 }

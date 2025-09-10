@@ -252,7 +252,7 @@ export default function AuthPage() {
             style={[styles.textInput, { color: textColor }]}
             placeholder="Email Address"
             placeholderTextColor={`${textColor}60`}
-            value={email}
+            value={"stevea@gmail.com"}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"

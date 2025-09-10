@@ -25,7 +25,7 @@ export const AUDIO_CONFIG = {
   DEFAULT_AFFIRMATION_VOLUME: 1.0,       // Default affirmation/TTS volume (0.0 - 1.0)
   
   // Voice Configuration
-  DEFAULT_VOICE: 'charlotte' as const,   // Default voice for TTS generation
+  DEFAULT_VOICE: 'rachel' as const,   // Default voice for TTS generation
   
   // System Configuration
   DEFAULT_ARTIST_NAME: 'Manifestation App',
