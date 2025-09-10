@@ -8,7 +8,7 @@
 export interface Manifestation {
   id: string;
   playlist_id: string;
-  asset_url: string;  // CDN URL or relative path to audio file
+  cdn_url: string;    // CDN URL or relative path to audio file
   content: string;    // Text content of the affirmation
   created_at?: string;
   updated_at?: string;
@@ -16,12 +16,12 @@ export interface Manifestation {
 
 export interface CreateManifestationDto {
   playlist_id: string;
-  asset_url: string;
+  cdn_url: string;
   content: string;
 }
 
 export interface UpdateManifestationDto {
-  asset_url?: string;
+  cdn_url?: string;
   content?: string;
 }
 

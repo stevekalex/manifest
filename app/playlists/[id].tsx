@@ -35,7 +35,7 @@ interface Manifestation {
   position: number;
   manifestations: {
     id: string;
-    asset_url: string;
+    cdn_url: string;
     content: string;
     created_at: string;
   };
@@ -85,16 +85,16 @@ export default function PlaylistDetailScreen() {
 
         const data = response.data;
         console.log('✅ Manifestations API response:', data);
-        console.log('🎵 Sample manifestation asset_url:', data?.manifestations?.[0]?.manifestations?.asset_url);
+        console.log('🎵 Sample manifestation cdn_url:', data?.manifestations?.[0]?.manifestations?.cdn_url);
         
         // Set manifestations
         const manifestationsList = data?.manifestations || [];
         setManifestations(manifestationsList);
         
         // Transform manifestations into playlist format for audio system
-        // CRITICAL: Use asset_url as the ID so audio system can directly lookup assets
+        // CRITICAL: Use cdn_url as the ID so audio system can directly lookup assets
         const affirmations = manifestationsList.map((m: Manifestation) => ({
-          id: m.manifestations.asset_url, // Use asset_url as the ID for direct asset lookup
+          id: m.manifestations.cdn_url, // Use cdn_url as the ID for direct asset lookup
           text: m.manifestations.content,
           order: m.position,
           durationMs: 0 // Will be measured on first play
@@ -102,7 +102,7 @@ export default function PlaylistDetailScreen() {
         
         console.log('🔍 DEBUG: Raw manifestations from API:');
         manifestationsList.forEach((m: Manifestation, index: number) => {
-          console.log(`  [${index}] ID: ${m.manifestations.id}, Position: ${m.position}, Asset: ${m.manifestations.asset_url}`);
+          console.log(`  [${index}] ID: ${m.manifestations.id}, Position: ${m.position}, CDN: ${m.manifestations.cdn_url}`);
         });
         
         console.log('🔍 DEBUG: Transformed affirmations:');
@@ -111,14 +111,14 @@ export default function PlaylistDetailScreen() {
           console.log(`  [${index}] ID: ${a.id}, Order: ${a.order}, Text: ${preview}...`);
         });
         
-        // SIMPLE FIX: Map asset_url directly to local asset require() statements
-        // Now that affirmation.id = asset_url, URLResolver will lookup by asset_url directly
+        // SIMPLE FIX: Map cdn_url directly to local asset require() statements
+        // Now that affirmation.id = cdn_url, URLResolver will lookup by cdn_url directly
         const cdnUrls = {
           charlotte: manifestationsList.reduce((acc: Record<string, any>, m: Manifestation) => {
-            const assetUrl = m.manifestations.asset_url;
-            console.log(`🎵 Processing asset_url: ${assetUrl}`);
+            const assetUrl = m.manifestations.cdn_url;
+            console.log(`🎵 Processing cdn_url: ${assetUrl}`);
             
-            // Extract the filename from asset_url (remove any path prefixes)
+            // Extract the filename from cdn_url (remove any path prefixes)
             const filename = assetUrl.split('/').pop() || assetUrl;
             
             // Create a comprehensive static mapping for all known assets by filename
@@ -176,9 +176,9 @@ export default function PlaylistDetailScreen() {
             const localAsset = assetMap[filename];
             
             if (localAsset) {
-              console.log(`✅ Mapped asset_url=${assetUrl} to local asset`);
+              console.log(`✅ Mapped cdn_url=${assetUrl} to local asset`);
               console.log(`    Asset value type: ${typeof localAsset}, value: ${localAsset}`);
-              // SIMPLE: Map asset_url directly to the local asset  
+              // SIMPLE: Map cdn_url directly to the local asset  
               return {
                 ...acc,
                 [assetUrl]: localAsset
