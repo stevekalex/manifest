@@ -4,8 +4,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -56,6 +56,14 @@ export default function RootLayout() {
             name="playlists/[id]" 
             options={{ 
               headerShown: false,
+              animation: 'slide_from_right',
+            }} 
+          />
+          <Stack.Screen 
+            name="terms" 
+            options={{ 
+              title: "",
+              headerBackTitle: "Back",
               animation: 'slide_from_right',
             }} 
           />

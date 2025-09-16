@@ -1,19 +1,22 @@
+import { GlassButton } from '@/components/common/GlassButton';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   StatusBar,
-  TouchableOpacity,
+  StyleSheet,
+  Text,
+  View
 } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { GlassButton } from '@/components/common/GlassButton';
 
 export default function WelcomeScreen() {
   const backgroundColor = useThemeColor({}, 'background');
@@ -22,12 +25,32 @@ export default function WelcomeScreen() {
   const glassMorphic = useThemeColor({}, 'glassMorphic');
   const glassMorphicBorder = useThemeColor({}, 'glassMorphicBorder');
 
+  // Breathing glow animation
+  const glowOpacity = useSharedValue(0.3);
+  const glowAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      shadowOpacity: glowOpacity.value,
+    };
+  });
+
+  React.useEffect(() => {
+    glowOpacity.value = withRepeat(
+      withTiming(0.6, { duration: 2000 }),
+      -1,
+      true
+    );
+  }, []);
+
   const handleSignIn = () => {
     router.push('/auth');
   };
 
   const handleContinueAsGuest = () => {
     router.replace('/(tabs)');
+  };
+
+  const handleTermsPress = () => {
+    router.push('/terms');
   };
 
   return (
@@ -57,62 +80,74 @@ export default function WelcomeScreen() {
           entering={FadeInUp.delay(400).springify()}
           style={styles.logoContainer}
         >
-          <View style={[
+          <Animated.View style={[
             styles.logo,
+            glowAnimatedStyle,
             { 
               backgroundColor: tintColor,
               shadowColor: tintColor,
             }
           ]}>
             <Ionicons name="sparkles" size={40} color="#fff" />
-          </View>
+          </Animated.View>
           <Text style={[styles.appName, { color: textColor }]}>Manifest</Text>
           <Text style={[styles.tagline, { color: `${textColor}80` }]}>
-            Transform your mindset with guided affirmations
+            Align with your highest self
           </Text>
         </Animated.View>
 
         {/* Features */}
-        <Animated.View 
-          entering={FadeInDown.delay(600).springify()}
-          style={styles.featuresContainer}
-        >
-          <View style={styles.feature}>
+        <View style={styles.featuresWrapper}>
+          <Animated.View 
+            entering={FadeInDown.delay(600).springify()}
+            style={styles.featuresContainer}
+          >
+          <Animated.View 
+            entering={FadeInDown.delay(700).springify()}
+            style={styles.feature}
+          >
             <View style={[styles.featureIcon, { backgroundColor: `${tintColor}20` }]}>
-              <Ionicons name="headset-outline" size={24} color={tintColor} />
+              <Ionicons name="headset-outline" size={20} color={tintColor} />
             </View>
             <View style={styles.featureText}>
               <Text style={[styles.featureTitle, { color: textColor }]}>Personalized Audio</Text>
               <Text style={[styles.featureDesc, { color: `${textColor}70` }]}>
-                AI-generated affirmations tailored to your goals
+                Record affirmations in your style & voice
               </Text>
             </View>
-          </View>
+          </Animated.View>
 
-          <View style={styles.feature}>
+          <Animated.View 
+            entering={FadeInDown.delay(800).springify()}
+            style={styles.feature}
+          >
             <View style={[styles.featureIcon, { backgroundColor: `${tintColor}20` }]}>
-              <Ionicons name="infinite-outline" size={24} color={tintColor} />
+              <Ionicons name="infinite-outline" size={20} color={tintColor} />
             </View>
             <View style={styles.featureText}>
-              <Text style={[styles.featureTitle, { color: textColor }]}>Endless Playlists</Text>
+              <Text style={[styles.featureTitle, { color: textColor }]}>Smart Playlists</Text>
               <Text style={[styles.featureDesc, { color: `${textColor}70` }]}>
-                Curated collections for every aspect of life
+                Mixes for focus, sleep, and confidence
               </Text>
             </View>
-          </View>
+          </Animated.View>
 
-          <View style={styles.feature}>
+          <Animated.View 
+            entering={FadeInDown.delay(900).springify()}
+            style={styles.feature}
+          >
             <View style={[styles.featureIcon, { backgroundColor: `${tintColor}20` }]}>
-              <Ionicons name="analytics-outline" size={24} color={tintColor} />
+              <Ionicons name="analytics-outline" size={20} color={tintColor} />
             </View>
             <View style={styles.featureText}>
-              <Text style={[styles.featureTitle, { color: textColor }]}>Track Progress</Text>
+              <Text style={[styles.featureTitle, { color: textColor }]}>Progress That Sticks</Text>
               <Text style={[styles.featureDesc, { color: `${textColor}70` }]}>
-                Monitor your mindset transformation journey
+                Streaks, minutes, and mood lift
               </Text>
             </View>
-          </View>
+          </Animated.View>
         </Animated.View>
+        </View>
 
         {/* Action Buttons */}
         <Animated.View 
@@ -121,27 +156,11 @@ export default function WelcomeScreen() {
         >
           <GlassButton
             label="Get Started"
-            iconName="person-outline"
             glow={true}
             onPress={handleSignIn}
             style={styles.primaryButton}
           />
           
-          <TouchableOpacity 
-            style={[
-              styles.secondaryButton,
-              { 
-                backgroundColor: glassMorphic,
-                borderColor: glassMorphicBorder,
-              }
-            ]}
-            onPress={handleContinueAsGuest}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.secondaryButtonText, { color: textColor }]}>
-              Continue as Guest
-            </Text>
-          </TouchableOpacity>
         </Animated.View>
 
         {/* Footer */}
@@ -150,7 +169,13 @@ export default function WelcomeScreen() {
           style={styles.footer}
         >
           <Text style={[styles.footerText, { color: `${textColor}50` }]}>
-            By continuing, you agree to our Terms & Privacy Policy
+            By continuing, you agree to our{' '}
+            <Text 
+              style={[styles.termsLinkText, { color: `${textColor}70` }]}
+              onPress={handleTermsPress}
+            >
+              Terms & Privacy Policy
+            </Text>
           </Text>
         </Animated.View>
       </View>
@@ -206,7 +231,8 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 60,
+    marginBottom: 0,
+    marginTop: 30,
   },
   logo: {
     width: 100,
@@ -221,31 +247,36 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   appName: {
-    fontSize: 36,
-    fontWeight: '200',
+    fontSize: 34,
+    fontWeight: '400',
     letterSpacing: 2,
     marginBottom: 12,
+    lineHeight: 40,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 17,
     textAlign: 'center',
     lineHeight: 24,
     maxWidth: 280,
   },
-  featuresContainer: {
+  featuresWrapper: {
     flex: 1,
     justifyContent: 'center',
-    gap: 32,
+    paddingVertical: 40,
+  },
+  featuresContainer: {
+    gap: 24,
   },
   feature: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   featureIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 20,
@@ -257,10 +288,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
+    lineHeight: 22,
   },
   featureDesc: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
+    color: '#5A5A5A',
   },
   actionsContainer: {
     gap: 16,
@@ -268,6 +301,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     paddingVertical: 18,
+    paddingBottom: 15,
   },
   secondaryButton: {
     paddingVertical: 16,
@@ -286,6 +320,11 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 12,
     textAlign: 'center',
+    lineHeight: 18,
+  },
+  termsLinkText: {
+    fontSize: 12,
+    textDecorationLine: 'underline',
     lineHeight: 18,
   },
 });
