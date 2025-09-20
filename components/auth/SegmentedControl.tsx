@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import React, { useEffect, useState } from 'react';
 import {
+  LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -8,10 +10,8 @@ import {
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
-  withTiming,
+  withSpring
 } from 'react-native-reanimated';
-import { useThemeColor } from '@/hooks/useThemeColor';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -25,34 +25,33 @@ interface SegmentedControlProps {
 export function SegmentedControl({ selectedMode, onModeChange }: SegmentedControlProps) {
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
-  const glassMorphic = useThemeColor({}, 'glassMorphic');
-  const glassMorphicBorder = useThemeColor({}, 'glassMorphicBorder');
-
-  // Animated thumb position (0 = left, 1 = right)
+  const backgroundColor = useThemeColor({}, 'background');
+  
+  const [containerWidth, setContainerWidth] = useState(0);
   const thumbPosition = useSharedValue(selectedMode === 'signin' ? 0 : 1);
   const signInScale = useSharedValue(1);
   const signUpScale = useSharedValue(1);
 
+  // Update thumb position when selectedMode changes
   useEffect(() => {
-    thumbPosition.value = withTiming(selectedMode === 'signin' ? 0 : 1, {
-      duration: 200,
+    thumbPosition.value = withSpring(selectedMode === 'signin' ? 0 : 1, {
+      damping: 20,
+      stiffness: 300,
     });
-  }, [selectedMode]);
+  }, [selectedMode, thumbPosition]);
+
+  const onLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setContainerWidth(width);
+  };
 
   const thumbAnimatedStyle = useAnimatedStyle(() => {
-    // For Sign In (0): left: 2, right: 50%
-    // For Sign Up (1): left: 50%, right: 2
-    if (thumbPosition.value === 0) {
-      return {
-        left: 2,
-        right: '50%',
-      };
-    } else {
-      return {
-        left: '50%',
-        right: 2,
-      };
-    }
+    const thumbWidth = (containerWidth - 8) / 2; // Account for padding
+    const translateX = thumbPosition.value * thumbWidth;
+    
+    return {
+      transform: [{ translateX }],
+    };
   });
 
   const signInAnimatedStyle = useAnimatedStyle(() => ({
@@ -63,56 +62,52 @@ export function SegmentedControl({ selectedMode, onModeChange }: SegmentedContro
     transform: [{ scale: signUpScale.value }],
   }));
 
-  const handleSignInPress = () => {
-    if (selectedMode !== 'signin') {
-      signInScale.value = withSpring(0.96, { damping: 15 });
-      setTimeout(() => {
-        signInScale.value = withSpring(1, { damping: 15 });
-        onModeChange('signin');
-      }, 50);
-    }
-  };
-
-  const handleSignUpPress = () => {
-    if (selectedMode !== 'signup') {
-      signUpScale.value = withSpring(0.96, { damping: 15 });
-      setTimeout(() => {
-        signUpScale.value = withSpring(1, { damping: 15 });
-        onModeChange('signup');
-      }, 50);
+  const handlePress = (mode: AuthMode) => {
+    if (selectedMode !== mode) {
+      // Animate the button press
+      if (mode === 'signin') {
+        signInScale.value = withSpring(0.95, { damping: 15, stiffness: 400 });
+        setTimeout(() => {
+          signInScale.value = withSpring(1, { damping: 15, stiffness: 400 });
+        }, 100);
+      } else {
+        signUpScale.value = withSpring(0.95, { damping: 15, stiffness: 400 });
+        setTimeout(() => {
+          signUpScale.value = withSpring(1, { damping: 15, stiffness: 400 });
+        }, 100);
+      }
+      
+      // Call the mode change
+      onModeChange(mode);
     }
   };
 
   return (
-    <View style={[
-      styles.container, 
-      { 
-        backgroundColor: glassMorphic,
-        borderColor: glassMorphicBorder,
-      }
-    ]}>
-      {/* Animated Thumb */}
-      <Animated.View
+    <View style={[styles.container, { backgroundColor: `${textColor}08` }]} onLayout={onLayout}>
+      {/* Animated thumb */}
+      <Animated.View 
         style={[
           styles.thumb,
-          { backgroundColor: tintColor },
           thumbAnimatedStyle,
-        ]}
+          { 
+            backgroundColor: tintColor,
+            width: containerWidth > 0 ? (containerWidth - 8) / 2 : '48%',
+          }
+        ]} 
       />
       
-      {/* Sign In Tab */}
+      {/* Sign In Button */}
       <AnimatedPressable
         style={[styles.tab, signInAnimatedStyle]}
-        onPress={handleSignInPress}
-        accessibilityRole="tab"
+        onPress={() => handlePress('signin')}
+        accessibilityRole="button"
         accessibilityLabel="Sign In"
         accessibilityState={{ selected: selectedMode === 'signin' }}
-        accessibilityHint="Switch to sign in mode"
       >
         <Text style={[
           styles.tabText,
           { 
-            color: selectedMode === 'signin' ? '#FFFFFF' : `${textColor}70`,
+            color: selectedMode === 'signin' ? '#FFFFFF' : textColor,
             fontWeight: selectedMode === 'signin' ? '600' : '500',
           }
         ]}>
@@ -120,19 +115,18 @@ export function SegmentedControl({ selectedMode, onModeChange }: SegmentedContro
         </Text>
       </AnimatedPressable>
       
-      {/* Sign Up Tab */}
+      {/* Sign Up Button */}
       <AnimatedPressable
         style={[styles.tab, signUpAnimatedStyle]}
-        onPress={handleSignUpPress}
-        accessibilityRole="tab"
+        onPress={() => handlePress('signup')}
+        accessibilityRole="button"
         accessibilityLabel="Sign Up"
         accessibilityState={{ selected: selectedMode === 'signup' }}
-        accessibilityHint="Switch to sign up mode"
       >
         <Text style={[
           styles.tabText,
           { 
-            color: selectedMode === 'signup' ? '#FFFFFF' : `${textColor}70`,
+            color: selectedMode === 'signup' ? '#FFFFFF' : textColor,
             fontWeight: selectedMode === 'signup' ? '600' : '500',
           }
         ]}>
@@ -146,32 +140,41 @@ export function SegmentedControl({ selectedMode, onModeChange }: SegmentedContro
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 2,
+    height: 48,
+    borderRadius: 24,
+    padding: 4,
     marginBottom: 32,
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   thumb: {
     position: 'absolute',
-    top: 2,
-    height: 36,
-    borderRadius: 18,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    top: 4,
+    left: 4,
+    height: 40,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44, // Accessibility requirement
-    zIndex: 1,
+    borderRadius: 20,
+    minHeight: 48,
+    zIndex: 2,
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: '500',
+    paddingBottom: 8,
     letterSpacing: 0.2,
   },
 });
