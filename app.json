@@ -15,7 +15,17 @@
         "UIBackgroundModes": [
           "audio"
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "manifest-auth",
+            "CFBundleURLSchemes": ["manifest"]
+          },
+          {
+            "CFBundleURLName": "googleusercontent",
+            "CFBundleURLSchemes": ["com.googleusercontent.apps.311630299832-04rattp8itbfv1jekia3a4sqr8290pv0"]
+          }
+        ]
       }
     },
     "android": {
@@ -46,7 +56,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true
@@ -55,6 +66,10 @@
       "router": {},
       "eas": {
         "projectId": "7becfdc2-e5a0-464a-8a96-2f38642db999"
+      },
+      "googleSignIn": {
+        "iosClientId": "311630299832-04rattp8itbfv1jekia3a4sqr8290pv0.apps.googleusercontent.com",
+        "webClientId": "311630299832-colb3fph078l8v9vu9jh662oqml9p4rs.apps.googleusercontent.com"
       }
     },
     "owner": "stevekalex"

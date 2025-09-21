@@ -36,7 +36,13 @@ class ApiClient {
 
   private async getAuthToken(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem('access_token');
+      const token = await AsyncStorage.getItem('access_token');
+      audioLog('[API] Retrieved auth token:', { 
+        hasToken: !!token, 
+        tokenLength: token?.length,
+        tokenPrefix: token?.substring(0, 20) + '...'
+      });
+      return token;
     } catch (error) {
       audioError('[API] Failed to get auth token:', error);
       return null;
@@ -119,12 +125,19 @@ class ApiClient {
       if (requireAuth || token) {
         if (token) {
           headers.Authorization = `Bearer ${token}`;
+          audioLog('[API] Added Authorization header:', { 
+            hasAuthHeader: true,
+            tokenPrefix: token.substring(0, 20) + '...'
+          });
         } else if (requireAuth) {
+          audioLog('[API] No token available but auth required');
           return {
             error: 'Authentication required',
             code: 'UNAUTHORIZED'
           };
         }
+      } else {
+        audioLog('[API] No auth token available and not required');
       }
 
       const logBody = requestOptions.body ? { hasBody: true } : '';
@@ -286,6 +299,21 @@ class ApiClient {
     return this.get('/auth/status');
   }
 
+  async googleAuth(idToken: string, userData: {
+    id: string;
+    email: string;
+    name: string;
+    photo?: string;
+    givenName?: string;
+    familyName?: string;
+  }): Promise<ApiResponse<{
+    user: any;
+    session: any;
+    message: string;
+  }>> {
+    return this.post('/auth/google', { idToken, user: userData });
+  }
+
   // Liked playlists methods
   async likePlaylist(playlistId: string): Promise<ApiResponse<{
     user_id: string;
@@ -354,6 +382,41 @@ class ApiClient {
     created_at: string;
   }[]>> {
     return this.getAllPlaylists({ search: query, limit });
+  }
+
+  // Settings methods
+  async getSettings(): Promise<ApiResponse<{
+    settings: {
+      dark_mode: boolean;
+      notifications: boolean;
+      default_volume: number;
+      delay_between_affirmations: number;
+      updated_at: string;
+    };
+  }>> {
+    return this.get('/settings', true);
+  }
+
+  async updateSettings(settings: {
+    dark_mode?: boolean;
+    notifications?: boolean;
+    default_volume?: number;
+    delay_between_affirmations?: number;
+  }): Promise<ApiResponse<{
+    settings: {
+      dark_mode: boolean;
+      notifications: boolean;
+      default_volume: number;
+      delay_between_affirmations: number;
+      updated_at: string;
+    };
+    message: string;
+  }>> {
+    return this.request('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+      requireAuth: true
+    });
   }
 }
 

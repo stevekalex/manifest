@@ -2,6 +2,8 @@ import { EmailExpansion } from '@/components/auth/EmailExpansion';
 import { ProviderButton, type ProviderType } from '@/components/auth/ProviderButton';
 import { SegmentedControl, type AuthMode } from '@/components/auth/SegmentedControl';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { authService } from '@/services/authService';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -28,6 +30,7 @@ export default function AuthPage() {
   const [loadingProvider, setLoadingProvider] = useState<ProviderType | null>(null);
 
   const { sendMagicLink, isLoading } = useAuth();
+  const googleAuth = useGoogleAuth();
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -92,22 +95,57 @@ export default function AuthPage() {
   };
 
   const handleGoogleAuth = async () => {
-    // TODO: Install and configure expo-auth-session for Google
-    // import * as Google from 'expo-auth-session/providers/google';
-    
     try {
-      // Simulate loading delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Get Google Client IDs from environment variables (more flexible)
+      const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+      const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
       
-      Alert.alert(
-        'Google Authentication', 
-        'Google Sign In would be implemented here. This requires:\n\n• expo-auth-session package\n• Google Cloud Console setup\n• OAuth client configuration',
-        [
-          { text: 'OK', onPress: () => setLoadingProvider(null) }
-        ]
-      );
-    } catch {
-      Alert.alert('Error', 'Google authentication failed');
+      console.log('🔍 Google Config Check:', {
+        hasWebClientId: !!WEB_CLIENT_ID,
+        hasIosClientId: !!IOS_CLIENT_ID,
+        webClientId: WEB_CLIENT_ID,
+        iosClientId: IOS_CLIENT_ID,
+        expectedUrlScheme: 'com.googleusercontent.apps.311630299832-04rattp8itbfv1jekia3a4sqr8290pv0'
+      });
+      
+      if (!WEB_CLIENT_ID || !IOS_CLIENT_ID) {
+        Alert.alert('Configuration Error', 'Google Client IDs not configured.');
+        return;
+      }
+      
+      await googleAuth.configureGoogleSignIn(WEB_CLIENT_ID, IOS_CLIENT_ID);
+      
+      // Sign in with Google
+      const result = await googleAuth.signInWithGoogle();
+      
+      if (result.success && result.user && result.session) {
+        console.log('🎉 Google sign-in successful, updating auth state...');
+        
+        // CRITICAL: Update auth service with the session data
+        try {
+          await authService.handleSuccessfulAuth(result.session, result.user);
+          console.log('✅ Auth state updated successfully');
+        } catch (error) {
+          console.error('❌ Failed to update auth state:', error);
+          Alert.alert('Error', 'Failed to complete authentication');
+          return;
+        }
+        
+        setLoadingProvider(null);
+        console.log('🎉 Google sign-in successful, navigating to main app');
+        
+        // Navigate immediately to main app home
+        router.replace('/home');
+        
+        // Optional: Show a brief success message (non-blocking)
+        // Alert.alert('Welcome!', `Successfully signed in as ${result.user.first_name || result.user.email}`);
+      } else {
+        Alert.alert('Sign In Failed', result.error || 'Google authentication failed');
+      }
+    } catch (error) {
+      console.error('Google auth error:', error);
+      Alert.alert('Error', 'Failed to initialize Google authentication');
+    } finally {
       setLoadingProvider(null);
     }
   };

@@ -39,12 +39,31 @@ class AuthService {
   }
 
   private async initializeAuth() {
+    console.log('🔍 [AUTH SERVICE] Starting auth initialization...');
     try {
       const token = await AsyncStorage.getItem('access_token');
+      console.log('🔍 [AUTH SERVICE] Token check:', {
+        hasToken: !!token,
+        tokenLength: token?.length,
+        tokenPrefix: token?.substring(0, 20) + '...'
+      });
+      
       if (token) {
+        console.log('🔍 [AUTH SERVICE] Token found, verifying with backend...');
         // Verify token is still valid
         const response = await apiClient.checkAuthStatus();
+        console.log('🔍 [AUTH SERVICE] Auth status response:', {
+          hasData: !!response.data,
+          authenticated: response.data?.authenticated,
+          hasUser: !!response.data?.user,
+          error: response.error
+        });
+        
         if (response.data?.authenticated && response.data.user) {
+          console.log('✅ [AUTH SERVICE] Token valid, user authenticated:', {
+            userId: response.data.user.id,
+            userEmail: response.data.user.email
+          });
           this.updateState({
             user: response.data.user,
             isAuthenticated: true,
@@ -52,15 +71,19 @@ class AuthService {
           });
           return;
         } else {
+          console.log('❌ [AUTH SERVICE] Token invalid, clearing tokens');
           // Token is invalid, clear it
           await this.clearTokens();
         }
+      } else {
+        console.log('📋 [AUTH SERVICE] No token found in storage');
       }
     } catch (error) {
-      console.error('Auth initialization failed:', error);
+      console.error('❌ [AUTH SERVICE] Auth initialization failed:', error);
       await this.clearTokens();
     }
 
+    console.log('📋 [AUTH SERVICE] Setting unauthenticated state');
     this.updateState({
       user: null,
       isAuthenticated: false,
@@ -69,20 +92,58 @@ class AuthService {
   }
 
   private updateState(newState: Partial<AuthState>) {
+    const previousState = { ...this.currentState };
     this.currentState = { ...this.currentState, ...newState };
+    
+    console.log('🔄 [AUTH SERVICE] State update:', {
+      previous: {
+        isAuthenticated: previousState.isAuthenticated,
+        hasUser: !!previousState.user,
+        userId: previousState.user?.id
+      },
+      new: {
+        isAuthenticated: this.currentState.isAuthenticated,
+        hasUser: !!this.currentState.user,
+        userId: this.currentState.user?.id
+      },
+      changed: previousState.isAuthenticated !== this.currentState.isAuthenticated
+    });
+    
     this.listeners.forEach(listener => listener(this.currentState));
   }
 
   private async storeTokens(session: AuthSession) {
     try {
+      console.log('🔐 Storing auth tokens:', {
+        hasAccessToken: !!session.access_token,
+        hasRefreshToken: !!session.refresh_token,
+        accessTokenLength: session.access_token?.length,
+        accessTokenPrefix: session.access_token?.substring(0, 20) + '...',
+        expiresIn: session.expires_in,
+        tokenType: session.token_type
+      });
+      
       await AsyncStorage.multiSet([
         ['access_token', session.access_token],
         ['refresh_token', session.refresh_token],
         ['user', JSON.stringify(session.user)],
         ['expires_at', String(Date.now() + (session.expires_in * 1000))],
       ]);
+      
+      console.log('✅ Tokens stored successfully');
+      
+      // Verify storage by reading back
+      const verification = await AsyncStorage.multiGet([
+        'access_token', 'refresh_token', 'user', 'expires_at'
+      ]);
+      console.log('🔍 [AUTH SERVICE] Token storage verification:', {
+        access_token: !!verification[0][1],
+        refresh_token: !!verification[1][1],
+        user: !!verification[2][1],
+        expires_at: verification[3][1]
+      });
     } catch (error) {
-      console.error('Failed to store tokens:', error);
+      console.error('❌ Failed to store tokens:', error);
     }
   }
 
@@ -212,6 +273,107 @@ class AuthService {
     }
   }
 
+  async googleSignIn(idToken: string, userData: {
+    id: string;
+    email: string;
+    name: string;
+    photo?: string;
+    givenName?: string;
+    familyName?: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    user?: User;
+    error?: string;
+    code?: string;
+  }> {
+    try {
+      this.updateState({ isLoading: true });
+
+      const response = await apiClient.googleAuth(idToken, userData);
+      
+      // Debug: Log the EXACT response structure before any processing
+      console.log('🔍 Google OAuth RAW response:', {
+        hasData: !!response.data,
+        hasError: !!response.error,
+        error: response.error,
+        code: response.code,
+        dataKeys: response.data ? Object.keys(response.data) : null,
+        fullResponseData: response.data
+      });
+      
+      if (response.error) {
+        console.log('❌ Google OAuth failed with error:', response.error);
+        this.updateState({ isLoading: false });
+        return {
+          success: false,
+          message: response.error,
+          error: response.error,
+          code: response.code,
+        };
+      }
+
+      // Debug: Check what's actually in response.data
+      console.log('🔍 Checking token storage condition:', {
+        hasResponseData: !!response.data,
+        hasSession: !!response.data?.session,
+        hasUser: !!response.data?.user,
+        sessionValue: response.data?.session,
+        userValue: response.data?.user,
+        conditionWillPass: !!(response.data?.session && response.data?.user)
+      });
+
+      if (response.data?.session && response.data?.user) {
+        console.log('✅ Token storage condition passed - proceeding with token storage');
+        console.log('🔍 Google OAuth response data:', {
+          hasSession: !!response.data.session,
+          hasUser: !!response.data.user,
+          sessionKeys: Object.keys(response.data.session || {}),
+          sessionStructure: {
+            access_token: !!response.data.session?.access_token,
+            refresh_token: !!response.data.session?.refresh_token,
+            expires_in: response.data.session?.expires_in,
+            expires_at: response.data.session?.expires_at,
+            token_type: response.data.session?.token_type
+          }
+        });
+        
+        await this.storeTokens(response.data.session);
+        
+        this.updateState({
+          user: response.data.user,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+
+        return {
+          success: true,
+          message: response.data.message || 'Google sign-in successful!',
+          user: response.data.user,
+        };
+      }
+
+      console.log('❌ Token storage condition failed - response format mismatch');
+      console.log('🔍 Expected: response.data.session AND response.data.user');
+      console.log('🔍 Actual response.data structure:', JSON.stringify(response.data, null, 2));
+      
+      this.updateState({ isLoading: false });
+      return {
+        success: false,
+        message: 'Invalid response from server - missing session or user data',
+        error: 'INVALID_RESPONSE',
+      };
+    } catch (error) {
+      this.updateState({ isLoading: false });
+      console.error('Google sign-in failed:', error);
+      return {
+        success: false,
+        message: 'Failed to sign in with Google',
+        error: 'NETWORK_ERROR',
+      };
+    }
+  }
+
   async signOut(): Promise<{
     success: boolean;
     message: string;
@@ -251,6 +413,18 @@ class AuthService {
         message: 'Signed out successfully',
       };
     }
+  }
+
+  // Handle successful authentication (used by login flows)
+  async handleSuccessfulAuth(session: AuthSession, user: User): Promise<void> {
+    console.log('🔄 [AUTH SERVICE] Processing successful authentication...');
+    await this.storeTokens(session);
+    this.updateState({
+      user: user,
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    console.log('✅ [AUTH SERVICE] Authentication processing complete');
   }
 
   async refreshTokenIfNeeded(): Promise<boolean> {

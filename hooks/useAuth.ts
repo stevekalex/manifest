@@ -16,6 +16,20 @@ export interface UseAuthReturn extends AuthState {
     error?: string;
     code?: string;
   }>;
+  googleSignIn: (idToken: string, userData: {
+    id: string;
+    email: string;
+    name: string;
+    photo?: string;
+    givenName?: string;
+    familyName?: string;
+  }) => Promise<{
+    success: boolean;
+    message: string;
+    user?: User;
+    error?: string;
+    code?: string;
+  }>;
   signOut: () => Promise<{
     success: boolean;
     message: string;
@@ -35,6 +49,7 @@ export function useAuth(): UseAuthReturn {
     ...authState,
     sendMagicLink: authService.sendMagicLink.bind(authService),
     verifyMagicLink: authService.verifyMagicLink.bind(authService),
+    googleSignIn: authService.googleSignIn.bind(authService),
     signOut: authService.signOut.bind(authService),
     refreshToken: authService.refreshTokenIfNeeded.bind(authService),
   };

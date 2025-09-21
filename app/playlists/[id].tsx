@@ -35,9 +35,14 @@ interface Manifestation {
   position: number;
   manifestations: {
     id: string;
-    cdn_url: string;
     content: string;
     created_at: string;
+    audio_versions: Array<{
+      id: string;
+      voice_id: string;
+      cdn_key: string;
+      cdn_url: string;
+    }>;
   };
 }
 
@@ -94,7 +99,7 @@ export default function PlaylistDetailScreen() {
         // Transform manifestations into playlist format for audio system
         // CRITICAL: Use cdn_url as the ID so audio system can directly lookup assets
         const affirmations = manifestationsList.map((m: Manifestation) => ({
-          id: m.manifestations.cdn_url, // Use cdn_url as the ID for direct asset lookup
+          id: m.manifestations.audio_versions[0]?.cdn_url || `manifestation-${m.manifestations.id}`, // Use first audio version cdn_url or fallback
           text: m.manifestations.content,
           order: m.position,
           durationMs: 0 // Will be measured on first play
@@ -102,7 +107,7 @@ export default function PlaylistDetailScreen() {
         
         console.log('🔍 DEBUG: Raw manifestations from API:');
         manifestationsList.forEach((m: Manifestation, index: number) => {
-          console.log(`  [${index}] ID: ${m.manifestations.id}, Position: ${m.position}, CDN: ${m.manifestations.cdn_url}`);
+          console.log(`  [${index}] ID: ${m.manifestations.id}, Position: ${m.position}, CDN: ${m.manifestations.audio_versions[0]?.cdn_url || 'none'}`);
         });
         
         console.log('🔍 DEBUG: Transformed affirmations:');
@@ -115,8 +120,14 @@ export default function PlaylistDetailScreen() {
         // Now that affirmation.id = cdn_url, URLResolver will lookup by cdn_url directly
         const cdnUrls = {
           charlotte: manifestationsList.reduce((acc: Record<string, any>, m: Manifestation) => {
-            const assetUrl = m.manifestations.cdn_url;
+            const assetUrl = m.manifestations.audio_versions[0]?.cdn_url;
             console.log(`🎵 Processing cdn_url: ${assetUrl}`);
+            
+            // Skip if no audio URL available
+            if (!assetUrl) {
+              console.log(`⚠️ No audio URL available for manifestation ${m.manifestations.id}`);
+              return acc;
+            }
             
             // Extract the filename from cdn_url (remove any path prefixes)
             const filename = assetUrl.split('/').pop() || assetUrl;
@@ -273,7 +284,7 @@ export default function PlaylistDetailScreen() {
             </ThemedText>
             <TouchableOpacity
               style={[styles.backToHomeButton, { backgroundColor: tintColor }]}
-              onPress={() => router.push('/')}
+              onPress={() => router.push('/home')}
             >
               <ThemedText style={styles.backToHomeText}>
                 Back to Home

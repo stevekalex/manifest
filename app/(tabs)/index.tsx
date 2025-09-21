@@ -92,15 +92,15 @@ export default function HomeScreen() {
               
               if (result.success) {
                 // Navigate back to welcome screen
-                router.replace('/');
+                router.replace('/welcome');
               } else {
                 Alert.alert('Error', 'Failed to sign out completely, but you have been logged out locally.');
-                router.replace('/');
+                router.replace('/welcome');
               }
             } catch (error) {
               console.error('Logout error:', error);
               // Still navigate away even if there was an error
-              router.replace('/');
+              router.replace('/welcome');
             }
           }
         }
