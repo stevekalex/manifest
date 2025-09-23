@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.manifest",
+      "associatedDomains": ["applinks:manifest-app.com"],
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -24,6 +25,10 @@
           {
             "CFBundleURLName": "googleusercontent",
             "CFBundleURLSchemes": ["com.googleusercontent.apps.311630299832-04rattp8itbfv1jekia3a4sqr8290pv0"]
+          },
+          {
+            "CFBundleURLName": "manifest-playlist-sharing",
+            "CFBundleURLSchemes": ["https", "manifest"]
           }
         ]
       }
@@ -39,7 +44,20 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WAKE_LOCK"
       ],
-      "package": "com.anonymous.manifest"
+      "package": "com.anonymous.manifest",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "manifest-app.com"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",

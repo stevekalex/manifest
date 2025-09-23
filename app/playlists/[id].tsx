@@ -20,6 +20,7 @@ import { ActionIcon } from '@/components/common/ActionIcon';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Playlist } from '@/types/audio';
 import { usePlaylistLikeStatus } from '@/hooks/usePlaylistLikeStatus';
+import { usePlaylistSharing } from '@/hooks/usePlaylistSharing';
 import { apiClient } from '@/utils/api';
 import { audioWarn, audioError } from '@/utils/logger';
 
@@ -62,6 +63,7 @@ export default function PlaylistDetailScreen() {
   const tintColor = useThemeColor({}, 'tint');
 
   const { isLiked: isLikedFromHook, toggleLike } = usePlaylistLikeStatus(String(id || ''));
+  const { sharePlaylist } = usePlaylistSharing();
   
   useEffect(() => {
     setIsLiked(!!isLikedFromHook);
@@ -316,8 +318,20 @@ export default function PlaylistDetailScreen() {
     Alert.alert('Download', 'Download functionality coming soon!');
   };
 
-  const handleSharePress = () => {
-    Alert.alert('Share', 'Share functionality coming soon!');
+  const handleSharePress = async () => {
+    if (!playlist) {
+      Alert.alert('Error', 'No playlist to share');
+      return;
+    }
+
+    try {
+      const result = await sharePlaylist(playlist);
+      if (!result.success && result.error) {
+        Alert.alert('Share Error', result.error);
+      }
+    } catch (error) {
+      Alert.alert('Share Error', 'Failed to share playlist');
+    }
   };
 
   const handleMorePress = () => {

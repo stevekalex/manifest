@@ -6,12 +6,16 @@ import 'react-native-reanimated';
 
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useDeepLinking } from '@/hooks/useDeepLinking';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+
+  // Initialize deep linking
+  useDeepLinking();
 
   if (!loaded) {
     // Async font loading only occurs in development.

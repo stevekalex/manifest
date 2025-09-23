@@ -145,3 +145,20 @@ export interface SearchOptions {
   caseSensitive?: boolean;
   limit?: number;
 }
+
+// Playlist sharing types
+export interface PlaylistSharingResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface PlaylistSharingOptions {
+  includeDescription?: boolean;
+  customMessage?: string;
+}
+
+// Deep linking types
+export interface DeepLinkData {
+  playlistId?: string;
+  path?: string;
+}
