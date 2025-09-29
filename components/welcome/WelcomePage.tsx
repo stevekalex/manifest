@@ -17,8 +17,13 @@ export function WelcomePage({ userName = "Steve Alex" }: WelcomePageProps) {
   const tintColor = useThemeColor({}, 'tint');
 
   const handleSearch = (query: string) => {
-    // TODO: Implement AI search functionality
-    console.log('AI Search query:', query);
+    // Navigate to AI playlist generation with the search query as prompt
+    if (query.trim()) {
+      router.push({
+        pathname: '/playlist-prompt',
+        params: { initialPrompt: query.trim() }
+      });
+    }
   };
 
   const handleSearchIconPress = () => {
