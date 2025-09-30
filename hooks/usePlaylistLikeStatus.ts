@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { apiClient } from '@/utils/api';
 import { useAuth } from '@/hooks/useAuth';
 import { audioLog, audioWarn, audioError } from '@/utils/logger';
+import { ErrorHandler } from '@/utils/errorHandler';
 
 export interface UsePlaylistLikeStatusResult {
   isLiked: boolean;
@@ -48,9 +49,15 @@ export function usePlaylistLikeStatus(playlistId: string): UsePlaylistLikeStatus
       
       const response = await apiClient.checkPlaylistLikedStatus(playlistId);
       
-      if (response.error) {
-        audioError('[LIKE] Check status error:', response.error);
-        setError(response.error);
+      if (ErrorHandler.handleApiError(response, {
+        showAlert: false,
+        title: 'Like Status Error',
+        fallbackMessage: 'Failed to check like status',
+        onError: (error) => {
+          audioError('[LIKE] Check status error:', error);
+          setError(error);
+        }
+      })) {
         setIsLiked(false);
       } else {
         audioLog('[LIKE] Status response received:', { isLiked: response.data?.isLiked });
@@ -93,9 +100,14 @@ export function usePlaylistLikeStatus(playlistId: string): UsePlaylistLikeStatus
       if (isLiked) {
         audioLog('[LIKE] Unliking playlist...');
         const response = await apiClient.unlikePlaylist(playlistId);
-        if (response.error) {
-          audioError('[LIKE] Failed to unlike:', response.error);
-          setError(response.error);
+        if (ErrorHandler.handleApiError(response, {
+          showAlert: false,
+          fallbackMessage: 'Failed to unlike playlist',
+          onError: (error) => {
+            audioError('[LIKE] Failed to unlike:', error);
+            setError(error);
+          }
+        })) {
           return;
         }
         audioLog('[LIKE] Successfully unliked');
@@ -103,9 +115,14 @@ export function usePlaylistLikeStatus(playlistId: string): UsePlaylistLikeStatus
       } else {
         audioLog('[LIKE] Liking playlist...');
         const response = await apiClient.likePlaylist(playlistId);
-        if (response.error) {
-          audioError('[LIKE] Failed to like:', response.error);
-          setError(response.error);
+        if (ErrorHandler.handleApiError(response, {
+          showAlert: false,
+          fallbackMessage: 'Failed to like playlist',
+          onError: (error) => {
+            audioError('[LIKE] Failed to like:', error);
+            setError(error);
+          }
+        })) {
           return;
         }
         audioLog('[LIKE] Successfully liked');

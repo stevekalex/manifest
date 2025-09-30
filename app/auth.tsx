@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 import { authService } from '@/services/authService';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { API_ERROR_CODES } from '@/utils/errorConstants';
+import { ErrorHandler } from '@/utils/errorHandler';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
@@ -180,18 +182,21 @@ export default function AuthPage() {
           ]
         );
       } else {
-        if (result.code === 'NETWORK_ERROR') {
+        if (result.code === API_ERROR_CODES.NETWORK_ERROR) {
           Alert.alert('Connection Error', 'Please check your internet connection and try again.');
-        } else if (result.error?.includes('already registered') && mode === 'signup') {
+        } else if (result.code === API_ERROR_CODES.ALREADY_EXISTS && mode === 'signup') {
           Alert.alert('Account Exists', 'This email is already registered. Try signing in instead.');
           setMode('signin');
         } else {
-          Alert.alert('Error', result.message || 'Failed to send magic link');
+          Alert.alert('Error', result.error || 'Failed to send magic link');
         }
       }
     } catch (error) {
       console.error('Magic link error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      ErrorHandler.handleGenericError(error, {
+        title: 'Authentication Error',
+        fallbackMessage: 'Failed to send authentication link. Please check your connection and try again.'
+      });
     } finally {
       setLoadingProvider(null);
     }

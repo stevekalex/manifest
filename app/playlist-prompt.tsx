@@ -1,5 +1,6 @@
 import { GlassButton } from '@/components/common/GlassButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { ErrorHandler } from '@/utils/errorHandler';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -91,7 +92,10 @@ export default function PlaylistPromptScreen() {
       });
     } catch (error) {
       setIsGenerating(false);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      ErrorHandler.handleGenericError(error, {
+        title: 'Generation Error',
+        fallbackMessage: 'Failed to generate playlist. Please check your connection and try again.'
+      });
     }
   };
 

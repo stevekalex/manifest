@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/utils/api';
+import { ErrorHandler } from '@/utils/errorHandler';
 
 export interface LikedPlaylistItem {
   user_id: string;
@@ -35,8 +36,14 @@ export function useLikedPlaylists(): UseLikedPlaylistsResult {
       
       const response = await apiClient.getLikedPlaylists();
       
-      if (response.error) {
-        setError(response.error);
+      if (ErrorHandler.handleApiError(response, {
+        showAlert: false,
+        title: 'Liked Playlists Error',
+        fallbackMessage: 'Failed to load liked playlists.',
+        onError: (error) => {
+          setError(error);
+        }
+      })) {
         setLikedPlaylists([]);
       } else {
         setLikedPlaylists(response.data || []);
@@ -55,8 +62,11 @@ export function useLikedPlaylists(): UseLikedPlaylistsResult {
       
       if (isCurrentlyLiked) {
         const response = await apiClient.unlikePlaylist(playlistId);
-        if (response.error) {
-          console.error('Failed to unlike playlist:', response.error);
+        if (ErrorHandler.handleApiError(response, {
+          showAlert: false,
+          fallbackMessage: 'Failed to unlike playlist',
+          onError: (error) => console.error('Failed to unlike playlist:', error)
+        })) {
           return false;
         }
         
@@ -65,8 +75,11 @@ export function useLikedPlaylists(): UseLikedPlaylistsResult {
         return false;
       } else {
         const response = await apiClient.likePlaylist(playlistId);
-        if (response.error) {
-          console.error('Failed to like playlist:', response.error);
+        if (ErrorHandler.handleApiError(response, {
+          showAlert: false,
+          fallbackMessage: 'Failed to like playlist',
+          onError: (error) => console.error('Failed to like playlist:', error)
+        })) {
           return false;
         }
         

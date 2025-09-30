@@ -1,6 +1,7 @@
 import { GlassButton } from '@/components/common/GlassButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { AIGeneratedAffirmation } from '@/types/aiPlaylist';
+import { ErrorHandler } from '@/utils/errorHandler';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -121,7 +122,10 @@ export default function PlaylistPreviewScreen() {
       });
     } catch (error) {
       setIsConfirming(false);
-      Alert.alert('Error', 'Failed to start playlist. Please try again.');
+      ErrorHandler.handleGenericError(error, {
+        title: 'Playlist Error',
+        fallbackMessage: 'Failed to start playlist. Please check your connection and try again.'
+      });
     }
   };
 

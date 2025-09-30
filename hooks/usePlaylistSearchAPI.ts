@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/utils/api';
 import type { PlaylistSearchResult } from '@/types/audio';
-import { audioLog, audioWarn } from '@/utils/logger';
+import { audioLog } from '@/utils/logger';
+import { ErrorHandler } from '@/utils/errorHandler';
 
 const debounce = <T extends (...args: any[]) => void>(
   func: T,
@@ -39,9 +40,15 @@ export function usePlaylistSearchAPI(
       audioLog('[SEARCH API] Searching for:', query);
       const response = await apiClient.searchPlaylists(query, 50);
       
-      if (response.error) {
-        audioWarn('[SEARCH API] Search error:', response.error);
-        setError(response.error);
+      if (ErrorHandler.handleApiError(response, {
+        showAlert: false,
+        title: 'Search Error',
+        fallbackMessage: 'Failed to search playlists. Please try again.',
+        onError: (error) => {
+          audioLog('[SEARCH API] Search error:', error);
+          setError(error);
+        }
+      })) {
         setFilteredPlaylists([]);
         return;
       }

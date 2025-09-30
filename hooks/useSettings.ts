@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/utils/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ErrorHandler } from '@/utils/errorHandler';
 
 export interface UserSettings {
   dark_mode: boolean;
@@ -64,8 +65,16 @@ export function useSettings(): UseSettingsReturn {
       
       const response = await apiClient.getSettings();
       
-      if (response.error) {
-        throw new Error(response.error);
+      if (ErrorHandler.handleApiError(response, {
+        showAlert: false,
+        title: 'Settings Error',
+        fallbackMessage: 'Failed to load settings. Using defaults.',
+        onError: (error) => {
+          console.error('❌ Failed to load settings:', error);
+          setError(error);
+        }
+      })) {
+        return;
       }
 
       if (response.data?.settings) {
@@ -172,8 +181,16 @@ export function useSettings(): UseSettingsReturn {
 
       const response = await apiClient.updateSettings(changedSettings);
       
-      if (response.error) {
-        throw new Error(response.error);
+      if (ErrorHandler.handleApiError(response, {
+        showAlert: false,
+        title: 'Settings Error',
+        fallbackMessage: 'Failed to save settings. Please try again.',
+        onError: (error) => {
+          console.error('❌ Failed to save settings:', error);
+          setError(error);
+        }
+      })) {
+        return;
       }
 
       console.log('✅ Settings saved successfully');
