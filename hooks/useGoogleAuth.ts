@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { apiClient } from '@/utils/api';
+import type { User, AuthSession } from '@/services/authService';
 
 export interface GoogleAuthResult {
   success: boolean;
-  user?: any;
-  session?: any;
+  user?: User;
+  session?: AuthSession;
   error?: string;
   code?: string;
 }
