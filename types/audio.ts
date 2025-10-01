@@ -46,7 +46,7 @@ export interface Playlist {
   cdnUrls: Record<VoiceId, Record<AffirmationId, string>>;
   manifestVersion?: string; // For cache invalidation
   // Playlist screen specific properties
-  coverImage?: any; // Image source (require() or URI)
+  coverImage?: number | { uri: string }; // Image source (require() or URI)
   listensCount?: number; // Number of times playlist has been played
 }
 
@@ -133,7 +133,7 @@ export interface PlaylistSearchResult {
   id: PlaylistId;
   name: string;
   description?: string;
-  coverImage?: any;
+  coverImage?: number | { uri: string };
   listensCount?: number;
   category?: string;
 }

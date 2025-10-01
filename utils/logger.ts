@@ -14,7 +14,7 @@ const LOG_PREFIX = DEV_CONFIG.LOG_PREFIX;
 /**
  * Development logging - disabled in production builds
  */
-export const log = (...args: any[]): void => {
+export const log = (...args: unknown[]): void => {
   if (LOG_ENABLED) {
     console.log(...args);
   }
@@ -23,7 +23,7 @@ export const log = (...args: any[]): void => {
 /**
  * Warning logging - disabled in production builds
  */
-export const warn = (...args: any[]): void => {
+export const warn = (...args: unknown[]): void => {
   if (LOG_ENABLED) {
     console.warn(...args);
   }
@@ -32,14 +32,14 @@ export const warn = (...args: any[]): void => {
 /**
  * Error logging - always enabled (critical for debugging production issues)
  */
-export const error = (...args: any[]): void => {
+export const error = (...args: unknown[]): void => {
   console.error(...args);
 };
 
 /**
  * Audio-specific logging with consistent prefix
  */
-export const audioLog = (...args: any[]): void => {
+export const audioLog = (...args: unknown[]): void => {
   if (LOG_ENABLED) {
     console.log(LOG_PREFIX, ...args);
   }
@@ -48,7 +48,7 @@ export const audioLog = (...args: any[]): void => {
 /**
  * Audio-specific warning logging
  */
-export const audioWarn = (...args: any[]): void => {
+export const audioWarn = (...args: unknown[]): void => {
   if (LOG_ENABLED) {
     console.warn(LOG_PREFIX, ...args);
   }
@@ -57,7 +57,7 @@ export const audioWarn = (...args: any[]): void => {
 /**
  * Audio-specific error logging - always enabled
  */
-export const audioError = (...args: any[]): void => {
+export const audioError = (...args: unknown[]): void => {
   console.error(LOG_PREFIX, ...args);
 };
 
@@ -65,7 +65,7 @@ export const audioError = (...args: any[]): void => {
  * Debug logging with caller context
  * Usage: debug('ComponentName', 'operation', data)
  */
-export const debug = (component: string, operation: string, ...args: any[]): void => {
+export const debug = (component: string, operation: string, ...args: unknown[]): void => {
   if (LOG_ENABLED) {
     console.log(`🐛 [${component}] ${operation}:`, ...args);
   }
