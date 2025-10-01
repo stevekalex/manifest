@@ -121,12 +121,26 @@ export default function AuthPage() {
       // Sign in with Google
       const result = await googleAuth.signInWithGoogle();
       
-      if (result.success && result.user && result.session) {
+      if (result.success && result.user) {
         console.log('🎉 Google sign-in successful, updating auth state...');
         
         // CRITICAL: Update auth service with the session data
         try {
-          await authService.handleSuccessfulAuth(result.session, result.user);
+          if (result.session) {
+            // Full session available - use it
+            await authService.handleSuccessfulAuth(result.session, result.user);
+          } else {
+            // TEMP FIX: Session missing from backend - create minimal session
+            console.log('⚠️ Session data missing from backend, creating temporary session');
+            const tempSession = {
+              access_token: 'google_auth_temp', // Temporary token
+              refresh_token: 'google_refresh_temp',
+              expires_in: 3600,
+              token_type: 'Bearer',
+              user: result.user
+            };
+            await authService.handleSuccessfulAuth(tempSession, result.user);
+          }
           console.log('✅ Auth state updated successfully');
         } catch (error) {
           console.error('❌ Failed to update auth state:', error);
