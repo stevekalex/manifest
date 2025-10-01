@@ -76,8 +76,9 @@ export default function AuthPage() {
   };
 
   const handleAppleAuth = async () => {
-    // TODO: Install and configure expo-apple-authentication
-    // import * as AppleAuthentication from 'expo-apple-authentication';
+    // FUTURE: Implement Apple Sign In
+    // Requires: expo-apple-authentication package, Apple Developer account, iOS configuration
+    // Current: Shows informative placeholder dialog to users
     
     try {
       // Simulate loading delay

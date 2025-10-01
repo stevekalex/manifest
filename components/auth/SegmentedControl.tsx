@@ -25,7 +25,6 @@ interface SegmentedControlProps {
 export function SegmentedControl({ selectedMode, onModeChange }: SegmentedControlProps) {
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
-  const backgroundColor = useThemeColor({}, 'background');
   
   const [containerWidth, setContainerWidth] = useState(0);
   const thumbPosition = useSharedValue(selectedMode === 'signin' ? 0 : 1);

@@ -3,6 +3,7 @@ import { getAudioCoordinator } from '../services/audioCoordinator';
 import { CDNFactory } from '../services/cdn/CDNFactory';
 import { useAudioStore } from '../store/audioStore';
 import { useRecentlyPlayedTracking } from './useRecentlyPlayedTracking';
+import { useAuth } from './useAuth';
 import type { Playlist, VoiceId } from '../types/audio';
 import { audioLog } from '../utils/logger';
 
@@ -32,17 +33,18 @@ export const getSharedCDNFactoryInstance = (): CDNFactory | null => {
 
 export const useAudioSystem = () => {
   const storeState = useAudioStore();
+  const { user } = useAuth();
   
   // Use memoized coordinator with shared CDNFactory
   const coordinator = useMemo(() => getAudioCoordinator(getSharedCDNFactory()), []);
   
   // Recently played tracking (enabled in all environments)
   const { trackPlaylistPlay } = useRecentlyPlayedTracking({
-    userId: '8', // Fixed user ID for now - TODO: Get from auth system when implemented
+    userId: user?.id || 'anonymous', // Use authenticated user ID or fallback for anonymous users
     enabled: true // Always enabled for recently played functionality
   });
   
-  console.log('🎵 [AUDIO SYSTEM] Hook initialized with tracking enabled for user 8');
+  console.log(`🎵 [AUDIO SYSTEM] Hook initialized with tracking enabled for user ${user?.id || 'anonymous'}`);
   
   return {
     // All store state

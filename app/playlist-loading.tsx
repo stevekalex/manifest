@@ -33,7 +33,6 @@ const loadingMessages = [
 export default function PlaylistLoadingScreen() {
   const { prompt } = useLocalSearchParams<{ prompt: string }>();
   const [currentMessage, setCurrentMessage] = useState(0);
-  const [hasStartedGeneration, setHasStartedGeneration] = useState(false);
   const generationStarted = useRef(false);
   
   const backgroundColor = useThemeColor({}, 'background');
@@ -134,7 +133,6 @@ export default function PlaylistLoadingScreen() {
     }
 
     generationStarted.current = true;
-    setHasStartedGeneration(true);
 
     try {
       const playlist = await AIPlaylistService.generatePlaylist(prompt);

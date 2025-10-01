@@ -22,8 +22,6 @@ export default function WelcomeScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
-  const glassMorphic = useThemeColor({}, 'glassMorphic');
-  const glassMorphicBorder = useThemeColor({}, 'glassMorphicBorder');
 
   // Breathing glow animation
   const glowOpacity = useSharedValue(0.3);
