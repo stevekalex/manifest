@@ -1,44 +1,72 @@
 /**
- * Audio Configuration Constants
+ * Audio Configuration Constants - Track Player v2
  * 
- * Centralized configuration for all audio-related settings including:
- * - Track loading and prefetching parameters
- * - Volume defaults
- * - Timing delays
- * - Voice settings
- * - Player behavior
+ * Configuration following the v2 blueprint specifications:
+ * - Gap-based timing with explicit silence tracks
+ * - RNTP for affirmations + Expo AV for background beds
+ * - SQLite caching with size limits
+ * - Instant voice switching capability
  */
 
 export const AUDIO_CONFIG = {
-  // Track Loading Configuration
-  INITIAL_TRACK_COUNT: 3,                // Phase 1B: Reduced from 5 to 3 for better performance
-  PREFETCH_TRACK_COUNT: 3,               // Reduced for testing (was 12)
-  EXPANSION_PREFETCH_COUNT: 3,           // Reduced for testing (was 8)
+  // V2 Blueprint: Queue Management
+  GAP_SECONDS_MIN: 1,
+  GAP_SECONDS_MAX: 15,
+  GAP_SECONDS_DEFAULT: 5,
+  AVOID_REPEAT_WINDOW: 8,                   // Shuffle avoid-repeat window
   
-  // Timing Configuration
-  PREFETCH_DELAY_MS: 2000,               // Delay before starting prefetch operations
-  EXPANSION_DELAY_MS: 1500,              // Delay before queue expansion prefetching
-  DEFAULT_DELAY_MS: 3000,                // Default global delay between affirmations
+  // V2 Blueprint: Prefetch Configuration  
+  PREFETCH_TRACK_COUNT: 8,                  // "Next 8 affirmations or ~180s"
+  PREFETCH_CONCURRENCY: 4,                  // "concurrency = 4"
+  PREFETCH_TIME_THRESHOLD_SEC: 180,         // ~180 seconds worth of content
   
-  // Volume Configuration  
-  DEFAULT_BACKGROUND_VOLUME: 0.7,        // Default background music volume (0.0 - 1.0)
-  DEFAULT_AFFIRMATION_VOLUME: 1.0,       // Default affirmation/TTS volume (0.0 - 1.0)
+  // V2 Blueprint: Cache Limits (SQLite)
+  CACHE_SIZE_BEDS_MB: 100,                  // "Beds ≈ 100 MB"
+  CACHE_SIZE_AFFIRMATIONS_MB: 350,          // "Affirmations ≈ 350 MB"
+  CACHE_PROTECTION_NEXT_TRACKS: 3,          // "protect current bed + next 3 affirmations"
   
-  // Voice Configuration
-  DEFAULT_VOICE: 'charlotte' as const,   // Default voice for TTS generation
+  // V2 Blueprint: Audio Standards
+  LUFS_AFFIRMATIONS: -16,                   // "−16 LUFS"
+  LUFS_BEDS: -24,                          // "≈ −24 LUFS"
+  SAMPLE_RATE: 44100,                      // "44.1 kHz"
+  BITRATE_AFFIRMATIONS: 128,               // "96–128 kbps"
+  BITRATE_BEDS: 96,                        // "~96 kbps"
+  
+  // V2 Blueprint: Timing & Behavior
+  BREATHE_OVERLAY_DURATION_MS: 3000,       // "3s 'Breathe' overlay"
+  CROSSFADE_DURATION_MS: 400,              // "400ms crossfade"
+  FAILURE_TIMEOUT_MS: 3000,                // "1 load >3s → skip"
+  CONSECUTIVE_FAILURE_LIMIT: 3,            // "3 consecutive failures → pause"
+  VOICE_SWITCH_DEBOUNCE_MS: 200,           // "150–250ms debounce"
+  
+  // V2 Blueprint: Volume Defaults
+  DEFAULT_AFFIRMATION_VOLUME: 1.0,         // No ducking in v2
+  DEFAULT_BED_VOLUME: 1.0,
+  
+  // V2 Blueprint: Voice Configuration
+  DEFAULT_VOICE: 'charlotte' as const,
+  
+  // V2 Blueprint: CDN & URLs
+  SIGNED_URL_TTL_HOURS: 3,                 // "TTL ≥ 2–4h"
   
   // System Configuration
   DEFAULT_ARTIST_NAME: 'Manifestation App',
-  INSTANCE_ID_LENGTH: 7,                 // Length of coordinator instance IDs
-  
-  // Critical States (where event suppression is required)
-  CRITICAL_STATES: [
-    'preparing',
-    'loading',
-    'buffering',
-  ] as const,
+  INSTANCE_ID_LENGTH: 7,
 } as const;
 
-// Type exports for better TypeScript integration
+// V2 Blueprint: Voice types (to be expanded with server data)
 export type VoiceId = typeof AUDIO_CONFIG.DEFAULT_VOICE | 'serenity' | 'titan';
-export type CriticalState = typeof AUDIO_CONFIG.CRITICAL_STATES[number];
+
+// V2 Blueprint: Session item types for voice-agnostic planning
+export type SessionItemKind = 'affirmation' | 'gap';
+
+export interface SessionItem {
+  kind: SessionItemKind;
+  affirmationId?: string;  // Only for affirmation items
+  seconds?: number;        // Only for gap items
+}
+
+export interface SessionPlan {
+  items: SessionItem[];
+  avoidRepeatWindow: number;
+}

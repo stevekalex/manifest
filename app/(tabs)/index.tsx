@@ -6,7 +6,8 @@ import { WelcomePage } from '@/components/welcome';
 import { getAllThemes } from '@/data/themes';
 import { themesService } from '@/utils/themesService';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useAudioSystem } from '@/hooks/useAudioSystem';
+// TODO: Reconnect to v2 audio system  
+// import { useAudioSystem } from '@/hooks/useAudioSystem';
 import type { Theme } from '@/types/audio';
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View, TouchableOpacity, Text, Alert } from 'react-native';
@@ -25,7 +26,8 @@ export default function HomeScreen() {
   const textColor = useThemeColor({}, 'text');
   const glassMorphic = useThemeColor({}, 'glassMorphic');
   const glassMorphicBorder = useThemeColor({}, 'glassMorphicBorder');
-  const audio = useAudioSystem();
+  // TODO: Reconnect to v2 audio system
+  // const audio = useAudioSystem();
   const { signOut } = useAuth();
 
   const loadData = async () => {
@@ -85,7 +87,8 @@ export default function HomeScreen() {
           onPress: async () => {
             try {
               // Stop any playing audio first
-              await audio.stopAll();
+              // TODO: Reconnect to v2 audio system
+// await audio.stopAll();
               
               // Sign out from backend
               const result = await signOut();

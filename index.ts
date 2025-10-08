@@ -1,4 +1,3 @@
 import 'expo-router/entry';
-import TrackPlayer from 'react-native-track-player';
 
-TrackPlayer.registerPlaybackService(() => require('./services/trackPlayerService')); 
+// TODO: TrackPlayer service registration will be added back with v2 implementation 

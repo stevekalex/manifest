@@ -1,63 +1,139 @@
-// Core type definitions
+// Track Player v2 - Core Type Definitions
+// Following v2 blueprint data model specifications
+
+// Basic ID types
 export type VoiceId = string;
 export type AffirmationId = string;
 export type PlaylistId = string;
+export type BackgroundSoundId = string;
 
+// V2 Blueprint: Server Data Model Types
+export interface Affirmation {
+  id: AffirmationId;
+  text: string;
+  language: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Voice {
   id: VoiceId;
   name: string;
-  gender?: string;
-  locale?: string;
-  sampleUrl: string;
+  provider: string;
+  style: string;
+  sampleRate: number;
+  bitrate: number;
+  isDefault: boolean;
 }
 
-
-export interface AudioAsset {
-  affirmationId: AffirmationId | 'background';
-  voiceId: VoiceId | 'background';
-  cdnUrl: string;
-  checksum?: string;
-  fileSize?: number;
-  duration?: number;
+export interface AudioVariant {
+  id: string;
+  affirmationId: AffirmationId;
+  voiceId: VoiceId;
+  url: string;
+  durationSec: number;
+  hash: string;
+  loudnessLUFS: number;
+  sampleRate: number;
+  bitrate: number;
+  status: string;
 }
 
-export interface PausedState {
-  trackIndex: number;
-  positionMs: number;
-  timestamp: number;
-}
-
-export type PlayerState = 'idle' | 'buffering' | 'playing' | 'paused' | 'stopped';
-
-// Delay steps in milliseconds
-export const DELAY_STEPS = [0, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000];
-
-// Add manifest versioning and better error types
 export interface Playlist {
   id: PlaylistId;
-  name: string;
+  title: string;
   description?: string;
-  backgroundTrackUrl: string | number;
-  backgroundTracks?: Record<string, string>; // Optional custom background tracks mapping
+  isPublic: boolean;
+  coverImageUrl?: string;
+  ownerId?: string;
+  // Client-side extensions
+  name: string; // Alias for title for compatibility
   affirmations: Affirmation[];
   voices: Voice[];
   defaultVoiceId: VoiceId;
-  cdnUrls: Record<VoiceId, Record<AffirmationId, string>>;
-  manifestVersion?: string; // For cache invalidation
-  // Playlist screen specific properties
-  coverImage?: number | { uri: string }; // Image source (require() or URI)
-  listensCount?: number; // Number of times playlist has been played
+  backgroundTrackUrl: string | number;
+  cdnUrls?: Record<VoiceId, Record<AffirmationId, string>>;
 }
 
-export interface Affirmation {
-  id: AffirmationId;
-  text: string;
+export interface PlaylistAffirmation {
+  playlistId: PlaylistId;
+  affirmationId: AffirmationId;
   order: number;
-  durationMs: number; // Make required - we'll measure on first play if not provided
+  weight?: number;
 }
 
-// Typed errors for better retry logic
+export interface BackgroundSound {
+  id: BackgroundSoundId;
+  title: string;
+  type: 'loopSafe' | 'longForm';
+  url: string;
+  durationSec: number;
+  hash: string;
+  loudnessLUFS: number;
+  sampleRate: number;
+  bitrate: number;
+  loopCrossfadeMsDefault: number;
+}
+
+export interface UserSettings {
+  userId: string;
+  defaultVoiceId?: VoiceId;
+  backgroundSoundId: BackgroundSoundId;
+  gapSeconds: number; // 1..15
+  affirmVolume: number; // 0..1
+  bedVolume: number; // 0..1
+  shuffle: boolean;
+  loop: boolean;
+}
+
+// V2 Blueprint: API Response Types
+export interface SessionResolveRequest {
+  playlistId: PlaylistId;
+  voiceId?: VoiceId;
+  shuffle?: boolean;
+  avoidLastN?: number;
+}
+
+export interface SessionResolveResponse {
+  items: Array<{
+    affirmationId: AffirmationId;
+    audioUrl: string;
+    durationSec: number;
+    hash: string;
+    loudnessLUFS: number;
+  }>;
+  backgroundSound: {
+    id: BackgroundSoundId;
+    url: string;
+    type: 'loopSafe' | 'longForm';
+  };
+}
+
+// V2 Blueprint: SQLite Cache Schema Types
+export interface AudioCacheEntry {
+  remote_url: string;
+  local_uri: string;
+  file_size: number;
+  last_used_at: number;
+  hash?: string;
+  protected: number; // 0 or 1 (SQLite boolean)
+}
+
+// Client State Types
+export interface PlayerState {
+  isPlaying: boolean;
+  currentIndex: number;
+  gapSeconds: number; // 1|2|...|15
+  shuffle: boolean;
+  loop: boolean;
+  affirmVolume: number; // 0..1
+  bedVolume: number; // 0..1
+  backgroundSoundId: BackgroundSoundId;
+  voiceId: VoiceId;
+}
+
+// Error handling
 export class AudioError extends Error {
   constructor(
     message: string,
@@ -74,61 +150,39 @@ export type AudioErrorCode =
   | 'NETWORK_ERROR'
   | 'CORRUPTED_FILE'
   | 'INSUFFICIENT_STORAGE'
-  | 'PLAYBACK_ERROR';
+  | 'PLAYBACK_ERROR'
+  | 'CACHE_FULL'
+  | 'URL_EXPIRED';
 
-// Transaction gate types removed - functionality no longer needed
-// Phase 1B: Snapshot system for RNTP state preservation
-export interface PlaybackSnapshot {
-  // Logical queue representation
-  affirmationIds: AffirmationId[];
-  
-  // Current playback position
-  currentIndex: number;
+// Legacy compatibility types (to be removed after UI migration)
+export interface PausedState {
+  trackIndex: number;
   positionMs: number;
-  
-  // Playback state before snapshot
-  wasPlaying: boolean;
-  
-  // Hash of first N tracks for fast-path detection
-  headHash: string;
-  
-  // Metadata for validation
   timestamp: number;
-  voiceId: VoiceId;
-  playlistId: PlaylistId;
 }
 
-// Helper type for snapshot validation results
-export interface SnapshotValidation {
-  isValid: boolean;
-  canUseFastPath: boolean;
-  reason?: string;
-}
-
-// Theme system for organizing playlists on home page
+// UI/Theme Types (keep for UI components)
 export interface Theme {
   id: string;
   name: string;
   description?: string;
-  image?: string; // Theme image URL
+  image?: string;
   playlists: ThemePlaylist[];
-  order?: number; // Optional for API responses
+  order?: number;
 }
 
 export interface ThemePlaylist {
   id: PlaylistId;
   name: string;
   description?: string;
-  image_url?: string; // URL or local image reference (matches backend format)
-  created_at?: string; // ISO timestamp from backend
+  image_url?: string;
+  created_at?: string;
 }
 
-// Backend API response types
 export interface ThemesApiResponse {
   themes: Theme[];
 }
 
-// Search-optimized playlist metadata (lightweight for client-side filtering)
 export interface PlaylistSearchResult {
   id: PlaylistId;
   name: string;
@@ -138,7 +192,6 @@ export interface PlaylistSearchResult {
   category?: string;
 }
 
-// Search functionality types
 export interface SearchOptions {
   query: string;
   includeDescription?: boolean;
@@ -146,7 +199,6 @@ export interface SearchOptions {
   limit?: number;
 }
 
-// Playlist sharing types
 export interface PlaylistSharingResult {
   success: boolean;
   error?: string;
@@ -157,7 +209,6 @@ export interface PlaylistSharingOptions {
   customMessage?: string;
 }
 
-// Deep linking types
 export interface DeepLinkData {
   playlistId?: string;
   path?: string;

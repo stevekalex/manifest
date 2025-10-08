@@ -14,7 +14,8 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRODUCTION_PLAYLIST } from '../../data/productionPlaylist';
 import { getPlaylistById } from '../../data/playlists';
-import { useAudioSystem } from '../../hooks/useAudioSystem';
+// TODO: Reconnect to v2 audio system
+// import { useAudioSystem } from '../../hooks/useAudioSystem';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { BackgroundMusicModal } from './BackgroundMusicModal';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
@@ -86,8 +87,28 @@ const SimpleManifestationPlayerComponent: React.FC = () => {
     return PRODUCTION_PLAYLIST;
   })();
 
-  // New machine-backed audio system
-  const audio = useAudioSystem();
+  // TODO: Reconnect to v2 audio system
+  // const audio = useAudioSystem();
+  
+  // Temporary stub for broken audio references
+  const audio = {
+    currentTrackIndex: 0,
+    isPlaying: false,
+    backgroundVolume: 0.7,
+    affirmationVolume: 1.0,
+    currentVoiceId: 'charlotte',
+    globalDelayMs: 3000,
+    playlist: selectedPlaylist,
+    togglePlayback: () => console.log('TODO: v2 togglePlayback'),
+    playPlaylist: () => console.log('TODO: v2 playPlaylist'),
+    switchPlaylist: () => console.log('TODO: v2 switchPlaylist'),
+    openVoiceModal: () => console.log('TODO: v2 openVoiceModal'),
+    closeVoiceModal: () => console.log('TODO: v2 closeVoiceModal'),
+    setBackgroundVolume: () => console.log('TODO: v2 setBackgroundVolume'),
+    setAffirmationVolume: () => console.log('TODO: v2 setAffirmationVolume'),
+    switchBackgroundTrack: () => console.log('TODO: v2 switchBackgroundTrack'),
+    updateDelay: () => console.log('TODO: v2 updateDelay'),
+  };
 
   // Animation values for swipe up effect
   const translateY = useSharedValue(0);
