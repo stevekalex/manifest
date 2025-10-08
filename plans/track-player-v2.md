@@ -87,14 +87,47 @@ UserSettings { userId, defaultVoiceId?, backgroundSoundId, gapSeconds (1..15), a
 
 ## 6) API surface (lean)
 
-* `GET /playlists/:id` → playlist meta + ordered affirmation IDs.
-* `POST /session/resolve { playlistId, voiceId?, shuffle?, avoidLastN?: number }`
+### Current Available APIs (Backend Ready)
+* `GET /playlists/:playlistId/manifestations` → **ALL voice variants loaded** + playlist items
+  ```ts
+  {
+    manifestations: [{ 
+      position: number,
+      manifestations: {
+        id: string,
+        content: string, 
+        audio_versions: [{ voice_id: string, cdn_url: string, cdn_key: string }]
+      }
+    }],
+    total: number
+  }
+  ```
+* `GET /settings` + `PUT /settings` → user preferences (needs voice_preference field added)
 
-  * → `{ items: [{ affirmationId, audioUrl, durationSec, hash, loudnessLUFS }], backgroundSound: { id, url, type } }`
-* `GET /background-sounds`
-* (later) `/uploads/signed-url` (user recordings)
+### APIs to Create  
+* `GET /background-sounds` → available ambient tracks for bed audio
+  ```ts
+  {
+    background_sounds: [{
+      id: string,
+      title: string,
+      type: 'loopSafe' | 'longForm',
+      url: string,
+      duration_sec: number,
+      loop_crossfade_ms: 400,
+      loudness_lufs: number
+    }]
+  }
+  ```
 
-**URL policy:** TTL ≥ 2–4h. On **403** for non-cached item: re-resolve, retry once, else skip & log.
+### Resolution Strategy (Frontend-Based)
+**Use FE resolution instead of `/session/resolve`** for instant voice switching:
+1. Fetch playlist + all voice variants via existing `/playlists/:playlistId/manifestations`
+2. Frontend creates voice-agnostic SessionPlan locally
+3. Frontend materializes RNTP queues for current voice on-demand
+4. Voice switching = instant local re-materialization (no API calls)
+
+**URL policy:** TTL ≥ 2–4h. On **403** for non-cached item: refetch playlist data, retry once, else skip & log.
 
 ---
 
@@ -129,9 +162,13 @@ type SessionPlan = { items: SessionItem[]; avoidRepeatWindow: 8 };
 
 **Debounce** rapid toggles (150–250ms). If variant resolve fails, retry via re-resolve once; otherwise fall back to previous voice for that item.
 
-### Data access for variants
+### Data access for variants  
 
-* Either `/session/resolve` includes a **small variant map** for the next chunk, or expose a **fast** `/audio-variant?affirmationId=&voiceId=` endpoint for on-demand signed URL minting.
+**Frontend-based voice variant management:**
+* Load ALL voice variants upfront via `/playlists/:playlistId/manifestations` 
+* Cache voice variant URLs locally in Zustand store
+* Voice switching uses cached URLs (no API latency)
+* Refresh variant URLs when 403 detected (batch refetch playlist data)
 
 ---
 
@@ -341,98 +378,173 @@ async function startBed(uri: string, loopSafe: boolean, vol: number) {
 
 If Claude follows this doc, you’ll get a stable, elegant v1 with instant voice switching, tight timing, and no hidden dragons. When you’re ready, I can generate the starter files (store, RNTP service handlers, bed loop module, prefetch/SQLite helpers) exactly to this spec.
 
-Absolutely—here’s a **phased implementation plan** you and Claude can follow step-by-step. Each phase has: **goal**, **scope**, **deliverables**, **app/server tasks**, **QA/DoD**, **feature flags/rollback**, and **dependencies**. No dates—just a clean sequencing so you can ship confidently.
+# 🚨 CRITICAL TECHNICAL RISKS IDENTIFIED
+
+## FUNDAMENTAL ARCHITECTURE RISKS
+1. **Dual-Engine Audio Coexistence**: RNTP + Expo AV may conflict on iOS/Android audio focus
+2. **RNTP Queue Manipulation**: Real-time queue editing during playback is notoriously unreliable  
+3. **Memory Explosion**: Loading all voice variants (50×6×2MB = 600MB+) will trigger OS kills
+4. **Background Service Complexity**: SQLite + dual engines + state sync across app/service boundary
+
+## SHOW-STOPPER QUESTIONS TO VALIDATE
+- Can RNTP + Expo AV actually play simultaneously without audio focus conflicts?
+- Does RNTP `remove()` + `add()` + `skip()` work reliably during background playback?
+- What's the real memory limit before OS kills the app?
+- How large are actual voice variant datasets from existing backend?
+
+---
+
+# REVISED PHASED IMPLEMENTATION PLAN
+
+Each phase now includes **Core Assumptions to Test** and **Go/No-Go Decision Points**.
+
+---
+
+# Phase -1 — PROOF OF CONCEPT (MANDATORY GATE)
+
+**Goal:** Prove the fundamental dual-engine architecture is technically possible.
+
+**Core Assumptions to Test:**
+1. ✅ RNTP + Expo AV can play simultaneously without audio session conflicts
+2. ✅ Both engines maintain audio focus during backgrounding/interruptions  
+3. ✅ Remote controls work correctly with dual engines
+4. ✅ No memory leaks or crashes during 30-minute continuous playback
+
+**Scope**
+* Minimal test app: RNTP plays 30s loop + Expo AV plays background bed
+* Test on iOS/Android, multiple devices (high-end + budget)
+* Background service with both engines active
+* Phone call interruption + resume testing
+
+**Deliverables**
+* Working dual-engine test app
+* Device compatibility matrix
+* Audio session configuration that works reliably
+* **Go/No-Go Decision**: If dual engines don't work → pivot to single-engine architecture
+
+**QA / DoD**
+* 30-minute soak test on 3+ devices with no crashes
+* Phone call interruption + clean resume
+* App backgrounding + foregrounding maintains both audio streams
+* Remote controls affect correct engine
+
+**Dependencies**
+* None - this validates the entire plan's feasibility
+
+**Timeline Estimate:** 1 week
 
 ---
 
 # Phase 0 — Project Skeleton & Standards (Foundations)
 
-**Goal:** Establish a stable base so later phases don’t churn.
+**Goal:** Establish stable foundation with proven dual-engine configuration.
+
+**Core Assumptions to Test:**
+1. ✅ Audio session configuration from Phase -1 works in full app context
+2. ✅ Background service registration works reliably across app restarts
+3. ✅ Remote control handling doesn't conflict between engines
+4. ✅ Zustand store persists correctly across app lifecycle
 
 **Scope**
-
-* Install & configure: `react-native-track-player`, `expo-av`, `expo-file-system`, `@react-native-async-storage/async-storage`, `expo-sqlite`, `zustand`, `@tanstack/react-query`.
-* App structure (`src/audio`, `src/state`, `src/services`, `src/lib/sqlite`, `src/screens`).
-* iOS/Android audio session **exclusive focus** (no mixing).
-* Env/config: CDN base, API base, signed URL TTL (2–4h).
+* Install & configure: `react-native-track-player`, `expo-av`, `expo-file-system`, `@react-native-async-storage/async-storage`, `expo-sqlite`, `zustand`, `@tanstack/react-query`
+* App structure (`src/audio`, `src/state`, `src/services`, `src/lib/sqlite`, `src/screens`)
+* **Validated audio session config** from Phase -1
+* Env/config: CDN base, API base, signed URL TTL (2–4h)
 
 **Deliverables**
-
-* `playerStore` (Zustand) skeleton with persisted defaults.
-* `trackPlayerService` registered, background + remote handlers wired.
-* `BedPlayer` module with **single-instance loop** (no crossfade yet).
-* Error/logging shim (console + optional `/logs` endpoint stub).
-* Minimal **Now Playing** screen (transport, volumes, gap control UI).
+* `playerStore` (Zustand) skeleton with persisted defaults
+* `trackPlayerService` registered with **validated background handlers**
+* `BedPlayer` module with **single-instance loop** (using Phase -1 config)
+* Error/logging shim (console + optional `/logs` endpoint stub)
+* Minimal **Now Playing** screen (transport, volumes, gap control UI)
 
 **Server**
-
-* Stubs for `/playlists/:id`, `/session/resolve`, `/background-sounds`.
-* CORS, auth interceptor (if needed), consistent error payloads.
+* Stubs for `/background-sounds` API (main missing piece)
+* `/playlists/:playlistId/manifestations` already exists with voice variants
+* Add `voice_preference` field to `/settings` endpoint
+* CORS, auth interceptor (if needed), consistent error payloads
 
 **QA / DoD**
+* App builds on iOS/Android (device + sim), background audio works, lockscreen shows controls
+* Starting/stopping playback pauses other apps (audio focus working)
+* Basic play/pause/next/prev via remote works without conflicts
+* **Stress test**: 100 app restarts maintain service registration
 
-* App builds on iOS/Android (device + sim), background audio works, lockscreen shows controls.
-* Starting/stopping playback pauses other apps.
-* Basic play/pause/next/prev via remote works.
-
-**Feature flags**
-
+**Feature Flags & Kill Switches**
+* `FF_DUAL_ENGINE=true` (revert to single engine if issues)
 * `FF_BED_DUAL_INSTANCE=false`
-* `FF_PREFETCH=false` (enable next phase)
+* `FF_PREFETCH=false`
 
 **Dependencies**
+* Phase -1 must pass with Go decision
 
-* None.
+**Timeline Estimate:** 2 weeks
 
 ---
 
-# Phase 1 — Core Playback Happy Path
+# Phase 1 — Core Playback + Gap Implementation (Single Voice Only)
 
-**Goal:** Deterministic queue with gap tracks; bed continuous; metadata on lockscreen.
+**Goal:** Deterministic queue with gap tracks; bed continuous; metadata on lockscreen. **SIMPLIFIED: Single voice only**.
+
+**Core Assumptions to Test:**
+1. ✅ Gap tracks (explicit silence) work correctly in RNTP queue
+2. ✅ Remote Next/Prev can skip over gaps reliably
+3. ✅ Metadata updates work correctly during gap transitions
+4. ✅ Fisher-Yates shuffle with gap insertion is performant and correct
+5. ✅ 3s "Breathe" overlay timing doesn't interfere with bed start
 
 **Scope**
-
-* **Gaps as explicit tracks**: build queue `A1, GAPxN, A2, ...` (N=gapSeconds).
-* Shuffle (Fisher–Yates) + **avoid-repeat window=8** (auto-shrink for small lists).
-* Lock screen metadata: title=affirmation text, artist=playlist title, artwork=cover.
-* 3s “Breathe” overlay on start (bed starts immediately).
+* **Gaps as explicit tracks**: build queue `A1, GAPxN, A2, ...` (N=gapSeconds)
+* Generate silence tracks for gaps: 1s, 2s, 3s... up to 15s
+* Shuffle (Fisher–Yates) + **avoid-repeat window=8** (auto-shrink for small lists)
+* Lock screen metadata: title=affirmation text, artist=playlist title, artwork=cover
+* 3s "Breathe" overlay on start (bed starts immediately)
+* **SINGLE VOICE ONLY** - defer voice switching complexity
 
 **Deliverables**
-
-* `QueueBuilder.build(plan, voiceId)` returns RNTP tracks.
-* Helpers: `replaceTrackAt`, `skipOverGaps`, `rebuildTailFrom`.
-* `SessionPlan` (voice-agnostic) creation from playlist.
+* `QueueBuilder.build(plan, voiceId)` returns RNTP tracks
+* `GapGenerator.createSilenceTracks()` - generates/caches silence files
+* Helpers: `skipOverGaps`, `rebuildTailFrom` (simplified for single voice)
+* `SessionPlan` (voice-agnostic) creation from playlist
 
 **Server**
-
-* `/session/resolve` returns ordered affirmation items (+ bed selection).
+* `/background-sounds` API implementation (bed selection)
+* Use existing `/playlists/:playlistId/manifestations` for single voice variants
 
 **QA / DoD**
+* Gap accuracy within ±100ms on multiple devices
+* Remote Next/Prev **skip gaps** correctly (no playing silence)
+* Backgrounding retains correct state; resume works
+* Start flow: bed → breathe → first affirmation
+* **Stress test**: 2-hour continuous playback with shuffle + gaps
+* Metadata shows correct affirmation text (not gap info)
 
-* Gap accuracy within ±100ms.
-* Remote Next/Prev **skip gaps** correctly.
-* Backgrounding retains correct state; resume works.
-* Start flow: bed → breathe → first affirmation.
-
-**Feature flags**
-
-* `FF_GAP_TRACKS=true`
+**Feature Flags & Kill Switches**
+* `FF_GAP_TRACKS=true` (revert to timer-based gaps)
 * `FF_METADATA=true`
+* `FF_SHUFFLE=true`
 
 **Dependencies**
+* Phase 0 passed
 
-* Phase 0.
+**Timeline Estimate:** 3 weeks
 
 ---
 
-# Phase 2 — Caching & Soft-Offline (SQLite + Prefetch)
+# Phase 2 — Memory Management + Voice Data Analysis
 
-**Goal:** Seamless playback on spotty networks with robust, crash-safe cache.
+**Goal:** Understand real-world memory constraints and implement safe caching before attempting voice switching.
+
+**Core Assumptions to Test:**
+1. ✅ SQLite works reliably across app/background service boundary
+2. ✅ LRU eviction works correctly under memory pressure
+3. ✅ Voice variant dataset size is manageable (measure actual data)
+4. ✅ Cache corruption recovery works during unexpected app termination
+5. ✅ Prefetch concurrency doesn't overwhelm device or network
 
 **Scope**
-
-* **SQLite cache index** (not JSON):
-
+* **Real Voice Data Analysis**: Load actual `/playlists/:playlistId/manifestations` data and measure memory usage
+* **SQLite cache index** with proper transaction boundaries:
   ```sql
   CREATE TABLE IF NOT EXISTS audio_cache (
     remote_url TEXT PRIMARY KEY,
@@ -442,158 +554,247 @@ Absolutely—here’s a **phased implementation plan** you and Claude can follow
     hash TEXT,
     protected INTEGER DEFAULT 0
   );
-  CREATE INDEX IF NOT EXISTS idx_cache_last_used ON audio_cache(last_used_at);
   ```
-* **PrefetchManager**:
-
-  * Prefetch **next 8** affirmations or **~180s**, **concurrency=4**.
-  * Protect current bed + next 3 affirmations from eviction.
-  * Transactional LRU eviction to caps (Beds≈100MB, Affirm≈350MB).
-* URL 403 refresh path: re-resolve & retry once.
+* **Conservative PrefetchManager**: Start with **next 3** affirmations, **concurrency=2**
+* **Memory monitoring**: Track actual memory usage during caching
+* URL 403 refresh path: re-resolve & retry once
 
 **Deliverables**
-
-* `AudioCache` lib (get/set/protect/evict).
-* Prefetch triggers on track advance; respects cellular; small concurrency cap.
+* `VoiceDataAnalyzer` - measures real backend response sizes and memory impact
+* `AudioCache` lib with transaction safety and corruption recovery
+* `MemoryMonitor` - tracks cache memory usage and triggers eviction
+* Conservative prefetch implementation (expand later if safe)
 
 **Server**
-
-* Signed URL **TTL ≥ 2–4h** (confirm).
-* `/session/resolve` fast enough for refresh path.
+* Signed URL **TTL ≥ 2–4h** (confirm with backend team)
+* `/playlists/:playlistId/manifestations` performance optimization if needed
 
 **QA / DoD**
+* **Memory Analysis**: Document actual memory usage with 50+ manifestations
+* Offline mid-session → continue from cache; prefetch resumes on reconnect
+* LRU never evicts current bed or next 3 protected items
+* Simulated 403 → transparent refresh, no user disruption
+* **Corruption test**: Force-quit app during cache operations, verify recovery
+* **Memory pressure test**: Load maximum reasonable voice data, verify no OS kills
 
-* Offline mid-session → continue from cache; prefetch resumes on reconnect.
-* LRU never evicts current bed or next 3.
-* Simulated 403 → transparent refresh, no user disruption.
-
-**Feature flags**
-
+**Feature Flags & Kill Switches**
+* `FF_SQLITE_CACHE=true` (revert to in-memory cache)
 * `FF_PREFETCH=true`
+* `FF_MEMORY_MONITORING=true`
 
 **Dependencies**
+* Phases 0–1 passed
 
-* Phases 0–1.
+**Timeline Estimate:** 3-4 weeks
 
 ---
 
-# Phase 3 — Bed Hardening & Crossfade
+# Phase 3 — Queue Manipulation Validation (Critical Gate)
 
-**Goal:** Guarantee continuous bed across devices; smooth bed switching.
+**Goal:** Prove RNTP queue manipulation works reliably before building voice switching on top.
+
+**Core Assumptions to Test:**
+1. ✅ `TrackPlayer.remove()` + `add()` + `skip()` works during background playback
+2. ✅ Queue manipulation doesn't cause crashes or audio interruptions
+3. ✅ Index tracking remains correct after queue modifications
+4. ✅ Remote controls work correctly after queue changes
+5. ✅ Background service handles queue manipulation without memory leaks
 
 **Scope**
-
-* **Dual-instance ping-pong** fallback with **equal-power crossfade (400ms)**:
-
-  * Auto-detect loop discontinuity (>10–20ms) → enable fallback.
-  * Device denylist support (force fallback on known models).
-* Bed change crossfade (old→new bed over 400ms).
+* **RNTP Queue Manipulation Testing**: Extensive testing of real-time queue editing
+* Build test harness for queue operations during playback
+* Validate `replaceTrackAt()` helper works reliably
+* Test queue rebuilding under various conditions (backgrounded, during calls, etc.)
+* **NO voice switching yet** - just prove the underlying mechanism works
 
 **Deliverables**
-
-* `BedPlayer` v2:
-
-  * `start(uri, loopSafe)` chooses single vs dual-instance.
-  * `switch(uri, loopSafe, crossfadeMs=400)` crossfades mid-session.
-  * QA harness (hidden screen) to soak-test loops.
+* `QueueManipulator` lib with safe queue editing operations
+* `QueueTestHarness` - stress tests queue operations
+* `replaceTrackAt()`, `insertTrackAt()`, `removeTrackRange()` helpers
+* Documentation of RNTP queue manipulation limitations and workarounds
 
 **QA / DoD**
+* **Stress test**: 1000 queue manipulations during 30-min playback, no crashes
+* Queue manipulation during phone calls, app backgrounding, audio interruptions
+* Index tracking remains accurate across all operations
+* Remote controls work correctly after any queue modification
+* **Go/No-Go Decision**: If queue manipulation proves unreliable → pivot to alternative voice switching strategy
 
-* 10-minute loop soak on mid-tier Android with no clicks (in fallback).
-* 10 rapid bed switches in 30s → no artifacts/leaks.
-
-**Feature flags**
-
-* `FF_BED_DUAL_INSTANCE=true` (toggle on by device/setting).
+**Feature Flags & Kill Switches**
+* `FF_QUEUE_MANIPULATION=true` (disable if unreliable)
+* `FF_QUEUE_STRESS_TESTING=true`
 
 **Dependencies**
+* Phases 0–2 passed
 
-* Phases 0–2.
+**Timeline Estimate:** 2-3 weeks
 
 ---
 
-# Phase 4 — Instant Voice Switch (Audition & Rebind Tail)
+# Phase 4 — Voice Switching Strategy (Conservative Approach)
 
-**Goal:** Mid-session voice change is instant and predictable.
+**Goal:** Implement voice switching using the safest possible approach based on Phase 3 results.
 
-**Scope**
+**Core Assumptions to Test:**
+1. ✅ Voice variant preloading doesn't exceed memory limits (from Phase 2 analysis)
+2. ✅ Voice switching UI provides good UX even if not "instant"
+3. ✅ Queue rebuilding (if needed) works reliably during gaps
+4. ✅ Voice switching gracefully handles missing voice variants
+5. ✅ Debouncing prevents rapid switching from causing issues
 
-* **Voice-agnostic SessionPlan** retained; RNTP materialization updated **just-in-time**.
-* On switch:
+**Scope - Two Implementation Strategies:**
 
-  * If playing **affirmation**: replace current track with same affirmation in new voice, `skipToTrack(currentIndex)`, `play()`.
-  * If playing **gap**: skip gap, replace next affirmation with new voice, jump & play.
-  * **Rebind tail**: update URLs for next ~8 affirmation tracks; lazy update rest.
-* Debounce rapid toggles (150–250ms).
-* Optional: prefetch 1–2 upcoming items for hovered voice in voice picker.
+**Strategy A: If Phase 3 proves queue manipulation works reliably:**
+* **Real-time queue replacement**: Replace current + next 8 tracks with new voice
+* Debounce rapid toggles (200ms)
+* Graceful fallback if voice variant missing
+
+**Strategy B: If Phase 3 shows queue manipulation is unreliable:**
+* **Next-affirmation switching**: Voice change takes effect on next affirmation
+* **OR Queue rebuilding**: Rebuild entire queue during gaps only
+* Better UX messaging about when voice change takes effect
 
 **Deliverables**
-
-* `switchVoice(newVoiceId)` action in store implementing the above.
-* `rebindTailToVoice(fromIdx, voiceId, count=12)` helper.
+* `VoiceSwitchingStrategy` - implements chosen approach based on Phase 3 results
+* `VoiceVariantManager` - handles voice data preloading with memory constraints
+* `switchVoice(newVoiceId)` action with appropriate strategy
+* User feedback for voice switching status
 
 **Server**
-
-* Either include fast variant lookup in `/session/resolve` response for next chunk, or add `/audio-variant?affirmationId=&voiceId=` for fast signed URL minting.
+* No additional APIs needed - voice variants already available via `/playlists/:playlistId/manifestations`
 
 **QA / DoD**
+* **If Strategy A**: Switching during affirmation swaps instantly, no audio glitches
+* **If Strategy B**: Clear UX feedback about when voice change takes effect
+* Voice switching works reliably for 30+ switches in a session
+* Memory usage remains stable during voice switching
+* Missing voice variants handled gracefully
 
-* Switching during affirmation: **instant** swap; plays from start of same line.
-* Switching during gap: jumps to **next** affirmation in new voice.
-* Tail rebinding is smooth; no stutter.
-
-**Feature flags**
-
+**Feature Flags & Kill Switches**
 * `FF_VOICE_SWITCH=true`
+* `FF_VOICE_SWITCH_STRATEGY=A|B` (choose based on Phase 3)
+* `FF_VOICE_PRELOADING=true`
 
 **Dependencies**
+* Phases 0–3 passed (Phase 3 determines implementation strategy)
 
-* Phases 0–2 (3 optional).
+**Timeline Estimate:** 3-4 weeks
 
 ---
 
-# Phase 5 — Failure Policy & Polish
+# Phase 5 — Bed Hardening & Advanced Features
 
-**Goal:** Graceful degradation on repeated failures; UX polish; soak stability.
+**Goal:** Professional bed audio handling and failure resilience.
+
+**Core Assumptions to Test:**
+1. ✅ Dual-instance bed fallback works on problematic devices
+2. ✅ Bed crossfading doesn't cause audio artifacts
+3. ✅ Failure policy prevents user frustration without being overly aggressive
+4. ✅ Long-term memory and battery usage is acceptable
+5. ✅ Loop discontinuity detection works correctly
 
 **Scope**
-
-* **3-fail halt policy**: after 3 consecutive load failures → pause affirmations, keep bed playing, toast “Connection issue — Retry / Keep bed.”
-* Robust remote metadata updates (cover/title) per track.
-* Haptics on play/pause/skip; settings persistence; Recently Played hook on app start.
+* **Dual-instance ping-pong** fallback with **equal-power crossfade (400ms)**:
+  * Auto-detect loop discontinuity (>10–20ms) → enable fallback
+  * Device denylist support (force fallback on known models)
+* Bed change crossfade (old→new bed over 400ms)
+* **3-fail halt policy**: after 3 consecutive load failures → pause affirmations, keep bed playing
+* Robust remote metadata updates (cover/title) per track
+* Haptics on play/pause/skip; settings persistence
 
 **Deliverables**
-
-* Failure counters + reset logic.
-* “Retry / Keep bed” flow.
+* `BedPlayer` v2 with single/dual-instance auto-switching
+* Loop discontinuity detection and device denylist
+* Failure counter system with "Retry / Keep bed" flow
+* Battery and memory optimization
+* QA harness for bed soak testing
 
 **QA / DoD**
+* 10-minute loop soak on mid-tier Android with no clicks (in fallback mode)
+* 10 rapid bed switches in 30s → no artifacts/leaks
+* Simulate 5 bad URLs → halt after 3, flows work correctly
+* **2-hour soak test**: memory steady, battery within expectation
+* Loop discontinuity detection works on known problematic devices
 
-* Simulate 5 bad URLs → halt after 3, flows work.
-* 2-hour soak: memory steady, battery within expectation.
-
-**Feature flags**
-
+**Feature Flags & Kill Switches**
+* `FF_BED_DUAL_INSTANCE=true` (toggle by device/setting)
 * `FF_FAILURE_POLICY=true`
+* `FF_LOOP_DETECTION=true`
 
 **Dependencies**
+* Phases 0–4 passed
 
-* Phases 0–4.
+**Timeline Estimate:** 2-3 weeks
 
 ---
 
-## Cross-phase Assets & Contracts
+# Phase 6 — Production Readiness & Optimization
 
-**Types**
+**Goal:** Final polish and production deployment preparation.
+
+**Core Assumptions to Test:**
+1. ✅ All feature flags can be toggled safely in production
+2. ✅ Error reporting provides actionable insights
+3. ✅ Performance is acceptable across device range
+4. ✅ User experience is smooth and professional
+5. ✅ Rollback procedures work if issues arise
+
+**Scope**
+* Production error monitoring and reporting
+* Performance optimization based on real usage data
+* Final UX polish and accessibility improvements
+* Documentation for deployment and monitoring
+* Load testing with realistic user scenarios
+
+**Deliverables**
+* Production monitoring setup
+* Performance benchmarks and optimization
+* Accessibility compliance
+* Deployment runbook and rollback procedures
+* User acceptance testing completion
+
+**QA / DoD**
+* All automated tests pass consistently
+* Performance meets defined benchmarks
+* Accessibility audit passed
+* Production deployment pipeline tested
+* Rollback procedures validated
+
+**Feature Flags & Kill Switches**
+* All previous flags maintained for production safety
+
+**Dependencies**
+* Phases 0–5 passed
+
+**Timeline Estimate:** 2 weeks
+
+---
+
+## UPDATED: Cross-phase Assets & Contracts
+
+**Core Types**
 
 ```ts
 type SessionItem = { kind: 'affirmation'; affirmationId: string }
                  | { kind: 'gap'; seconds: number }
 
-type Variant = { url: string; durationSec: number; hash: string; lufs: number; sampleUrl?: string }
+type VoiceVariant = { 
+  url: string; 
+  durationSec: number; 
+  hash: string; 
+  lufs: number; 
+  voiceId: string;
+  fileSize?: number;
+}
+
+type QueueManipulationResult = { 
+  success: boolean; 
+  error?: string; 
+  recoveryAction?: string 
+}
 ```
 
-**Store (essentials)**
+**Store (essentials with error handling)**
 
 ```ts
 // persisted defaults: gap=5, shuffle=true, loop=true, volumes 0.8/0.5
@@ -606,63 +807,100 @@ isPlaying: boolean
 currentIndex: number
 shuffle: boolean
 loop: boolean
+memoryUsage: number                    // NEW: track memory consumption
+queueManipulationEnabled: boolean      // NEW: based on Phase 3 results
 
-play/pause/next/previous()
-setGap(n: number)           // rebuild tail only
-setVolumes(a: number, b: number)
-setBed(id: string)          // crossfade bed
-switchVoice(newVoiceId: string) // instant audition, rebind tail
+// Actions with error handling
+play(): Promise<QueueManipulationResult>
+pause(): Promise<QueueManipulationResult>
+next(): Promise<QueueManipulationResult>
+previous(): Promise<QueueManipulationResult>
+setGap(n: number): Promise<QueueManipulationResult>    // rebuild tail only
+setVolumes(a: number, b: number): void
+setBed(id: string): Promise<void>                      // crossfade bed
+switchVoice(newVoiceId: string): Promise<QueueManipulationResult>  // strategy-dependent
 ```
 
-**Queue Helpers**
+**Queue Helpers (with safety)**
 
 * `buildQueue(plan, voiceId)` → Track[]
-* `replaceTrackAt(index, track)`
-* `skipOverGaps(direction)`
-* `rebuildTailFrom(index, newGap)`
-* `rebindTailToVoice(fromIndex, voiceId, count=12)`
+* `safeReplaceTrackAt(index, track)` → QueueManipulationResult
+* `skipOverGaps(direction)` → QueueManipulationResult
+* `rebuildTailFrom(index, newGap)` → QueueManipulationResult
+* `rebindTailToVoice(fromIndex, voiceId, count)` → QueueManipulationResult
 
-**Prefetch**
+**Memory & Prefetch (conservative)**
 
-* Target **8** items / **~180s**, **concurrency=4**, protect current bed + next3.
+* Start with **3** items / **~60s**, **concurrency=2**
+* Expand based on Phase 2 memory analysis results
+* Protect current bed + next 2 (reduced from 3)
 
 **CDN/URLs**
 
-* Signed URL TTL ≥ **2–4h**.
-* On **403, not cached** → re-resolve; retry once → skip & log.
+* Signed URL TTL ≥ **2–4h**
+* On **403, not cached** → re-resolve; retry once → skip & log
 
 ---
 
-## QA Matrix (cumulative; run at end of each phase)
+## UPDATED: QA Matrix (cumulative; run at end of each phase)
 
-1. **Gap accuracy** (±100ms) across devices.
-2. **Loop soak** (10 min) + **rapid bed switch** test.
-3. **Voice switch** during affirmation & during gap.
-4. **Offline dip** mid-session; recovery on reconnect.
-5. **Consecutive failures** halt/continue behavior.
-6. **Lockscreen controls** & metadata correctness.
-7. **2-hour soak** (memory & battery).
-
----
-
-## Kill Switches / Rollback
-
-* `FF_BED_DUAL_INSTANCE` → disable fallback if it misbehaves (revert to single loop).
-* `FF_PREFETCH` → disable prefetch if it causes stalls.
-* `FF_VOICE_SWITCH` → revert to static voice per session if issues arise.
-* `FF_FAILURE_POLICY` → revert to simple skip-on-error if needed.
+1. **Dual-engine coexistence** (30-min soak without conflicts)
+2. **Gap accuracy** (±100ms) across devices
+3. **Queue manipulation reliability** (1000 operations without crashes)
+4. **Memory usage bounds** (document actual consumption vs limits)
+5. **Voice switching strategy effectiveness** (based on chosen implementation)
+6. **Loop soak** (10 min) + **rapid bed switch** test
+7. **Offline dip** mid-session; recovery on reconnect
+8. **Consecutive failures** halt/continue behavior
+9. **Lockscreen controls** & metadata correctness
+10. **2-hour soak** (memory & battery stable)
 
 ---
 
-## Open (non-blocking) after v1
+## UPDATED: Kill Switches / Rollback (Comprehensive)
 
-* **0s gap mode** with micro-crossfade between affirmations (200ms).
-* Weighted shuffle; per-affirmation personal gain.
-* Full “Download playlist” UX (pin/unpin).
-* User recordings (uploads + normalization).
-* Seasonal/dynamic bed packs.
+* `FF_DUAL_ENGINE=true` → **CRITICAL**: revert to single audio engine
+* `FF_QUEUE_MANIPULATION=true` → disable real-time queue editing
+* `FF_VOICE_SWITCH=true` → disable voice switching entirely
+* `FF_VOICE_SWITCH_STRATEGY=A|B` → choose implementation based on Phase 3
+* `FF_SQLITE_CACHE=true` → revert to in-memory cache
+* `FF_BED_DUAL_INSTANCE=true` → disable bed fallback
+* `FF_PREFETCH=true` → disable prefetching
+* `FF_MEMORY_MONITORING=true` → disable memory tracking
+* `FF_FAILURE_POLICY=true` → revert to simple skip-on-error
 
 ---
 
-This phased plan keeps you shipping value **every phase**, while derisking the known dragons (loop gaps, cache integrity, mid-session voice switching). Hand this to Claude and start with **Phase 0 → Phase 1**; each phase ends with a verifiable DoD so you don’t slide.
-s
+## CRITICAL SUCCESS METRICS (Gate Criteria)
+
+### Phase -1 Gate:
+- ✅ Dual engines play simultaneously for 30+ minutes without conflicts
+- ✅ Audio focus maintained during interruptions  
+- ✅ No crashes or memory leaks
+
+### Phase 3 Gate: 
+- ✅ 1000+ queue manipulations without crashes
+- ✅ Index tracking remains accurate
+- ✅ Decision: Queue manipulation viable or alternative needed
+
+### Phase 4 Gate:
+- ✅ Voice switching works reliably with chosen strategy
+- ✅ Memory usage within acceptable bounds
+- ✅ User experience meets quality standards
+
+---
+
+## Total Estimated Timeline: 16-22 weeks
+
+- Phase -1: 1 week (CRITICAL GATE)
+- Phase 0: 2 weeks  
+- Phase 1: 3 weeks
+- Phase 2: 3-4 weeks
+- Phase 3: 2-3 weeks (CRITICAL GATE)
+- Phase 4: 3-4 weeks
+- Phase 5: 2-3 weeks
+- Phase 6: 2 weeks
+
+**Risk Buffer**: Add 25% buffer for integration issues and unknown complexities.
+
+This revised plan acknowledges the **high technical risk** while providing **clear validation gates** to prevent building on unstable foundations. Each phase can be **safely abandoned or pivoted** if core assumptions prove false.
